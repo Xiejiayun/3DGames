@@ -32,6 +32,9 @@ jobs:
       - name: Install deployment tools
         run: npm ci
 
+      - name: Test CS scene regressions
+        run: npm test
+
       - name: Build static site
         run: npm run build
 

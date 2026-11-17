@@ -646,7 +646,7 @@ const skyMat = new THREE.ShaderMaterial({
         float r = hash(id);
         if (r > 0.965) {
           float tw = 0.6 + 0.4 * sin(uTime * (2.0 + r * 4.0) + r * 40.0);
-          float star = smoothstep(0.22, 0.02, length(gv)) * tw * uNight * smoothstep(0.03, 0.28, h);
+          float star = (1.0 - smoothstep(0.02, 0.22, length(gv))) * tw * uNight * smoothstep(0.03, 0.28, h);
           col += vec3(0.82, 0.9, 1.0) * star * 1.4;
         }
         vec3 moonDir = normalize(vec3(-uSun.x, abs(uSun.y) * 0.7 + 0.35, -uSun.z));
@@ -1774,7 +1774,8 @@ function updateAtmosphere(dt) {
   HORIZON.setRGB(h[0], h[1], h[2]);
   renderer.setClearColor(HORIZON);
   // Match the visible moon when the sun is below the horizon; never light terrain from underneath.
-  const lightDir = SUN_DIR.y >= 0 ? SUN_DIR : new THREE.Vector3(-SUN_DIR.x, Math.abs(SUN_DIR.y) * 0.7 + 0.35, -SUN_DIR.z).normalize();
+  const moonDir = new THREE.Vector3(-SUN_DIR.x, Math.abs(SUN_DIR.y) * 0.7 + 0.35, -SUN_DIR.z).normalize();
+  const lightDir = SUN_DIR.clone().lerp(moonDir, sstep(0.12, -0.02, SUN_DIR.y)).normalize();
   sun.position.copy(sun.target.position).addScaledVector(lightDir, 150);
   sun.color.setRGB(sc[0], sc[1], sc[2]);
   sun.intensity = sInt;

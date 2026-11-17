@@ -1436,6 +1436,7 @@ const I18N = {
     'msg.ownTab': 'Open this file in its own browser tab for full mouse capture',
     'msg.lockBlocked': 'Mouse capture was blocked — click Resume again',
     'msg.released': 'Mouse released',
+    'msg.graphicsLost': 'Graphics interrupted — waiting for WebGL to recover',
     'loot.cash': '+{v} cash', 'loot.ammo': 'Reserve ammo {v}', 'loot.ammoSold': 'Ammo full — sold for {v}', 'loot.armor': 'Armor plates +{v} AP',
     'shop.eyebrow': 'Supply cache · the fight is paused',
     'shop.title': 'Tactical Buy Menu', 'shop.balance': 'Balance',
@@ -1553,6 +1554,7 @@ const I18N = {
     'msg.ownTab': '请在独立的浏览器标签页中打开本文件，以便锁定鼠标',
     'msg.lockBlocked': '鼠标锁定被阻止 —— 请再次点击“继续游戏”',
     'msg.released': '鼠标已释放',
+    'msg.graphicsLost': '图形渲染已中断 —— 等待 WebGL 恢复',
     'loot.cash': '资金 +{v}', 'loot.ammo': '备用弹药 {v}', 'loot.ammoSold': '弹药已满 —— 折现 {v}', 'loot.armor': '护甲板 +{v}',
     'shop.eyebrow': '补给点 · 战斗已暂停',
     'shop.title': '战术购买菜单', 'shop.balance': '资金',
@@ -3139,7 +3141,7 @@ class PhysicsWorld {
   }
 
   _axis(b, axis, sign) {
-    const p = b.pos, r = b.radius, cols = this._query(p.x - r, p.z - r, p.x + r, p.z + r), E = this.EPS;
+    const p = b.pos, r = b.radius, cols = this._query(p.x - r, p.z - r, p.x + r, p.z + r).slice(), E = this.EPS;
     const allow = b.onGround ? b.step : b.airStep;
     for (let i = 0; i < cols.length; i++) {
       const c = cols[i];
@@ -3257,6 +3259,18 @@ class PhysicsWorld {
     return deepest > 0;
   }
 
+  walkableLink(a, b, radius = 0.42) {
+    const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.25));
+    let y = a.y;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps, x = lerp(a.x, b.x, t), z = lerp(a.z, b.z, t);
+      const floor = this.groundAt(x, z, radius, y + 0.55);
+      if (Math.abs(floor - y) > 0.55 || !this.bodyFree(x, floor, z, radius, 1.74)) return false;
+      y = floor;
+    }
+    return Math.abs(y - b.y) < 0.1;
+  }
+
   corridorClear(x0, z0, x1, z1, r, y = 0) {
     const cols = this._query(Math.min(x0, x1) - r, Math.min(z0, z1) - r, Math.max(x0, x1) + r, Math.max(z0, z1) + r);
     const dx = x1 - x0, dz = z1 - z0;
@@ -3318,10 +3332,10 @@ function distPointSeg(px, py, pz, ax, ay, az, bx, by, bz) {
 
 /* ───────────────────────────────── NavGraph ───────────────────────────────── */
 class NavGraph {
-  constructor(world, points, maxLink = 27, radius = 0.6) {
+  constructor(world, points, maxLink = 27, radius = 0.42) {
     this.world = world;
     this.radius = radius;
-    this.nodes = points.map((p, i) => ({ id: i, x: p[0], z: p[1], y: p[2] || 0, links: [] }));
+    this.nodes = points.map((p, i) => ({ id: i, x: p[0], z: p[1], y: world.groundAt(p[0], p[1], radius, (p[2] || 0) + 0.55), links: [] }));
     const N = this.nodes;
     for (let i = 0; i < N.length; i++) {
       for (let j = i + 1; j < N.length; j++) {
@@ -3329,9 +3343,8 @@ class NavGraph {
         if (dy > 2.8) continue;
         const d = Math.hypot(N[i].x - N[j].x, N[i].z - N[j].z);
         if (d > (dy > 0.5 ? 14 : maxLink)) continue;
-        // elevated links (ramps & roofs): use the higher node's floor or ramp clearance
-        const yCheck = Math.max(N[i].y, N[j].y);
-        if (!world.corridorClear(N[i].x, N[i].z, N[j].x, N[j].z, dy > 0.5 ? 0.35 : radius, dy > 0.5 ? Math.min(N[i].y, N[j].y) + 2.1 : yCheck)) continue;
+        // Check the supported route in both directions, including slope and headroom.
+        if (!world.walkableLink(N[i], N[j], radius) || !world.walkableLink(N[j], N[i], radius)) continue;
         const cost = d + dy * 1.4;
         N[i].links.push({ to: j, d: cost });
         N[j].links.push({ to: i, d: cost });
@@ -3438,7 +3451,7 @@ const NAV_POINTS = [
   [0.8, -13], [0.8, -2], [-3.6, 3.5], [-3.6, 12.5],
   [5.5, -9.24], [20.7, -9.24], [5.5, 2.02], [20.7, 2.02], [5.5, 13.8], [20.7, 13.8],
   // elevated ramp route up to the warehouse roof (south face)
-  [-39.8, 16.27, 0], [-30.8, 16.27, 2.6], [-25.6, 16.27, 2.6], [-18.8, 16.27, 5.2], [-12.5, 16.27, 7.8], [-12.5, 13.5, 7.8], [-14, 8, 7.8], [-28, 4, 7.8], [-28, -8, 7.8], [-14, -8, 7.8],
+  [-39.8, 16.27, 0], [-30.8, 16.27, 2.6], [-26, 16.27, 2.6], [-19.3, 16.27, 5.2], [-12.5, 16.27, 7.8], [-12.5, 13.5, 7.8], [-14, 8, 7.8], [-28, 4, 7.8], [-28, -8, 7.8], [-14, -8, 7.8],
 ];
 
 const PATROLS = [
@@ -3555,6 +3568,13 @@ class MapBuilder {
       post.position.set((len * i) / posts, 0.53, 0); post.castShadow = true; grp.add(post);
     }
     this.scene.add(grp);
+    for (const mesh of grp.children) this.meshCollider(mesh);
+  }
+
+  meshCollider(mesh, o = {}) {
+    mesh.updateWorldMatrix(true, false);
+    const b = new THREE.Box3().setFromObject(mesh);
+    return this.world.addBox(b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z, o);
   }
 
   sandbags(x, y, z, ry = 0, rows = 3) {
@@ -3575,6 +3595,7 @@ class MapBuilder {
       }
     }
     this.scene.add(grp);
+    for (const mesh of grp.children) this.meshCollider(mesh, { mat: 'sand', cover: true });
   }
 
   lightShaft(x, y, z, tx, ty, tz, color, rTop, rBot, opacity = 0.14) {
@@ -3684,7 +3705,8 @@ class MapBuilder {
     xs.forEach((x, i) => { d.position.set(x, 0.65, Y.maxZ - 0.3); d.rotation.set(0, 0, 0); d.updateMatrix(); bollards.setMatrixAt(i, d.matrix); W.addBox(x - 0.25, 0.34, Y.maxZ - 0.55, x + 0.25, 0.96, Y.maxZ - 0.05, { nav: false }); });
     bollards.castShadow = true; bollards.frustumCulled = false; this.scene.add(bollards);
     this.waterNormal = this.tf.waterNormal(); this.waterNormal.repeat.set(70, 40);
-    const water = new THREE.Mesh(new THREE.PlaneGeometry(1200, 600), new THREE.MeshStandardMaterial({ color: 0x06141f, roughness: 0.16, metalness: 0.55, normalMap: this.waterNormal, normalScale: new THREE.Vector2(0.55, 0.55) }));
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(1200, 600), new THREE.MeshStandardMaterial({ color: 0x0b2533, roughness: 0.4, metalness: 0.25, envMapIntensity: 0.14, normalMap: this.waterNormal, normalScale: new THREE.Vector2(0.22, 0.16) }));
+    this.water = water;
     water.rotation.x = -Math.PI / 2; water.position.set(0, CFG.waterY, Y.maxZ + 300); this.scene.add(water);
   }
 
@@ -3833,8 +3855,16 @@ class MapBuilder {
 
   vehicles() {
     const M = this.M, W = this.world, wheel = new THREE.CylinderGeometry(0.5, 0.5, 0.32, 16);
-    const addWheel = (x, y, z, s = 1) => { const w = new THREE.Mesh(wheel, M.rubber); w.rotation.x = Math.PI / 2; w.position.set(x, y, z); w.scale.set(s, 1, s); w.castShadow = true; this.scene.add(w); };
-    this.box(2.6, 2.5, 2.4, 20.9, 1.75, -30.5, M.truck); this.box(1.0, 1.0, 2.3, 19.9, 1.0, -30.5, M.truck);
+    const addWheel = (x, y, z, s = 1) => { const w = new THREE.Mesh(wheel, M.rubber); w.rotation.x = Math.PI / 2; w.position.set(x, y, z); w.scale.set(s, 1, s); w.castShadow = true; this.scene.add(w); this.meshCollider(w); };
+    const glass = new THREE.MeshStandardMaterial({ color: 0x25445a, roughness: 0.2, metalness: 0.35 });
+    this.box(2.6, 1.35, 2.4, 20.9, 1.175, -30.5, M.truck);
+    this.box(2.55, 1.1, 2.3, 20.9, 2.375, -30.5, glass);
+    this.box(2.7, 0.14, 2.5, 20.9, 2.96, -30.5, M.truck);
+    for (const x of [19.66, 22.14]) for (const z of [-31.64, -29.36]) this.box(0.13, 1.15, 0.13, x, 2.36, z, M.truck, { cast: false });
+    this.box(0.1, 0.4, 1.65, 19.55, 1.3, -30.5, M.darkSteel);
+    this.box(0.18, 0.2, 2.55, 19.49, 0.78, -30.5, M.steel);
+    for (const z of [-31.35, -29.65]) this.box(0.06, 0.24, 0.36, 19.49, 1.38, z, M.lampWarm, { cast: false, recv: false });
+    for (const z of [-31.84, -29.16]) { this.box(0.2, 0.45, 0.14, 19.9, 2.45, z, M.darkSteel, { cast: false }); this.box(1.25, 0.12, 0.2, 21.1, 0.55, z, M.steel); }
     this.box(0.06, 0.9, 2.0, 19.58, 2.3, -30.5, new THREE.MeshStandardMaterial({ color: 0x0a1118, roughness: 0.15, metalness: 0.6 }), { cast: false });
     this.box(13.4, 0.3, 2.4, 29, 1.25, -30.5, M.darkSteel); this.box(11, 0.5, 0.9, 29.4, 0.85, -30.5, M.darkSteel, { cast: false });
     for (const wx of [20.3, 24.2, 32.6, 34]) for (const wz of [-31.55, -29.45]) addWheel(wx, 0.5, wz);
@@ -3844,17 +3874,32 @@ class MapBuilder {
     this.box(0.18, 0.12, 0.3, 19.52, 1.05, -31.3, M.lampAmber, { cast: false, recv: false });
     this.box(0.18, 0.12, 0.3, 19.52, 1.05, -29.7, M.lampAmber, { cast: false, recv: false });
     this.box(1.3, 0.9, 2.2, -6.5, 0.85, 2.2, M.vehicle); this.box(1.2, 0.5, 0.9, -6.5, 1.45, 2.9, M.darkSteel);
-    for (const sx of [-0.55, 0.55]) { this.box(0.08, 1.3, 0.08, -6.5 + sx, 1.95, 1.5, M.darkSteel, { cast: false }); this.box(0.08, 1.3, 0.08, -6.5 + sx, 1.95, 2.7, M.darkSteel, { cast: false }); }
-    this.box(1.3, 0.07, 1.5, -6.5, 2.62, 2.1, M.darkSteel);
-    for (const sx of [-0.4, 0.4]) { this.box(0.1, 2.5, 0.12, -6.5 + sx, 1.3, 0.95, M.steel); this.box(0.12, 0.06, 1.1, -6.5 + sx, 0.18, 0.35, M.steel, { cast: false }); }
-    for (const wx of [-7.1, -5.9]) for (const wz of [1.4, 3.0]) { const w = new THREE.Mesh(wheel, M.rubber); w.rotation.z = Math.PI / 2; w.position.set(wx, 0.36, wz); w.scale.set(0.72, 0.8, 0.72); w.castShadow = true; this.scene.add(w); }
-    W.addBox(-7.2, 0, 0.7, -5.8, 2.1, 3.3, { cover: true, mapColor: '#c9951c' });
-    this.box(6, 1.3, 3, 24, 1.25, 29.5, M.vehicle); this.box(1.8, 1.5, 1.8, 25.6, 2.6, 29.5, M.darkSteel);
-    this.box(1.7, 0.9, 1.7, 25.6, 2.7, 29.5, new THREE.MeshStandardMaterial({ color: 0x101820, roughness: 0.2, metalness: 0.5 }), { cast: false });
+    for (const sx of [-0.55, 0.55]) { this.meshCollider(this.box(0.08, 1.3, 0.08, -6.5 + sx, 1.95, 1.5, M.darkSteel, { cast: false })); this.meshCollider(this.box(0.08, 1.3, 0.08, -6.5 + sx, 1.95, 2.7, M.darkSteel, { cast: false })); }
+    this.meshCollider(this.box(1.3, 0.07, 1.5, -6.5, 2.62, 2.1, M.darkSteel));
+    this.box(0.65, 0.18, 0.65, -6.5, 1.42, 2.3, M.rubber);
+    this.box(0.65, 0.65, 0.12, -6.5, 1.7, 2.62, M.rubber);
+    for (const sx of [-0.4, 0.4]) { this.meshCollider(this.box(0.1, 2.5, 0.12, -6.5 + sx, 1.3, 0.95, M.steel)); this.meshCollider(this.box(0.12, 0.06, 1.1, -6.5 + sx, 0.18, 0.35, M.steel, { cast: false })); }
+    for (const wx of [-7.1, -5.9]) for (const wz of [1.4, 3.0]) { const w = new THREE.Mesh(wheel, M.rubber); w.rotation.z = Math.PI / 2; w.position.set(wx, 0.36, wz); w.scale.set(0.72, 0.8, 0.72); w.castShadow = true; this.scene.add(w); this.meshCollider(w); }
+    W.addBox(-7.2, 0, 1.1, -5.8, 1.3, 3.3, { cover: true, mapColor: '#c9951c' });
+    this.box(6, 1.3, 3, 24, 1.25, 29.5, M.vehicle);
+    this.meshCollider(this.box(1.8, 1.5, 1.8, 25.6, 2.6, 29.5, glass));
+    this.meshCollider(this.box(1.96, 0.12, 1.96, 25.6, 3.39, 29.5, M.vehicle));
+    for (const x of [24.74, 26.46]) for (const z of [28.64, 30.36]) this.box(0.1, 1.5, 0.1, x, 2.6, z, M.darkSteel, { cast: false });
+    this.box(1.86, 0.14, 1.86, 25.6, 2.15, 29.5, M.vehicle);
     const boom = this.box(8.5, 0.7, 0.8, 21.4, 4.5, 29.5, M.vehicle); boom.rotation.z = -0.32;
-    this.box(0.5, 1.6, 2.7, 17.6, 5.3, 29.5, M.darkSteel);
+    // Short transformed boxes follow the boom without blocking the space below it.
+    boom.updateWorldMatrix(true, false);
+    for (let i = 0; i < 10; i++) {
+      const a = -4.25 + i * 0.85;
+      const b = new THREE.Box3(new THREE.Vector3(a, -0.35, -0.4), new THREE.Vector3(a + 0.85, 0.35, 0.4)).applyMatrix4(boom.matrixWorld);
+      W.addBox(b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z);
+    }
+    for (const z of [28.25, 30.75]) this.meshCollider(this.box(0.5, 1.4, 0.2, 17.6, 5.3, z, M.darkSteel));
+    for (const y of [4.6, 6]) this.meshCollider(this.box(0.5, 0.2, 2.7, 17.6, y, 29.5, M.darkSteel));
+    const piston = this.box(3.2, 0.16, 0.16, 23.1, 3.45, 29.5, M.steel); piston.rotation.z = 0.7;
+    for (const x of [21.8, 26.2]) for (const z of [27.9, 31.1]) this.box(0.5, 0.5, 0.09, x, 0.75, z, M.steel, { cast: false });
     for (const wx of [21.8, 26.2]) for (const wz of [28.1, 30.9]) addWheel(wx, 0.75, wz, 1.5);
-    W.addBox(21, 0, 28, 27, 2.6, 31, { cover: true, mapColor: '#c9951c' });
+    W.addBox(21, 0, 28, 27, 1.9, 31, { cover: true, mapColor: '#c9951c' });
     this.box(0.22, 0.2, 0.22, 25.6, 3.5, 29.5, M.lampAmber, { cast: false, recv: false });
     this.beaconSprite = this.glowSprite(25.6, 3.55, 29.5, 0xffa51f, 3.2, 0.8);
     this.solid(-56.5, 0, -40.5, 4.5, 3.2, 4.5, this.M.white, { phys: 'concrete', mapColor: '#aab2b9', cover: true });
@@ -3897,6 +3942,11 @@ class MapBuilder {
       const stay = this.box(0.3, 0.3, 46, cx, 39.4, 57, M.darkSteel, { cast: false }); stay.rotation.x = 0.25;
       const stayB = this.box(0.3, 0.3, 26, cx, 39.4, 22, M.darkSteel, { cast: false }); stayB.rotation.x = -0.42;
       this.box(2.6, 2.6, 3.2, cx + 2.6, 30, 50, M.white);
+      const cabGlass = new THREE.MeshStandardMaterial({ color: 0x304c60, roughness: 0.24, metalness: 0.2, emissive: 0x284858, emissiveIntensity: 0.25 });
+      this.box(2.24, 1.45, 0.025, cx + 2.6, 30.25, 48.385, cabGlass, { cast: false });
+      this.box(0.025, 1.45, 2.7, cx + 3.915, 30.25, 50, cabGlass, { cast: false });
+      this.box(0.1, 1.5, 0.05, cx + 2.6, 30.25, 48.36, M.steel, { cast: false });
+      this.box(2.85, 0.14, 3.45, cx + 2.6, 31.37, 50, M.roof);
       this.box(0.08, 12, 0.08, cx - 1, 25.4, 49, M.darkSteel, { cast: false }); this.box(0.08, 12, 0.08, cx + 1, 25.4, 49, M.darkSteel, { cast: false });
       this.box(0.08, 12, 0.08, cx - 1, 25.4, 54.5, M.darkSteel, { cast: false }); this.box(0.08, 12, 0.08, cx + 1, 25.4, 54.5, M.darkSteel, { cast: false });
       this.cont(cx, 51.75, 0, 40, 2, null, { baseY: 16.8, deco: true });
@@ -3917,6 +3967,19 @@ class MapBuilder {
     this.box(150, 10, 24, 14, 3.4, 66, M.hull, { cast: false });
     this.box(150, 3.2, 24.1, 14, -3.2, 66, M.hullRed, { cast: false });
     this.box(150.2, 0.5, 24.3, 14, 8.6, 66, M.white, { cast: false });
+    this.box(148, 0.16, 0.12, 14, 5.3, 53.94, M.steel, { cast: false });
+    const fenders = new THREE.InstancedMesh(this.geo(1.2, 3.2, 0.6), M.rubber, 12), dummy = new THREE.Object3D();
+    for (let i = 0; i < 12; i++) { dummy.position.set(-54 + i * 12, 2.6, 53.7); dummy.updateMatrix(); fenders.setMatrixAt(i, dummy.matrix); }
+    this.scene.add(fenders);
+    const marks = new THREE.InstancedMesh(this.geo(0.42, 0.12, 0.03), M.white, 18);
+    for (let i = 0; i < 18; i++) { dummy.position.set((i < 9 ? -58 : 82), -1 + (i % 9) * 0.48, 53.975); dummy.updateMatrix(); marks.setMatrixAt(i, dummy.matrix); }
+    this.scene.add(marks);
+    const name = new THREE.Mesh(new THREE.PlaneGeometry(14, 1.6), new THREE.MeshBasicMaterial({ map: tf.sign('NORDHAVN · 07', 768, 96, '#c2cbd1', '#141a22') }));
+    name.position.set(65, 6.7, 53.98); name.rotation.y = Math.PI; this.scene.add(name);
+    for (const [x0, x1] of [[-43.33, -50], [43.37, 55]]) {
+      const curve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(x0, 0.7, 41.7), new THREE.Vector3((x0 + x1) / 2, 0.8, 48), new THREE.Vector3(x1, 6.4, 53.7));
+      this.scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 16, 0.045, 5, false), M.plank));
+    }
     const bow = this.box(17, 13.2, 17, 89, 1.8, 66, M.hull, { cast: false }); bow.rotation.y = Math.PI / 4;
     const win = tf.windows(14, 9, 0.38, true);
     const sup = new THREE.Mesh(new THREE.BoxGeometry(13, 19, 21), new THREE.MeshStandardMaterial({ color: 0x9aa3ab, roughness: 0.8, emissive: 0xffffff, emissiveMap: win, emissiveIntensity: 0.85, map: win }));
@@ -3987,6 +4050,7 @@ class MapBuilder {
     im.instanceMatrix.needsUpdate = true; bm.instanceMatrix.needsUpdate = true;
     if (im.instanceColor) im.instanceColor.needsUpdate = true;
     if (bm.instanceColor) bm.instanceColor.needsUpdate = true;
+    this.game.renderer.shadowMap.needsUpdate = true;
   }
 
   hitDrum(d, dmg, foe) {
@@ -6729,7 +6793,8 @@ function buildEnvMap(renderer) {
     panel(0x7aa8d8, 3.2, 0, 12, 0, 18, 0.4, 18);
     panel(0xffb86c, 5.5, 9, 2.5, 4, 0.4, 2.2, 5.5);
     panel(0x1e2631, 1.2, 0, -4, 0, 34, 0.5, 34);
-    const tex = pm.fromScene(env, 0.035, 0.1, 100).texture;
+    const target = pm.fromScene(env, 0.035, 0.1, 100), tex = target.texture;
+    tex.userData.target = target;
     box.dispose(); for (const m of mats) m.dispose(); pm.dispose(); return tex;
   } catch (err) {
     try { if (pm) pm.dispose(); } catch (e2) { /* nothing to release */ }
@@ -6776,6 +6841,22 @@ class Game {
     this.vmScene.environment = this.envTex;
     this.warmUp(); this.ui.refreshMission(); this.ui.syncSettings(); this.ui.showcase.thumbs();
 
+    this.contextLost = false;
+    this.canvas.addEventListener('webglcontextlost', (event) => {
+      event.preventDefault(); this.contextLost = true; this.pendingPlay = false;
+      this.input.release(); this.pause(tr('msg.graphicsLost'));
+      if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+      document.getElementById('btn-deploy').disabled = true;
+      document.getElementById('boot-status').textContent = tr('msg.graphicsLost');
+    });
+    this.canvas.addEventListener('webglcontextrestored', () => {
+      // Render targets lose their pixels even though ordinary canvas textures recover.
+      if (this.envTex) this.envTex.userData.target.dispose();
+      this.envTex = null; this.contextLost = false; this.last = -1;
+      this.setQuality(Quality.pref); this.warmUp(); this.dirty = true;
+      document.getElementById('btn-deploy').disabled = false;
+      document.getElementById('boot-status').textContent = tr('boot.ready');
+    });
     this.perfT = 0; this.perfN = 0; this.perfCool = 3;
     window.addEventListener('resize', () => this.resize());
     this._frame = (now) => this.frame(now); requestAnimationFrame(this._frame);
@@ -6836,7 +6917,7 @@ class Game {
     this.ui.show('start'); this.ui.refreshStart(); this.ui.refreshMission(); this.dirty = true;
   }
 
-  enterPlay() { if (this.input.fallback) { this.beginPlay(); return; } this.pendingPlay = true; this.lock(); }
+  enterPlay() { if (this.contextLost) return; if (this.input.fallback) { this.beginPlay(); return; } this.pendingPlay = true; this.lock(); }
   beginPlay() {
     this.pendingPlay = false; this.state = 'playing'; this.input.release(); this.ui.hideOverlays(); this.sound.resume();
     if (this.bannerDue) { this.bannerDue = false; this.ui.banner(); this.sound.ui(1); }
@@ -6967,6 +7048,7 @@ class Game {
 
   frame(now) {
     requestAnimationFrame(this._frame);
+    if (this.contextLost) return;
     const cap = Quality.cfg().fpsCap;
     if (cap > 0 && this.last >= 0 && (now - this.last) < (1000 / cap) - 1) return;
     if (this.last < 0) this.last = now;
@@ -6985,7 +7067,9 @@ class Game {
   }
 
   render() {
-    const r = this.renderer; r.clear(); r.render(this.scene, this.camera);
+    const r = this.renderer;
+    if (r.getContext().isContextLost()) return;
+    r.clear(); r.render(this.scene, this.camera);
     if (this.state !== 'menu' && this.player.alive) { r.clearDepth(); r.render(this.vmScene, this.vmCamera); }
   }
 

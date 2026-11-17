@@ -47,6 +47,8 @@ jobs:
           name: kart-3d-screenshots
           path: ${{ runner.temp }}/kart-screenshots
           retention-days: 7
+      - name: Test CS scene regressions
+        run: npm test
 
       - name: Build static site
         run: npm run build

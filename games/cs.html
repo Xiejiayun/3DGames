@@ -2359,32 +2359,48 @@ class ModelKit {
 
   partsM4() {
     const S = partList(), P = partList(), G = partList(), mag = partList(), bolt = partList(), A = PAL;
+    // Upper & lower receiver + beveled magwell flare
     S.add(GK.profile([[-0.125, -0.008], [-0.125, 0.02], [-0.116, 0.034], [0.1, 0.034], [0.1, -0.012], [-0.125, -0.012]], 0.046, 0.0035), A.recv);
     S.add(GK.profile([[-0.125, -0.012], [0.1, -0.012], [0.1, -0.058], [0.046, -0.064], [0.04, -0.04], [-0.052, -0.04], [-0.06, -0.05], [-0.108, -0.05], [-0.125, -0.032]], 0.042, 0.0035), A.recv2);
-    S.add(GK.box(0.002, 0.016, 0.062), A.port, 0.0232, 0.008, -0.005);
-    S.add(GK.box(0.004, 0.006, 0.07), A.recv2, 0.024, -0.004, -0.005);
-    S.add(GK.cyl(0.0022, 0.0022, 0.068, 6), A.bolt, 0.0245, -0.001, -0.005);
-    S.add(GK.box(0.008, 0.014, 0.016), A.recv, 0.0255, 0.012, 0.04, 0, 0.5, 0);
+    S.add(GK.profile([[0.102, -0.054], [0.044, -0.06], [0.044, -0.066], [0.102, -0.06]], 0.046, 0.002), A.recv);
+    // Ejection port, dust cover + hinge pin, forward assist, brass deflector
+    S.add(GK.box(0.002, 0.016, 0.064), A.port, 0.0232, 0.008, -0.005);
+    S.add(GK.box(0.0035, 0.0055, 0.068), A.recv2, 0.0242, -0.004, -0.005);
+    S.add(GK.cyl(0.002, 0.002, 0.072, 6), A.bolt, 0.0246, -0.001, -0.005);
+    S.add(GK.box(0.009, 0.014, 0.016), A.recv, 0.0258, 0.012, 0.04, 0, 0.5, 0);
     S.add(GK.cyl(0.006, 0.006, 0.026, 10), A.recv2, 0.0285, 0.014, 0.088, 0, -0.55, 0);
-    S.add(GK.cyl(0.0072, 0.0072, 0.006, 10), A.bolt, 0.035, 0.014, 0.098, 0, -0.55, 0);
-    S.add(GK.box(0.004, 0.022, 0.012), A.rail, -0.0225, -0.004, -0.03);
+    S.add(GK.cyl(0.0074, 0.0074, 0.006, 10), A.bolt, 0.035, 0.014, 0.098, 0, -0.55, 0);
+    // Bolt catch paddle, mag release button, ambi fire selector, takedown pins
+    S.add(GK.box(0.0045, 0.024, 0.013), A.rail, -0.0226, -0.004, -0.03);
+    S.add(GK.box(0.0055, 0.008, 0.01), A.bolt, -0.0238, 0.005, -0.03);
+    S.add(GK.box(0.004, 0.01, 0.014), A.rail, 0.0228, -0.028, -0.035);
+    for (const fy of [-0.031, -0.028, -0.025]) S.add(GK.box(0.0046, 0.0016, 0.012), A.recv2, 0.0234, fy, -0.035);
     S.add(GK.box(0.0045, 0.007, 0.024), A.rail, -0.0225, -0.03, 0.06, 0.5, 0, 0);
     S.add(GK.box(0.0045, 0.007, 0.024), A.rail, 0.0225, -0.03, 0.06, 0.5, 0, 0);
     S.add(GK.box(0.003, 0.0025, 0.012), 0xd82820, 0.0245, -0.027, 0.064, 0.5, 0, 0);
-    S.add(GK.box(0.006, 0.01, 0.014), A.rail, 0.0235, -0.03, -0.035);
     S.add(GK.box(0.003, 0.004, 0.056), A.recv, 0.0228, -0.022, -0.035);
     S.add(GK.box(0.003, 0.028, 0.004), A.recv, 0.0228, -0.034, -0.009);
-    S.add(GK.cylX(0.0045, 0.048, 8), A.bolt, 0, -0.02, 0.105);
-    S.add(GK.cylX(0.0045, 0.048, 8), A.bolt, 0, -0.02, -0.085);
-    S.add(GK.profile([[0.04, -0.064], [0.04, -0.068], [-0.056, -0.074], [-0.056, -0.07]], 0.012, 0), A.recv2);
-    S.add(GK.box(0.006, 0.024, 0.007), A.barrel, 0, -0.052, 0.012, 0.35, 0, 0);
-    P.add(GK.profile([[-0.058, -0.048], [-0.106, -0.048], [-0.15, -0.142], [-0.11, -0.153], [-0.078, -0.072]], 0.032, 0.006), A.poly);
-    S.add(GK.cyl(0.0135, 0.0135, 0.19, 12), A.barrel, 0, 0.006, 0.22);
-    S.add(GK.cyl(0.0185, 0.0185, 0.014, 12), A.bolt, 0, 0.006, 0.132);
-    for (let k = 0; k < 4; k++) S.add(GK.box(0.04, 0.005, 0.006), A.recv2, 0, 0.006, 0.132, 0, 0, (k * Math.PI) / 4);
+    S.add(GK.cylX(0.0048, 0.049, 8), A.bolt, 0, -0.02, 0.105);
+    S.add(GK.cylX(0.0048, 0.049, 8), A.bolt, 0, -0.02, -0.085);
+    // Enhanced trigger guard & curved trigger
+    S.add(GK.profile([[0.04, -0.064], [0.036, -0.072], [-0.056, -0.075], [-0.058, -0.068], [-0.052, -0.068], [-0.05, -0.071], [0.033, -0.068], [0.036, -0.064]], 0.012, 0.001), A.recv2);
+    S.add(GK.profile([[0.012, -0.04], [0.006, -0.04], [0.002, -0.056], [0.009, -0.066], [0.014, -0.064], [0.008, -0.054]], 0.0055, 0.001), A.bolt);
+    // Ergonomic pistol grip with beavertail & finger-groove ribs
+    P.add(GK.profile([[-0.056, -0.046], [-0.112, -0.044], [-0.152, -0.142], [-0.11, -0.154], [-0.076, -0.072]], 0.032, 0.006), A.poly);
+    for (let i = 0; i < 4; i++) P.add(GK.box(0.026, 0.005, 0.008), A.rubber, 0, -0.074 - i * 0.017, 0.081 + i * 0.009, 0.4, 0, 0);
+    P.add(GK.box(0.03, 0.006, 0.044), A.recv2, 0, -0.148, 0.13, -0.25, 0, 0);
+    // Buffer tube, castle nut, QD end-plate & SOPMOD Crane stock
+    S.add(GK.cyl(0.014, 0.014, 0.19, 12), A.barrel, 0, 0.006, 0.22);
+    S.add(GK.cyl(0.019, 0.019, 0.014, 12), A.bolt, 0, 0.006, 0.132);
+    S.add(GK.box(0.034, 0.042, 0.005), A.recv2, 0, 0.002, 0.123);
+    for (let k = 0; k < 4; k++) S.add(GK.box(0.041, 0.005, 0.006), A.recv2, 0, 0.006, 0.132, 0, 0, (k * Math.PI) / 4);
     P.add(GK.profile([[-0.185, 0.03], [-0.35, 0.034], [-0.362, 0.02], [-0.365, -0.078], [-0.335, -0.088], [-0.3, -0.024], [-0.185, -0.014]], 0.038, 0.005), A.poly);
+    for (const sx of [-1, 1]) {
+      P.add(GK.cyl(0.013, 0.011, 0.155, 10), A.poly, sx * 0.02, 0.008, 0.275);
+      P.add(GK.cylX(0.007, 0.005, 10), A.bolt, sx * 0.02, -0.046, 0.325);
+    }
     P.add(GK.box(0.04, 0.112, 0.012), A.rubber, 0, -0.027, 0.368);
-    P.add(GK.box(0.012, 0.012, 0.05), A.hg, 0, -0.02, 0.24);
+    P.add(GK.box(0.014, 0.014, 0.056), A.hg, 0, -0.02, 0.24);
     // Ventilated M-LOK free-float handguard with slotted cutouts & inner barrel/gas tube visible
     const hgSlots = [];
     for (let i = 0; i < 5; i++) {
@@ -2393,8 +2409,8 @@ class ModelKit {
       hgSlots.push([[x0, -0.009], [x1, -0.009], [x1, 0.001], [x0, 0.001]]);
     }
     S.add(GK.profile([[0.1, -0.02], [0.405, -0.02], [0.405, 0.032], [0.1, 0.032]], 0.046, 0.003, hgSlots), A.hg);
-    S.add(GK.cyl(0.019, 0.019, 0.038, 12), A.recv2, 0, 0.006, -0.118);
-    for (const z of [-0.108, -0.128]) S.add(GK.cylY(0.003, 0.003, 0.044, 6), A.bolt, 0, -0.016, z, 0, 0, Math.PI / 2);
+    S.add(GK.cyl(0.0195, 0.0195, 0.038, 12), A.recv2, 0, 0.006, -0.118);
+    for (const z of [-0.108, -0.128]) S.add(GK.cylY(0.0032, 0.0032, 0.046, 6), A.bolt, 0, -0.016, z, 0, 0, Math.PI / 2);
     S.add(GK.cyl(0.0095, 0.0095, 0.34, 12), A.barrel, 0, 0.006, -0.27);
     S.add(GK.cyl(0.0028, 0.0028, 0.24, 8), A.bolt, 0, 0.021, -0.22);
     S.add(GK.box(0.018, 0.026, 0.028), A.recv2, 0, 0.012, -0.35);
@@ -2405,20 +2421,36 @@ class ModelKit {
       for (let f = 0.12; f < 0.39; f += 0.024) S.add(GK.box(0.0035, 0.015, 0.012), A.recv, sx * 0.028, 0.006, -f);
     }
     S.add(GK.box(0.021, 0.006, 0.28), A.rail, 0, -0.023, -0.25);
-    P.add(GK.box(0.024, 0.028, 0.075), A.poly, 0, -0.038, -0.22);
-    // Barrel extension + Tactical Suppressor (Silencer) with machined grooves
+    // Ergonomic angled-vertical foregrip with mounting clamp & grip ribs
+    P.add(GK.box(0.028, 0.012, 0.048), A.rail, 0, -0.028, -0.22);
+    P.add(GK.cylX(0.0035, 0.032, 8), A.bolt, 0, -0.028, -0.22);
+    P.add(GK.profile([[0.198, -0.032], [0.242, -0.032], [0.236, -0.072], [0.204, -0.072]], 0.026, 0.004), A.poly);
+    for (let gy = -0.042; gy >= -0.064; gy -= 0.007) P.add(GK.box(0.027, 0.0026, 0.032), A.rubber, 0, gy, -0.22);
+    P.add(GK.box(0.028, 0.005, 0.036), A.recv2, 0, -0.073, -0.22);
+    // Barrel extension + Tactical Suppressor (Silencer) with knurled QD collar & dark muzzle bore
     S.add(GK.cyl(0.0088, 0.0088, 0.055, 12), A.barrel, 0, 0.006, -0.425);
     S.add(GK.cyl(0.0175, 0.0175, 0.155, 16), A.recv2, 0, 0.006, -0.525);
-    S.add(GK.cyl(0.0155, 0.0175, 0.016, 16), A.rail, 0, 0.006, -0.442);
+    S.add(GK.cyl(0.0155, 0.0195, 0.018, 16), A.rail, 0, 0.006, -0.442);
+    for (let k = 0; k < 6; k++) S.add(GK.box(0.041, 0.0035, 0.012), A.recv, 0, 0.006, -0.442, 0, 0, (k * Math.PI) / 6);
     for (const f of [0.462, 0.478, 0.494, 0.575, 0.59]) S.add(GK.cyl(0.0183, 0.0183, 0.006, 16), A.recv, 0, 0.006, -f);
     S.add(GK.cyl(0.0165, 0.0165, 0.006, 16), A.port, 0, 0.006, -0.603);
-    // Charging handle + folding rear sight
-    S.add(GK.box(0.052, 0.007, 0.018), A.rail, 0, 0.0235, 0.128);
-    S.add(GK.box(0.022, 0.009, 0.026), A.rail, 0, 0.044, 0.098);
-    // EOTech EXPS3 Holographic Sight (rectangular armored hood + base + controls)
+    S.add(GK.cyl(0.0065, 0.0065, 0.008, 12), A.port, 0, 0.006, -0.605);
+    // T-handle charging handle + folding front/rear BUIS iron sights
+    S.add(GK.box(0.056, 0.007, 0.016), A.rail, 0, 0.024, 0.128);
+    S.add(GK.box(0.018, 0.009, 0.012), A.bolt, -0.022, 0.024, 0.124);
+    S.add(GK.box(0.024, 0.009, 0.028), A.rail, 0, 0.045, 0.098);
+    S.add(GK.box(0.018, 0.005, 0.022), A.recv2, 0, 0.051, 0.094);
+    S.add(GK.cylX(0.0045, 0.032, 8), A.bolt, 0, 0.046, 0.098);
+    S.add(GK.box(0.022, 0.008, 0.024), A.rail, 0, 0.045, -0.388);
+    S.add(GK.box(0.014, 0.005, 0.018), A.recv2, 0, 0.05, -0.386);
+    // EOTech EXPS3 Holographic Sight (armored hood, QD lever, battery cap, buttons, inner bezel)
     S.add(GK.box(0.034, 0.016, 0.064), A.optic, 0, 0.048, -0.005);
-    S.add(GK.box(0.004, 0.008, 0.034), A.bolt, -0.019, 0.048, -0.005);
+    S.add(GK.box(0.006, 0.01, 0.034), A.bolt, -0.02, 0.048, -0.005);
+    S.add(GK.box(0.004, 0.006, 0.018), A.recv2, -0.022, 0.048, 0.006, 0, -0.15, 0);
     S.add(GK.cylX(0.005, 0.04, 10), A.rail, 0, 0.046, 0.012);
+    S.add(GK.cyl(0.0075, 0.0075, 0.028, 10), A.optic, 0.022, 0.054, -0.026);
+    S.add(GK.cyl(0.0082, 0.0082, 0.006, 10), A.bolt, 0.022, 0.054, -0.011);
+    for (const bx of [-0.007, 0.007]) P.add(GK.box(0.008, 0.005, 0.008), A.rubber, bx, 0.055, 0.026);
     const eoOuter = [[-0.031, 0.055], [0.031, 0.055], [0.031, 0.096], [0.022, 0.108], [-0.022, 0.108], [-0.031, 0.096]];
     const eoInner = [[-0.025, 0.061], [0.025, 0.061], [0.025, 0.093], [0.018, 0.102], [-0.018, 0.102], [-0.025, 0.093]];
     const eoSh = new THREE.Shape();
@@ -2429,18 +2461,30 @@ class ModelKit {
     const eoHood = new THREE.ExtrudeGeometry(eoSh, { depth: 0.058, bevelEnabled: true, bevelThickness: 0.002, bevelSize: 0.002, bevelOffset: -0.002, bevelSegments: 1, steps: 1 });
     eoHood.translate(0, 0, -0.034);
     S.add(eoHood, A.optic);
-    // AN/PEQ-15 Tactical Laser Box on front rail
-    P.add(GK.box(0.036, 0.02, 0.076), A.tan, 0, 0.051, -0.33);
-    P.add(GK.cylY(0.006, 0.006, 0.009, 8), A.poly, 0.008, 0.065, -0.31);
-    P.add(GK.box(0.012, 0.003, 0.018), 0x2b6cb0, -0.008, 0.062, -0.325);
-    P.add(GK.cyl(0.0055, 0.0055, 0.008, 8), A.port, -0.009, 0.052, -0.37);
-    P.add(GK.cyl(0.0045, 0.0045, 0.008, 8), A.port, 0.009, 0.052, -0.37);
+    // AN/PEQ-15 Tactical Laser Box (contoured body, emitter bezels, mode dial, pressure switch + cable)
+    P.add(GK.profile([[0.292, 0.042], [0.368, 0.042], [0.368, 0.059], [0.354, 0.063], [0.306, 0.063], [0.292, 0.058]], 0.038, 0.0025), A.tan);
+    P.add(GK.box(0.042, 0.008, 0.026), A.recv2, 0, 0.045, -0.326);
+    P.add(GK.cylY(0.007, 0.007, 0.008, 10), A.poly, 0.009, 0.066, -0.312);
+    P.add(GK.box(0.012, 0.003, 0.018), 0x2b6cb0, -0.009, 0.0635, -0.326);
+    P.add(GK.cyl(0.0068, 0.0068, 0.008, 10), A.recv2, -0.01, 0.052, -0.37);
+    P.add(GK.cyl(0.0042, 0.0042, 0.009, 10), 0x6a1518, -0.01, 0.052, -0.371);
+    P.add(GK.cyl(0.0058, 0.0058, 0.008, 10), A.recv2, 0.01, 0.052, -0.37);
+    P.add(GK.cyl(0.0035, 0.0035, 0.009, 10), A.port, 0.01, 0.052, -0.371);
+    P.add(GK.cyl(0.0035, 0.0035, 0.006, 8), A.bolt, 0, 0.053, -0.34);
+    P.add(GK.box(0.024, 0.005, 0.056), A.rubber, 0, 0.045, -0.22);
+    P.add(GK.cyl(0.0018, 0.0018, 0.052, 6), A.rubber, 0.013, 0.044, -0.268, 0, 0.14, 0);
     G.add(new THREE.PlaneGeometry(0.046, 0.038), 0xffffff, 0, 0.082, 0.021);
     G.add(new THREE.PlaneGeometry(0.046, 0.038), 0xffffff, 0, 0.082, -0.031);
+    // PMAG magazine with cartridge window (brass rounds visible) & ranger pull-tab
     mag.add(GK.profile([[0.094, -0.036], [0.048, -0.036], [0.043, -0.12], [0.052, -0.212], [0.106, -0.206], [0.093, -0.12]], 0.023, 0.002), A.mag);
-    mag.add(GK.box(0.026, 0.006, 0.06), A.recv2, 0, -0.212, -0.079, -0.11, 0, 0);
-    for (const fy of [-0.09, -0.125, -0.16]) mag.add(GK.box(0.0245, 0.003, 0.046), A.recv2, 0, fy, -0.07 - (fy + 0.09) * -0.06);
-    bolt.add(GK.box(0.003, 0.012, 0.05), A.bolt, 0.0242, 0.008, 0);
+    mag.add(GK.box(0.0242, 0.056, 0.018), A.port, 0, -0.135, -0.072, -0.1, 0, 0);
+    for (let r = 0; r < 4; r++) mag.add(GK.cylX(0.0042, 0.0246, 8), A.brass, 0, -0.115 - r * 0.012, -0.07 - r * 0.0012);
+    mag.add(GK.box(0.027, 0.007, 0.062), A.recv2, 0, -0.212, -0.079, -0.11, 0, 0);
+    mag.add(GK.torus(0.012, 0.0025, 6, 12), A.rubber, 0, -0.224, -0.078, 0, Math.PI / 2, 0);
+    for (const fy of [-0.085, -0.115, -0.145, -0.175]) mag.add(GK.box(0.0248, 0.003, 0.046), A.recv2, 0, fy, -0.07 - (fy + 0.09) * -0.06);
+    // Machined bolt carrier with gas key & extraction serrations
+    bolt.add(GK.box(0.0032, 0.013, 0.052), A.bolt, 0.0242, 0.008, 0);
+    bolt.add(GK.box(0.0036, 0.005, 0.014), A.recv2, 0.0244, 0.008, -0.012);
     const m4D = partList(), eoD = partList();
     m4D.add(new THREE.PlaneGeometry(0.088, 0.044), 0xffffff, 0.0222, -0.032, 0.022, 0, Math.PI / 2, 0);
     m4D.add(new THREE.PlaneGeometry(0.088, 0.044), 0xffffff, -0.0222, -0.032, 0.022, 0, -Math.PI / 2, 0);
@@ -2455,40 +2499,54 @@ class ModelKit {
 
   partsAK() {
     const S = partList(), W = partList(), mag = partList(), bolt = partList(), A = PAL;
+    // Stamped steel receiver + trunnion rivets + ribbed dust cover
     S.add(GK.profile([[-0.13, -0.03], [-0.13, 0.01], [0.105, 0.01], [0.105, -0.03]], 0.034, 0.002), A.akSteel);
+    for (const z of [0.105, 0.116, -0.092, -0.106]) S.add(GK.cylX(0.0026, 0.0365, 6), A.bolt, 0, -0.008, z);
     S.add(GK.bar([[-0.0165, 0.01], [-0.0165, 0.022], [-0.012, 0.031], [0, 0.035], [0.012, 0.031], [0.0165, 0.022], [0.0165, 0.01]], 0.21), A.recv2, 0, 0, 0.125);
-    for (const f of [-0.08, -0.02, 0.04]) S.add(GK.box(0.03, 0.004, 0.008), A.akSteel, 0, 0.0335, -f);
+    for (const f of [-0.08, -0.04, 0.0, 0.04, 0.08]) S.add(GK.box(0.029, 0.0045, 0.007), A.akSteel, 0, 0.0338, -f);
     S.add(GK.box(0.036, 0.046, 0.03), A.akSteel, 0, -0.008, 0.134);
+    // Wooden stock with steel buttplate + sling swivel
     W.add(GK.profile([[-0.14, 0.006], [-0.38, -0.018], [-0.392, -0.03], [-0.392, -0.118], [-0.372, -0.124], [-0.14, -0.034]], 0.034, 0.007), A.wood);
     S.add(GK.box(0.036, 0.1, 0.006), A.akSteel, 0, -0.074, 0.395);
+    S.add(GK.torus(0.008, 0.0018, 6, 12), A.akSteel, 0, -0.112, 0.34, 0, Math.PI / 2, 0);
+    // Textured pistol grip + trigger guard + curved trigger
     W.add(GK.profile([[-0.04, -0.03], [-0.086, -0.03], [-0.128, -0.126], [-0.094, -0.138], [-0.062, -0.062]], 0.03, 0.006), A.woodDark);
+    S.add(GK.box(0.031, 0.005, 0.034), A.akSteel, 0, -0.132, 0.11, -0.25, 0, 0);
     S.add(GK.profile([[0.036, -0.03], [0.036, -0.034], [0.018, -0.068], [-0.04, -0.07], [-0.04, -0.066], [0.014, -0.064], [0.03, -0.034]], 0.012, 0), A.akSteel);
-    S.add(GK.box(0.005, 0.024, 0.006), A.barrel, 0, -0.046, 0.008, 0.4, 0, 0);
+    S.add(GK.profile([[0.006, -0.034], [0.001, -0.034], [-0.002, -0.05], [0.005, -0.06], [0.01, -0.058], [0.004, -0.048]], 0.005, 0.001), A.barrel);
     S.add(GK.box(0.012, 0.03, 0.006), A.akSteel, 0, -0.05, -0.034, -0.3, 0, 0);
+    // Rear tangent sight block + slider
     S.add(GK.box(0.034, 0.03, 0.05), A.akSteel, 0, 0.024, -0.11);
     S.add(GK.box(0.012, 0.004, 0.062), A.barrel, 0, 0.042, -0.136, 0.05, 0, 0);
+    S.add(GK.box(0.016, 0.006, 0.012), A.bolt, 0, 0.044, -0.136);
     for (const sx of [-1, 1]) S.add(GK.box(0.0055, 0.012, 0.003), A.barrel, sx * 0.0058, 0.052, -0.108);
     S.add(GK.box(0.017, 0.006, 0.003), A.barrel, 0, 0.0465, -0.108);
+    // Wooden handguard + ferrule + gas tube + front sight hood + slant muzzle brake with bore
     W.add(GK.profile([[0.135, -0.03], [0.285, -0.024], [0.285, 0.006], [0.135, 0.006]], 0.04, 0.008), A.wood);
     W.add(GK.cyl(0.016, 0.016, 0.13, 12), A.wood, 0, 0.024, -0.2, 0, 0, 0, 1, 0.9, 1);
+    S.add(GK.box(0.042, 0.036, 0.012), A.akSteel, 0, -0.012, -0.282);
     S.add(GK.cyl(0.0085, 0.0085, 0.034, 10), A.akSteel, 0, 0.026, -0.282);
     S.add(GK.cyl(0.0085, 0.0085, 0.022, 10), A.akSteel, 0, 0.026, -0.128);
     S.add(GK.profile([[0.285, -0.002], [0.325, -0.002], [0.318, 0.036], [0.29, 0.036]], 0.02, 0.001), A.akSteel);
     S.add(GK.cyl(0.0078, 0.0078, 0.345, 12), A.barrel, 0, -0.004, -0.3075);
     S.add(GK.profile([[0.405, 0.002], [0.44, 0.002], [0.432, 0.048], [0.416, 0.048]], 0.012, 0.001), A.akSteel);
-    for (const sx of [-1, 1]) S.add(GK.box(0.002, 0.016, 0.014), A.akSteel, sx * 0.0075, 0.054, -0.424, 0, 0, sx * -0.25);
+    for (const sx of [-1, 1]) S.add(GK.box(0.0022, 0.016, 0.014), A.akSteel, sx * 0.0075, 0.054, -0.424, 0, 0, sx * -0.25);
     S.add(GK.box(0.003, 0.012, 0.003), A.barrel, 0, 0.052, -0.424);
     S.add(GK.cyl(0.011, 0.011, 0.03, 10), A.akSteel, 0, -0.004, -0.49);
     S.add(GK.box(0.02, 0.008, 0.012), A.akSteel, 0, 0.004, -0.503, 0.6, 0, 0);
+    S.add(GK.cyl(0.0055, 0.0055, 0.008, 10), A.port, 0, -0.004, -0.506);
     S.add(GK.cyl(0.0025, 0.0025, 0.19, 6), A.barrel, 0, -0.017, -0.38);
-    S.add(GK.box(0.002, 0.012, 0.1), A.recv2, 0.0183, -0.006, 0.03, 0.08, 0, 0);
+    // Selector lever, ejection port, receiver pins
+    S.add(GK.box(0.0025, 0.012, 0.1), A.recv2, 0.0183, -0.006, 0.03, 0.08, 0, 0);
     S.add(GK.box(0.008, 0.008, 0.012), A.recv2, 0.021, -0.012, -0.018);
     S.add(GK.box(0.002, 0.014, 0.078), A.port, 0.0172, 0.003, -0.02);
     S.add(GK.cylX(0.0035, 0.036, 8), A.barrel, 0, -0.02, -0.09);
     S.add(GK.cylX(0.0035, 0.036, 8), A.barrel, 0, -0.02, 0.1);
+    // Curved steel AK magazine with reinforcing ribs & locking lug
     mag.add(GK.profile([[0.088, -0.03], [0.1, -0.09], [0.126, -0.15], [0.16, -0.196], [0.12, -0.226], [0.086, -0.172], [0.056, -0.11], [0.04, -0.05], [0.036, -0.03]], 0.026, 0.003), A.akMag);
     mag.add(GK.box(0.0275, 0.004, 0.05), A.akSteel, 0, -0.1, -0.082, -0.42, 0, 0);
     mag.add(GK.box(0.0275, 0.004, 0.05), A.akSteel, 0, -0.16, -0.116, -0.75, 0, 0);
+    mag.add(GK.box(0.028, 0.006, 0.052), A.recv2, 0, -0.21, -0.14, -0.68, 0, 0);
     bolt.add(GK.box(0.003, 0.014, 0.07), A.bolt, 0.0178, 0.003, -0.02);
     bolt.add(GK.cylX(0.005, 0.03, 8), A.bolt, 0.032, 0.003, -0.045);
     return {
@@ -2500,22 +2558,31 @@ class ModelKit {
 
   partsSniper() {
     const S = partList(), P = partList(), L = partList(), mag = partList(), bolt = partList(), A = PAL;
+    // Heavy octagonal/faceted receiver + picatinny rail with teeth
     S.add(GK.cyl(0.021, 0.021, 0.25, 8), A.barrel, 0, 0.012, -0.045);
+    S.add(GK.box(0.022, 0.006, 0.24), A.rail, 0, 0.036, -0.045);
+    for (let f = -0.065; f < 0.155; f += 0.012) S.add(GK.box(0.0235, 0.004, 0.006), A.recv, 0, 0.04, -f);
+    // Chassis + thumbhole stock + adjustable cheek riser + rubber buttpad
     P.add(GK.profile([[-0.08, -0.012], [0.44, -0.012], [0.44, -0.038], [0.36, -0.052], [0.02, -0.055], [-0.08, -0.05]], 0.052, 0.006), A.od);
     P.add(GK.profile(
       [[-0.08, 0.03], [-0.4, 0.03], [-0.43, 0.02], [-0.43, -0.115], [-0.4, -0.125], [-0.3, -0.105], [-0.21, -0.152], [-0.168, -0.15], [-0.11, -0.05], [-0.08, -0.05]],
       0.046, 0.006, [[[-0.148, -0.028], [-0.245, -0.028], [-0.278, -0.076], [-0.215, -0.088], [-0.172, -0.062]]]), A.od);
     P.add(GK.box(0.04, 0.022, 0.15), A.odDark, 0, 0.041, 0.27);
+    for (const z of [0.22, 0.32]) S.add(GK.cylY(0.004, 0.004, 0.024, 8), A.bolt, 0, 0.026, z);
     P.add(GK.box(0.048, 0.14, 0.02), A.rubber, 0, -0.047, 0.44);
+    // Fluted heavy barrel + multi-baffle muzzle brake with dark bore
     S.add(GK.cyl(0.0145, 0.012, 0.63, 12), A.barrel, 0, 0.012, -0.485);
     for (let k = 0; k < 4; k++) S.add(GK.box(0.003, 0.003, 0.42), A.port, 0, 0.012, -0.46, 0, 0, 0.4 + (k * Math.PI) / 2);
     S.add(GK.box(0.046, 0.03, 0.085), A.recv2, 0, 0.012, -0.845);
     for (const f of [0.815, 0.845, 0.875]) S.add(GK.box(0.05, 0.014, 0.014), A.port, 0, 0.012, -f);
+    S.add(GK.cyl(0.0072, 0.0072, 0.012, 12), A.port, 0, 0.012, -0.888);
+    // Trigger guard, curved trigger, fluted bolt handle
     S.add(GK.profile([[0.02, -0.055], [0.02, -0.06], [-0.06, -0.085], [-0.1, -0.08], [-0.1, -0.075], [-0.06, -0.079]], 0.012, 0), A.barrel);
     S.add(GK.box(0.005, 0.024, 0.006), A.rail, 0, -0.062, 0.03, 0.3, 0, 0);
     S.add(GK.cylX(0.006, 0.052, 8), A.rail, 0.042, 0.004, 0.045, 0, 0, -0.45);
-    S.add(GK.sphere(0.012, 10, 8), A.poly, 0.066, -0.01, 0.045);
-    S.add(GK.box(0.022, 0.008, 0.24), A.rail, 0, 0.036, -0.045);
+    S.add(GK.sphere(0.0125, 10, 8), A.poly, 0.066, -0.01, 0.045);
+    S.add(GK.cyl(0.0132, 0.0132, 0.004, 10), A.bolt, 0.066, -0.01, 0.045);
+    // High-magnification tactical scope with sunshade, diopter ring, knurled turrets & heavy rings
     S.add(GK.cyl(0.017, 0.017, 0.36, 16), A.optic, 0, 0.078, -0.06);
     S.add(GK.cyl(0.019, 0.03, 0.09, 16), A.optic, 0, 0.078, -0.285);
     S.add(GK.tube(0.0305, 0.0275, 0.06, 16), A.optic, 0, 0.078, -0.36);
@@ -2523,15 +2590,24 @@ class ModelKit {
     S.add(GK.cyl(0.0255, 0.0255, 0.022, 16), A.rubber, 0, 0.078, 0.2);
     S.add(GK.box(0.03, 0.03, 0.036), A.optic, 0, 0.078, -0.05);
     S.add(GK.cylY(0.012, 0.012, 0.022, 12), A.optic, 0, 0.104, -0.05);
+    S.add(GK.cylY(0.0128, 0.0128, 0.006, 12), A.bolt, 0, 0.114, -0.05);
     S.add(GK.cylX(0.011, 0.022, 12), A.optic, 0.026, 0.078, -0.05);
     S.add(GK.cylX(0.011, 0.018, 12), A.optic, -0.024, 0.078, -0.05);
+    S.add(GK.cylX(0.0118, 0.005, 12), A.bolt, -0.033, 0.078, -0.05);
     for (const f of [-0.03, 0.135]) { S.add(GK.tube(0.021, 0.0172, 0.014, 14), A.rail, 0, 0.078, -f); S.add(GK.box(0.02, 0.024, 0.014), A.rail, 0, 0.05, -f); }
     L.add(new THREE.CircleGeometry(0.0272, 18), 0xffffff, 0, 0.078, -0.34, 0, Math.PI, 0);
     L.add(new THREE.CircleGeometry(0.0185, 14), 0xffffff, 0, 0.078, 0.19);
-    for (const sx of [-1, 1]) { const b = GK.limb([sx * 0.022, -0.045, -0.4], [sx * 0.034, -0.058, -0.63], 0.005, 0.005, A.barrel, 6); S.push(b); }
+    // Folding bipod with rubberized feet & mount
+    for (const sx of [-1, 1]) {
+      const b = GK.limb([sx * 0.022, -0.045, -0.4], [sx * 0.034, -0.058, -0.63], 0.005, 0.005, A.barrel, 6);
+      S.push(b);
+      S.add(GK.cyl(0.009, 0.007, 0.022, 8), A.rubber, sx * 0.034, -0.059, -0.638);
+    }
     S.add(GK.box(0.05, 0.014, 0.03), A.rail, 0, -0.045, -0.405);
+    // Box magazine with side ribs & floorplate
     mag.add(GK.box(0.036, 0.085, 0.105), A.mag, 0, -0.092, -0.075);
-    mag.add(GK.box(0.038, 0.006, 0.108), A.recv2, 0, -0.136, -0.075);
+    for (const mz of [-0.045, -0.105]) mag.add(GK.box(0.038, 0.065, 0.006), A.recv2, 0, -0.09, mz);
+    mag.add(GK.box(0.039, 0.007, 0.11), A.recv2, 0, -0.136, -0.075);
     bolt.add(GK.box(0.003, 0.012, 0.07), A.bolt, 0.0215, 0.016, -0.02);
     return {
       id: 'sniper', groups: { steel: S, poly: P, lens: L }, mag, bolt, boltTravel: 0.05, magDrop: [0, -0.3, 0.02],
@@ -2543,22 +2619,33 @@ class ModelKit {
   /* ───── P226 tactical sidearm ───── */
   partsPistol() {
     const S = partList(), P = partList(), mag = partList(), bolt = partList(), A = PAL;
-    // frame + rail + trigger guard + grip
+    // Frame + picatinny rail teeth + trigger guard + contoured grip panels
     P.add(GK.profile([[-0.03, -0.012], [0.13, -0.012], [0.13, -0.028], [0.04, -0.028], [0.02, -0.058], [-0.03, -0.058]], 0.026, 0.002), A.poly);
     P.add(GK.profile([[-0.015, -0.026], [-0.058, -0.026], [-0.088, -0.128], [-0.05, -0.136], [-0.025, -0.056]], 0.028, 0.005), A.poly);
+    for (let i = 0; i < 3; i++) P.add(GK.box(0.026, 0.004, 0.008), A.rubber, 0, -0.068 - i * 0.016, 0.036 + i * 0.006, 0.3, 0, 0);
     P.add(GK.profile([[0.045, -0.028], [0.045, -0.062], [-0.018, -0.062], [-0.018, -0.058], [0.04, -0.058], [0.04, -0.028]], 0.01, 0), A.poly);
     S.add(GK.box(0.005, 0.02, 0.006), A.barrel, 0, -0.044, -0.012, 0.3, 0, 0);
     S.add(GK.box(0.022, 0.006, 0.052), A.rail, 0, -0.031, -0.102);
-    // barrel + chamber
+    for (let f = 0.082; f <= 0.122; f += 0.01) S.add(GK.box(0.023, 0.003, 0.004), A.recv, 0, -0.0345, -f);
+    // Left-side decocker, slide stop & takedown lever + hammer
+    S.add(GK.box(0.004, 0.009, 0.014), A.bolt, -0.015, -0.022, 0.012);
+    S.add(GK.box(0.004, 0.006, 0.022), A.bolt, -0.015, -0.014, -0.01);
+    S.add(GK.cylX(0.004, 0.006, 8), A.bolt, -0.015, -0.018, -0.046);
+    S.add(GK.box(0.008, 0.014, 0.014), A.recv2, 0, -0.004, 0.046, -0.4, 0, 0);
+    // Barrel + dark muzzle bore
     S.add(GK.cyl(0.0072, 0.0072, 0.145, 12), A.barrel, 0, 0.002, -0.078);
-    // sights + reciprocating slide
-    bolt.add(GK.profile([[-0.044, -0.012], [0.132, -0.012], [0.132, 0.014], [-0.038, 0.014], [-0.044, 0.006]], 0.027, 0.002), A.recv);
+    S.add(GK.cyl(0.0044, 0.0044, 0.006, 10), A.port, 0, 0.002, -0.15);
+    // Chamfered reciprocating slide with front/rear serrations & 3-dot tritium sights
+    bolt.add(GK.profile([[-0.044, -0.012], [0.132, -0.012], [0.132, 0.01], [0.126, 0.014], [-0.036, 0.014], [-0.044, 0.006]], 0.027, 0.003), A.recv);
     bolt.add(GK.box(0.002, 0.01, 0.036), A.port, 0.014, 0.005, -0.025);
     for (let f = -0.03; f <= 0.025; f += 0.007) bolt.add(GK.box(0.028, 0.018, 0.003), A.recv2, 0, 0.001, -f + 0.015);
-    bolt.add(GK.box(0.0035, 0.006, 0.005), A.blade, 0, 0.017, -0.122);                         // front sight blade
+    for (let f = 0.088; f <= 0.116; f += 0.007) bolt.add(GK.box(0.028, 0.016, 0.003), A.recv2, 0, 0.001, -f);
+    bolt.add(GK.box(0.0035, 0.006, 0.006), A.recv2, 0, 0.017, -0.122);
+    bolt.add(GK.box(0.0022, 0.0025, 0.002), 0x77ff99, 0, 0.0182, -0.119);
     bolt.add(GK.box(0.014, 0.006, 0.005), A.recv2, 0, 0.017, 0.036);
     bolt.add(GK.box(0.004, 0.007, 0.005), A.port, 0, 0.018, 0.036);
-    // magazine
+    for (const sx of [-1, 1]) bolt.add(GK.box(0.002, 0.0022, 0.002), 0x77ff99, sx * 0.0045, 0.018, 0.0385);
+    // Magazine
     mag.add(GK.profile([[-0.02, -0.04], [-0.052, -0.04], [-0.078, -0.132], [-0.048, -0.138]], 0.019, 0.002), A.mag);
     mag.add(GK.box(0.024, 0.008, 0.038), A.rubber, 0, -0.138, 0.065, -0.25, 0, 0);
     return {
@@ -2571,10 +2658,12 @@ class ModelKit {
   partsKnife() {
     const S = partList(), P = partList(), A = PAL;
     S.add(GK.profile([[0.012, 0.017], [0.118, 0.017], [0.15, 0.01], [0.172, -0.004], [0.15, -0.014], [0.012, -0.016]], 0.0046, 0.0019), A.blade);
-    S.add(GK.box(0.0052, 0.004, 0.085), A.bladeDark, 0, 0.006, -0.072);
-    S.add(GK.box(0.014, 0.062, 0.012), A.recv2, 0, 0, -0.006);
+    S.add(GK.box(0.0054, 0.0045, 0.09), A.bladeDark, 0, 0.005, -0.074);
+    for (let f = 0.02; f <= 0.065; f += 0.008) S.add(GK.box(0.004, 0.003, 0.004), A.bladeDark, 0, 0.0178, -f);
+    S.add(GK.box(0.015, 0.064, 0.012), A.recv2, 0, 0, -0.006);
     for (let k = 0; k < 6; k++) P.add(GK.cyl(0.0148 - (k % 2) * 0.0012, 0.0148 - (k % 2) * 0.0012, 0.0172, 10), k % 2 ? A.poly : A.leather, 0, 0, 0.009 + k * 0.0175, 0, 0, 0, 0.82, 1.08, 1);
     S.add(GK.cyl(0.0155, 0.0155, 0.012, 10), A.recv2, 0, 0, 0.118, 0, 0, 0, 0.85, 1.05, 1);
+    S.add(GK.torus(0.005, 0.0016, 6, 10), A.bolt, 0, -0.006, 0.124, 0, Math.PI / 2, 0);
     return { id: 'knife', groups: { steel: S, poly: P }, muzzle: [0, 0, -0.17], length: 0.3 };
   }
 
@@ -2657,38 +2746,76 @@ class ModelKit {
     return g;
   }
 
-  handParts(pose, skin) {
-    const H = partList();
-    H.add(GK.box(0.084, 0.03, 0.092), skin.glove, 0, 0, -0.046);
-    H.add(GK.box(0.07, 0.008, 0.058), skin.pad, 0, 0.0165, -0.05);
-    H.add(GK.box(0.08, 0.012, 0.016), skin.pad, 0, 0.014, -0.09);
+  handParts(pose, skin, isLeft = false) {
+    const H = partList(), C = partList(), S = partList(), K = partList();
+    const tipList = skin.fingerless ? K : H;
+    // Sculpted beveled palm + padded heel + segmented knuckle armor guard
+    H.add(GK.profile([[0.004, -0.013], [0.088, -0.014], [0.092, 0.0], [0.086, 0.014], [0.006, 0.014], [0.0, 0.002]], 0.082, 0.006), skin.glove);
+    H.add(GK.profile([[0.014, 0.012], [0.072, 0.012], [0.068, 0.018], [0.018, 0.018]], 0.066, 0.003), skin.pad);
+    H.add(GK.profile([[0.076, 0.011], [0.093, 0.01], [0.095, 0.02], [0.078, 0.022]], 0.078, 0.003), skin.pad);
     const xs = [-0.031, -0.0105, 0.0105, 0.031], len = [[0.042, 0.026, 0.021], [0.046, 0.029, 0.022], [0.043, 0.027, 0.021], [0.034, 0.021, 0.018]];
     for (let i = 0; i < 4; i++) {
-      const w = i === 3 ? 0.0165 : 0.0188, c = pose.curl[i];
+      const w = i === 3 ? 0.016 : 0.0182, c = pose.curl[i];
+      H.add(GK.sphere(0.0092, 8, 6), skin.pad, xs[i], 0.013, -0.086);
       let M = GK.mat(xs[i], 0, -0.09);
       for (let k = 0; k < 3; k++) {
         M = new THREE.Matrix4().multiplyMatrices(M, GK.mat(0, 0, 0, c[k], 0, 0));
-        const L = len[i][k], th = 0.02 - k * 0.002;
-        H.push({ g: GK.box(w - k * 0.001, th, L + 0.004), c: k === 2 ? skin.tip : skin.glove, m: new THREE.Matrix4().multiplyMatrices(M, GK.mat(0, 0, -L / 2)) });
+        const L = len[i][k], r0 = (w - k * 0.0014) * 0.5, r1 = (w - (k + 1) * 0.0014) * 0.5;
+        const target = k === 2 ? tipList : H;
+        target.push({ g: GK.sphere(r0 * 1.02, 8, 6), c: k === 2 ? skin.tip : skin.glove, m: M.clone() });
+        target.push({ g: GK.cyl(r0, r1, L + 0.002, 8), c: k === 2 ? skin.tip : skin.glove, m: new THREE.Matrix4().multiplyMatrices(M, GK.mat(0, 0, -L / 2)) });
+        if (k === 0) H.push({ g: GK.box(w * 0.72, 0.005, L * 0.55), c: skin.pad, m: new THREE.Matrix4().multiplyMatrices(M, GK.mat(0, r0 * 0.85, -L * 0.45)) });
         M = new THREE.Matrix4().multiplyMatrices(M, GK.mat(0, 0, -L));
+        if (k === 2) target.push({ g: GK.sphere(r1 * 0.96, 8, 6), c: skin.tip, m: M.clone() });
       }
     }
+    // Anatomical tapered thumb with knuckle joints
     const t = pose.thumb, dir = new THREE.Vector3(t[0], t[1], t[2]).normalize();
     const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), dir);
     let TM = new THREE.Matrix4().compose(new THREE.Vector3(-0.036, -0.004, -0.03), q, new THREE.Vector3(1, 1, 1));
-    H.push({ g: GK.box(0.023, 0.022, 0.044), c: skin.glove, m: new THREE.Matrix4().multiplyMatrices(TM, GK.mat(0, 0, -0.02)) });
+    H.push({ g: GK.sphere(0.012, 8, 6), c: skin.glove, m: TM.clone() });
+    H.push({ g: GK.cyl(0.012, 0.0102, 0.044, 10), c: skin.glove, m: new THREE.Matrix4().multiplyMatrices(TM, GK.mat(0, 0, -0.02)) });
     TM = new THREE.Matrix4().multiplyMatrices(TM, GK.mat(0, 0, -0.04, t[3], 0, 0));
-    H.push({ g: GK.box(0.021, 0.02, 0.034), c: skin.tip, m: new THREE.Matrix4().multiplyMatrices(TM, GK.mat(0, 0, -0.015)) });
+    tipList.push({ g: GK.sphere(0.0102, 8, 6), c: skin.tip, m: TM.clone() });
+    tipList.push({ g: GK.cyl(0.01, 0.0078, 0.034, 10), c: skin.tip, m: new THREE.Matrix4().multiplyMatrices(TM, GK.mat(0, 0, -0.015)) });
+    tipList.push({ g: GK.sphere(0.0076, 8, 6), c: skin.tip, m: new THREE.Matrix4().multiplyMatrices(TM, GK.mat(0, 0, -0.032)) });
+    // Wrist cuff, velcro strap + buckle, BDU fabric sleeve, and tactical watch on left wrist
     const a = pose.arm || [0, 0, 1], al = pose.armLen || 0.34, ad = new THREE.Vector3(a[0], a[1], a[2]).normalize();
-    H.push(GK.limb([0, 0, 0.004], [ad.x * 0.05, ad.y * 0.05, 0.004 + ad.z * 0.05], 0.036, 0.039, skin.cuff, 10));
-    H.push(GK.limb([ad.x * 0.04, ad.y * 0.04, ad.z * 0.04], [ad.x * al, ad.y * al, ad.z * al], 0.04, 0.052, skin.sleeve, 10));
-    return H;
+    const aq = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), ad);
+    const WM = new THREE.Matrix4().compose(new THREE.Vector3(0, 0, 0.004), aq, new THREE.Vector3(1, 1, 1));
+    H.push({ g: GK.cyl(0.038, 0.035, 0.036, 12), c: skin.cuff, m: new THREE.Matrix4().multiplyMatrices(WM, GK.mat(0, 0, 0.014)) });
+    H.push({ g: GK.cyl(0.0405, 0.0405, 0.016, 12), c: skin.pad, m: new THREE.Matrix4().multiplyMatrices(WM, GK.mat(0, 0, 0.016)) });
+    S.push({ g: GK.box(0.008, 0.018, 0.012), c: 0x7a828a, m: new THREE.Matrix4().multiplyMatrices(WM, GK.mat(0.039, 0.006, 0.016)) });
+    C.push(GK.limb([ad.x * 0.035, ad.y * 0.035, ad.z * 0.035], [ad.x * 0.075, ad.y * 0.075, ad.z * 0.075], 0.043, 0.045, skin.cuff, 12));
+    C.push(GK.limb([ad.x * 0.06, ad.y * 0.06, ad.z * 0.06], [ad.x * al, ad.y * al, ad.z * al], 0.042, 0.056, skin.sleeve, 12));
+    if (isLeft) {
+      const watchM = new THREE.Matrix4().multiplyMatrices(WM, GK.mat(0, 0, 0.038));
+      H.push({ g: GK.cyl(0.042, 0.042, 0.016, 14), c: 0x1a1c1f, m: watchM });
+      S.push({ g: GK.cylY(0.015, 0.016, 0.008, 12), c: 0x25292e, m: new THREE.Matrix4().multiplyMatrices(watchM, GK.mat(0, 0.041, 0)) });
+      S.push({ g: GK.cylY(0.012, 0.012, 0.002, 12), c: 0x090d12, m: new THREE.Matrix4().multiplyMatrices(watchM, GK.mat(0, 0.045, 0)) });
+      S.push({ g: GK.box(0.008, 0.0015, 0.003), c: 0x45e0b0, m: new THREE.Matrix4().multiplyMatrices(watchM, GK.mat(0.002, 0.0462, 0, 0, 0.5, 0)) });
+    }
+    return { glove: H, cloth: C, steel: S, skin: K };
+  }
+
+  handGroup(pose, skin, M, isLeft = false) {
+    const p = this.handParts(pose, skin, isLeft), g = new THREE.Group();
+    const addPart = (list, mat) => {
+      if (!list.length) return;
+      const m = this.mesh(GK.xf(list, M), mat);
+      if (m) g.add(m);
+    };
+    addPart(p.glove, this.mat.poly);
+    addPart(p.cloth, this.mat.cloth);
+    addPart(p.steel, this.mat.steel);
+    addPart(p.skin, this.mat.skin);
+    return g;
   }
 }
 
 const HAND_SKINS = {
-  ct: { glove: 0x565a50, pad: 0x2e3130, tip: 0x4c5047, cuff: 0x25282a, sleeve: 0x34425a },
-  t: { glove: 0x6b4a2e, pad: 0x54391f, tip: 0xc79a78, cuff: 0x3a2a1c, sleeve: 0x6f6a4a },
+  ct: { glove: 0x454a42, pad: 0x232625, tip: 0x3a3f38, cuff: 0x1e2124, sleeve: 0x34425a, fingerless: false },
+  t: { glove: 0x6b4a2e, pad: 0x4a331d, tip: 0xc79a78, cuff: 0x3a2a1c, sleeve: 0x6f6a4a, fingerless: true },
 };
 const HAND_POSES = {
   grip: { curl: [[-0.55, -0.8, -0.45], [-1.2, -1.35, -0.8], [-1.25, -1.35, -0.8], [-1.3, -1.35, -0.8]], thumb: [-0.25, -0.8, -0.55, -0.5], arm: [0.5, 0.28, 1], armLen: 0.36 },
@@ -4625,11 +4752,12 @@ class WeaponSystem {
           const ring = new THREE.Mesh(new THREE.RingGeometry(0.0042, 0.0048, 24), kit.mat.dot);
           ring.position.set(P.dot[0], P.dot[1], P.dot[2]); group.add(ring);
         }
-        add(GK.xf(kit.handParts(HAND_POSES.grip, skin), GK.mat(H.rh[0], H.rh[1], H.rh[2], H.rh[3], 0, -Math.PI / 2)), kit.mat.skin);
+        group.add(kit.handGroup(HAND_POSES.grip, skin, GK.mat(H.rh[0], H.rh[1], H.rh[2], H.rh[3], 0, -Math.PI / 2), false));
         const LM = GK.mat(0, 0, 0, 0, -Math.PI / 2 + H.lh.yaw, Math.PI, -1, 1, 1);
         const c = new THREE.Vector3(0, -0.015, -0.046).applyMatrix4(LM);
         LM.setPosition(H.lh.palm[0] - c.x, H.lh.palm[1] - c.y, H.lh.palm[2] - c.z);
-        mdl.lh = add(GK.xf(kit.handParts(HAND_POSES.cup, skin), LM), kit.mat.skin);
+        mdl.lh = kit.handGroup(HAND_POSES.cup, skin, LM, true);
+        group.add(mdl.lh);
         mdl.toMag = H.toMag;
         mdl.muzzle = new THREE.Object3D(); mdl.muzzle.position.set(P.muzzle[0], P.muzzle[1], P.muzzle[2]); group.add(mdl.muzzle);
         mdl.eject = new THREE.Object3D(); mdl.eject.position.set(P.eject[0], P.eject[1], P.eject[2]); group.add(mdl.eject);
@@ -4641,7 +4769,7 @@ class WeaponSystem {
         const B = H.basis, item = new THREE.Matrix4().makeBasis(new THREE.Vector3(...B[0]), new THREE.Vector3(...B[1]), new THREE.Vector3(...B[2])).setPosition(H.at[0], H.at[1], H.at[2]);
         const IM = new THREE.Matrix4().multiplyMatrices(hold, item);
         for (const k of Object.keys(P.groups)) add(GK.xf(P.groups[k], IM), kit.mat[k] || kit.mat.steel);
-        add(GK.xf(kit.handParts(HAND_POSES[H.pose], skin), hold), kit.mat.skin);
+        group.add(kit.handGroup(HAND_POSES[H.pose], skin, hold, false));
         mdl.muzzle = group;
       }
       group.visible = false; this.root.add(group); this.models[id] = mdl;

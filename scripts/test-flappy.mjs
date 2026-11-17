@@ -7,15 +7,15 @@ import { chromium } from 'playwright';
 const root = new URL('../', import.meta.url);
 const html = await readFile(new URL('games/flappy.html', root), 'utf8');
 const bridge = `window.qa = {
-  THREE, scene, camera, renderer, bird, pipes, chunks, terrainH, lumpy, flock, feathers, clouds, lakeMist, sun, waterMat,
+  THREE, scene, camera, renderer, bird, pipes, chunks, terrainH, lumpy, flock, feathers, cloudMesh, cloudField, farMeshes, lakeMist, sun, waterMat, skyUniforms,
   setBird, setQuality, resetGame, startGame, flap, update, animateVisuals,
-  updateCamera, togglePause, CFG, skyMat,
+  updateCamera, togglePause, CFG,
   get state() { return state; }, get birdY() { return birdY; },
   set birdY(v) { birdY = v; }, set scroll(v) { scroll = v; },
-  get tod() { return tod; }, get paused() { return paused; },
-  set score(v) { score = v; }, set tod(v) { tod = v; },
+  get paused() { return paused; },
+  set score(v) { score = v; },
   stop() { running = false; adaptive.enabled = false; },
-  render(dt = 0) { animateVisuals(dt); renderer.render(scene, camera); }
+  render(dt = 0) { renderFrame(dt); }
 };`;
 const server = createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -81,11 +81,12 @@ try {
     qa.flap(); qa.render(0.05); qa.pipes[4].appear = 0.1; qa.pipes[4].pose(); qa.togglePause(true);
     const snapshot = () => JSON.stringify({
       birdY: qa.birdY, camera: qa.camera.position.toArray(),
-      objects: [...qa.clouds, ...qa.lakeMist, qa.flock].map(o => o.position.toArray()),
+      objects: [...qa.lakeMist, qa.flock].map(o => o.position.toArray()),
       bird: qa.bird.body.scale.toArray(), eyes: qa.bird.eyes.map(o => o.scale.toArray()),
       feathers: qa.feathers.map(f => [f.life, ...f.m.position.toArray()]),
       pipes: qa.pipes.map(p => [p.x, p.appear, p.top.position.y]),
-      skyTime: qa.skyMat.uniforms.uTime.value,
+      cirrus: qa.skyUniforms.uCirrusOff.value.toArray(),
+      clouds: Array.from(qa.cloudMesh.geometry.attributes.iPos.array),
     });
     const before = snapshot();
     for (let i = 0; i < 10; i++) { qa.update(0.1); qa.render(0.1); }
@@ -94,19 +95,22 @@ try {
   assert(pause, 'pause must freeze all scene transforms, particles and timers');
   await page.keyboard.press('KeyP');
   assert.equal(await page.evaluate(() => qa.paused), false, 'keyboard resumes gameplay');
-  const atmosphere = await page.evaluate(() => {
-    qa.tod = 0.98; qa.score = 1; qa.render(0.1); const wrapped = qa.tod;
-    qa.tod = 0.54; qa.render();
-    const moonAbove = qa.sun.position.y > qa.sun.target.position.y;
-    const waterLinear = qa.waterMat.color.r < 0.01;
-    return { wrapped, moonAbove, waterLinear };
+  const sceneryQuality = await page.evaluate(() => {
+    const sample = mode => {
+      qa.setQuality(mode); qa.render();
+      return { clouds: qa.cloudMesh.geometry.instanceCount,
+        triangles: qa.farMeshes.reduce((n, m) => n + m.geometry.index.count / 3, 0),
+        geometries: qa.renderer.info.memory.geometries };
+    };
+    const low = sample('low'), high = sample('high'), med = sample('med'), again = sample('high');
+    return { low, high, med, again, sunAbove: qa.sun.position.y > qa.sun.target.position.y };
   });
-  assert(atmosphere.wrapped > 0.98 || atmosphere.wrapped < 0.02, 'day cycle takes the short path across midnight');
-  assert(atmosphere.moonAbove && atmosphere.waterLinear, 'night light comes from above and water colours use sRGB conversion');
-  for (const [name, time] of [['day', 0], ['sunset', 0.28], ['night', 0.54], ['dawn', 0.8]]) {
-    await page.evaluate(t => { qa.tod = t; qa.render(); }, time);
-    await screenshot(name);
-  }
+  assert(sceneryQuality.high.clouds > sceneryQuality.med.clouds && sceneryQuality.med.clouds > sceneryQuality.low.clouds, 'cloud coverage must follow quality changes');
+  assert(sceneryQuality.high.triangles > sceneryQuality.med.triangles && sceneryQuality.med.triangles > sceneryQuality.low.triangles, 'far terrain must follow quality changes');
+  assert.equal(sceneryQuality.high.triangles, sceneryQuality.again.triangles, 'quality cycling must preserve terrain layout');
+  assert.equal(sceneryQuality.high.geometries, sceneryQuality.again.geometries, 'quality cycling must release replaced terrain geometry');
+  assert(sceneryQuality.sunAbove, 'physical sky light must come from above');
+  await screenshot('physical-sky-mountains-clouds');
   const shadows = await page.evaluate(() => {
     qa.setQuality('med'); qa.render(); const med = qa.sun.shadow.map.width;
     qa.setQuality('high'); qa.render(); return { med, high: qa.sun.shadow.map.width };
@@ -123,7 +127,7 @@ try {
   await page.evaluate(() => qa.stop());
   assert.equal(await page.evaluate(() => qa.paused), true, 'restored gameplay waits for the player to resume');
   await screenshot('context-restored');
-  console.log('PASS Flappy camera, atmosphere, pause, shadows and context recovery');
+  console.log('PASS Flappy camera, scenery quality, pause, shadows and context recovery');
   assert.deepEqual(errors, [], 'browser and shader errors');
   console.log('PASS Flappy landscape:', landscape);
 } finally {

@@ -1824,11 +1824,14 @@ pipeTex.repeat.set(3, 1);
 const pipeMat = new THREE.MeshPhysicalMaterial({
   color: C(0x2b9c3a), map: pipeTex, vertexColors: true, roughness: 0.42, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.08
 });
+withAtmo(pipeMat, 'pipe');
 const contactGeo = new THREE.PlaneGeometry(4.4, 4.4).rotateX(-Math.PI / 2);
 const contactMat = new THREE.MeshBasicMaterial({
   map: contactTex, transparent: true, depthWrite: false, fog: true, toneMapped: false,
   polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4
 });
+
+withAtmo(contactMat, 'pipe-contact', false);
 
 class PipePair {
   constructor() {

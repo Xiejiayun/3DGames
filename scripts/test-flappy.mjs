@@ -9,12 +9,12 @@ const html = await readFile(new URL('games/flappy.html', root), 'utf8');
 const bridge = `window.qa = {
   THREE, scene, camera, renderer, bird, pipes, chunks, terrainH, lumpy, flock, pipeGeo, pipeGeoLow, pipeExtGeo,
   setBird, setQuality, resetGame, startGame, flap, update, animateVisuals,
-  updateCamera, togglePause, CFG, skyMat,
+  updateCamera, togglePause, CFG,
   get state() { return state; }, get birdY() { return birdY; },
   set birdY(v) { birdY = v; }, set scroll(v) { scroll = v; },
   set score(v) { score = v; }, set tod(v) { tod = v; },
   stop() { running = false; adaptive.enabled = false; },
-  render(dt = 0) { animateVisuals(dt); renderer.render(scene, camera); }
+  render(dt = 0) { renderFrame(dt); }
 };`;
 const server = createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });

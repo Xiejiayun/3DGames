@@ -7,7 +7,7 @@ import { chromium } from 'playwright';
 const root = new URL('../', import.meta.url);
 const html = await readFile(new URL('games/flappy.html', root), 'utf8');
 const bridge = `window.qa = {
-  THREE, scene, camera, renderer, bird, pipes, chunks, terrainH, lumpy, flock, feathers,
+  THREE, scene, camera, renderer, bird, pipes, chunks, terrainH, lumpy, flock, pipeGeo, pipeGeoLow, pipeExtGeo, feathers,
   setBird, setQuality, resetGame, startGame, flap, update, animateVisuals,
   updateCamera, togglePause, CFG,
   get state() { return state; }, get birdY() { return birdY; },
@@ -58,6 +58,31 @@ try {
   assert(landscape.seam < 1e-8, 'terrain loop must join continuously');
   assert(landscape.normalError < 1e-6, 'deformed rocks and crowns need updated normals');
   await screenshot('landscape-desktop');
+  const pipeChecks = await page.evaluate(() => {
+    const ray = new qa.THREE.Raycaster(new qa.THREE.Vector3(0.1, 1, 0), new qa.THREE.Vector3(0, -1, 0));
+    const openings = [qa.pipeGeo, qa.pipeGeoLow].map(geo => {
+      const mesh = new qa.THREE.Mesh(geo, qa.pipes[0].bottom.material);
+      mesh.updateMatrixWorld(true);
+      const hits = ray.intersectObject(mesh);
+      return hits.length && hits[0].distance > 3.5;
+    });
+    const nearRadii = [qa.pipeGeo, qa.pipeGeoLow].map(geo => {
+      const p = geo.attributes.position;
+      return Math.max(...Array.from({ length: p.count }, (_, i) => Math.hypot(p.getX(i), p.getZ(i))));
+    });
+    const ext = qa.pipeExtGeo.attributes.position;
+    const ringVertices = new Set(Array.from({ length: ext.count }, (_, i) =>
+      [ext.getX(i).toFixed(5), ext.getZ(i).toFixed(5)].join(','))).size;
+    const pipe = qa.pipes[0]; pipe.setX(0); pipe.setGap(6.2, qa.CFG.PIPE_GAP); pipe.updateBoxes();
+    const gap = pipe.boxes.every(box => !box.containsPoint(new qa.THREE.Vector3(0, 6.2, 0)));
+    const solidRim = pipe.boxes[1].containsPoint(new qa.THREE.Vector3(0.95, pipe.lo - 0.2, 0));
+    return { openings, nearRadii, ringVertices, gap, solidRim };
+  });
+  assert(pipeChecks.openings.every(Boolean), 'near and far pipe mouths must be recessed');
+  assert(Math.abs(pipeChecks.nearRadii[0] - pipeChecks.nearRadii[1]) < 1e-5, 'LOD rims must have matching silhouette');
+  assert(pipeChecks.ringVertices >= 30 && pipeChecks.ringVertices <= 32, 'extension must match the 30-segment body');
+  assert(pipeChecks.gap && pipeChecks.solidRim, 'collision proxies must leave a passable gap and solid rims');
+  console.log('PASS Flappy pipes:', pipeChecks);
   const birds = await page.evaluate(() => {
     const highlightsAttached = qa.bird.glints.every(g => qa.bird.eyes.includes(g.parent) &&
       Math.abs(g.position.length() - 0.145) < 0.004);

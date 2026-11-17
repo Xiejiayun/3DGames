@@ -1818,23 +1818,33 @@ const pipeGeo = (() => {
 })();
 // Low-detail version for pipes far ahead (first person shows a long row of them).
 const pipeGeoLow = (() => {
-  const R = CFG.PIPE_R, RR = CFG.RIM_R, RH = CFG.RIM_H;
-  const rim = new THREE.CylinderGeometry(RR, RR, RH, 14, 1, false).translate(0, -RH / 2, 0);
-  paint(rim, (o, x, y, z) => { o[0] = o[1] = o[2] = (y > -0.01 && Math.hypot(x, z) < RR * 0.9) ? 0.1 : 1; });      // dark centre = the opening
-  const body = new THREE.CylinderGeometry(R, R, PIPE_LEN, 14, 1, true).translate(0, -RH - PIPE_LEN / 2, 0);
+  const R = CFG.PIPE_R, RR = CFG.RIM_R, RH = CFG.RIM_H, Ri = R - PIPE_WALL;
+  // Match the near rim silhouette and leave the centre open at every LOD.
+  const rim = new THREE.LatheGeometry([
+    [R, -RH], [RR - 0.06, -RH], [RR, -RH + 0.06], [RR, -0.06],
+    [RR - 0.06, 0], [Ri + 0.06, 0], [Ri, -0.06], [Ri, -PIPE_DEPTH], [0, -PIPE_DEPTH]
+  ].map(p => new THREE.Vector2(...p)), 30);
+  paint(rim, (o, x, y, z) => {
+    const inner = Math.hypot(x, z) < Ri + 0.002 && y < -0.03;
+    o[0] = o[1] = o[2] = inner ? lerp(0.5, 0.03, clamp(-y / PIPE_DEPTH, 0, 1)) : 1;
+  });
+  const body = new THREE.CylinderGeometry(R, R, PIPE_LEN, 30, 1, true).translate(0, -RH - PIPE_LEN / 2, 0);
   paint(body, o => { o[0] = o[1] = o[2] = 1; });
   return mergeGeos([rim, body]);
 })();
-const pipeExtGeo = paint(new THREE.CylinderGeometry(CFG.PIPE_R, CFG.PIPE_R, PIPE_EXT, 24, 1, true).translate(0, -CFG.RIM_H - PIPE_LEN - PIPE_EXT / 2, 0), o => { o[0] = o[1] = o[2] = 1; });
+const pipeExtGeo = paint(new THREE.CylinderGeometry(CFG.PIPE_R, CFG.PIPE_R, PIPE_EXT, 30, 1, true).translate(0, -CFG.RIM_H - PIPE_LEN - PIPE_EXT / 2, 0), o => { o[0] = o[1] = o[2] = 1; });
 pipeTex.repeat.set(3, 1);
 const pipeMat = new THREE.MeshPhysicalMaterial({
   color: C(0x2b9c3a), map: pipeTex, vertexColors: true, roughness: 0.42, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.08
 });
+withAtmo(pipeMat, 'pipe');
 const contactGeo = new THREE.PlaneGeometry(4.4, 4.4).rotateX(-Math.PI / 2);
 const contactMat = new THREE.MeshBasicMaterial({
-  map: contactTex, transparent: true, depthWrite: false, fog: false, toneMapped: false,
+  map: contactTex, transparent: true, depthWrite: false, fog: true, toneMapped: false,
   polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4
 });
+
+withAtmo(contactMat, 'pipe-contact', false);
 
 class PipePair {
   constructor() {

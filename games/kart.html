@@ -1251,172 +1251,371 @@ function buildKartMesh(charCfg) {
   bodyGroup.add(bubbleTrapMesh);
 
   /* -------------------------------------------------------------------
-     High-Detail Cartoon Driver (Eyes + Glints, Cheeks, Hands, Physics Scarf/Ears/Ponytails)
+     Detailed Racing Driver (Sculpted Suit, Realistic Eyes, Helmet/Gear)
      ------------------------------------------------------------------- */
   const driverGroup = new THREE.Group();
   driverGroup.position.set(0, 0.58, -0.08);
   bodyGroup.add(driverGroup);
 
-  const skinMat = new THREE.MeshPhysicalMaterial({ color: charCfg.skinColor, roughness: 0.52, sheen: 0.35, sheenRoughness: 0.6 });
-  const suitMat = new THREE.MeshPhysicalMaterial({ color: charCfg.bodyColor, roughness: 0.48, sheen: 0.4 });
-  const gloveMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45 });
-  const eyeMat = new THREE.MeshPhysicalMaterial({ color: 0x0d1117, roughness: 0.05, clearcoat: 1.0 });
+  const skinMat = new THREE.MeshPhysicalMaterial({ color: charCfg.skinColor, roughness: 0.48, sheen: 0.35, sheenRoughness: 0.55 });
+  const suitMat = new THREE.MeshPhysicalMaterial({ color: charCfg.bodyColor, roughness: 0.46, sheen: 0.45, sheenRoughness: 0.5 });
+  const suitDarkMat = new THREE.MeshStandardMaterial({ color: 0x1b202b, roughness: 0.58, metalness: 0.15 });
+  const gloveMat = new THREE.MeshPhysicalMaterial({ color: 0xf4f6f9, roughness: 0.42, sheen: 0.3 });
+  const scleraMat = new THREE.MeshPhysicalMaterial({ color: 0xfafafa, roughness: 0.18, clearcoat: 0.6 });
+  const irisColors = { dao: 0x2b5998, bazzi: 0x8b4513, dizni: 0x3b7a57 };
+  const irisMat = new THREE.MeshPhysicalMaterial({ color: irisColors[charCfg.charStyle] || 0x2b5998, roughness: 0.15, clearcoat: 0.9 });
+  const pupilMat = new THREE.MeshPhysicalMaterial({ color: 0x090b10, roughness: 0.05, clearcoat: 1.0 });
   const glintMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  const cheekMat = new THREE.MeshStandardMaterial({ color: charCfg.cheekColor, roughness: 0.8 });
+  const browMat = new THREE.MeshStandardMaterial({ color: charCfg.charStyle === 'dizni' ? 0xb5851b : 0x2c221e, roughness: 0.7 });
 
-  // Torso & Racing Suit Collar
-  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.31, 0.48, 16), suitMat);
-  torso.position.y = 0.22;
+  // Sculpted Torso (LatheGeometry: hips -> tapered waist -> chest contour -> shoulders)
+  const torsoProfile = [
+    new THREE.Vector2(0.001, -0.02),
+    new THREE.Vector2(0.255, -0.01),
+    new THREE.Vector2(0.268,  0.06),
+    new THREE.Vector2(0.232,  0.16),
+    new THREE.Vector2(0.258,  0.27),
+    new THREE.Vector2(0.278,  0.35),
+    new THREE.Vector2(0.245,  0.41),
+    new THREE.Vector2(0.145,  0.44),
+    new THREE.Vector2(0.001,  0.45)
+  ];
+  const torsoGeo = new THREE.LatheGeometry(torsoProfile, 24);
+  torsoGeo.scale(1.04, 1.0, 0.76);
+  torsoGeo.computeVertexNormals();
+  const torso = new THREE.Mesh(torsoGeo, suitMat);
   torso.castShadow = true;
   driverGroup.add(torso);
 
-  // Articulated Arms & Gloved Hands reaching Steering Wheel
-  const armRigs=[];
+  // HANS-Style Neck Brace / Racing Suit Collar + Shoulder Pads
+  const neckCollar = new THREE.Mesh(new THREE.TorusGeometry(0.145, 0.032, 10, 20), suitDarkMat);
+  neckCollar.rotation.x = Math.PI / 2 - 0.12;
+  neckCollar.position.set(0, 0.435, 0.01);
+  driverGroup.add(neckCollar);
+
   for (const s of [-1, 1]) {
-    const shoulder=new THREE.Vector3(s*0.23,0.35,0.03);
-    const elbow=new THREE.Vector3(s*0.29,0.26,0.23);
-    const wrist=new THREE.Vector3(s*0.15,0.24,0.44);
-    const upper=beamBetween(shoulder,elbow,0.064,suitMat);
-    const lower=beamBetween(elbow,wrist,0.057,suitMat);
-    const glove = new THREE.Mesh(new THREE.SphereGeometry(0.082, 12, 10), gloveMat);
-    glove.position.set(s*0.15,0,0.01);
-    steerWheelGroup.add(glove);
-    driverGroup.add(upper, lower);
-    armRigs.push({lower,elbow,glove,length:elbow.distanceTo(wrist)});
+    const yoke = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.036, 0.20), carbonMat);
+    yoke.position.set(s * 0.135, 0.415, 0.05);
+    yoke.rotation.set(0.22, -s * 0.18, -s * 0.12);
+    driverGroup.add(yoke);
+
+    const shoulderPad = new THREE.Mesh(new THREE.SphereGeometry(0.088, 12, 10), trimMat);
+    shoulderPad.scale.set(1.05, 0.68, 1.15);
+    shoulderPad.position.set(s * 0.245, 0.365, 0.01);
+    driverGroup.add(shoulderPad);
   }
 
-  // Expressive Head Group
+  // Center Chest Stripe, Zipper & Racing Belt + Buckle
+  const chestStripe = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.31, 0.025), trimMat);
+  chestStripe.position.set(0, 0.255, 0.192);
+  chestStripe.rotation.x = -0.06;
+  driverGroup.add(chestStripe);
+
+  const zipperLine = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.32, 0.012), carbonMat);
+  zipperLine.position.set(0, 0.255, 0.204);
+  zipperLine.rotation.x = -0.06;
+  driverGroup.add(zipperLine);
+
+  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.246, 0.252, 0.052, 22), suitDarkMat);
+  belt.scale.set(1.04, 1.0, 0.77);
+  belt.position.set(0, 0.10, 0);
+  driverGroup.add(belt);
+
+  const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.056, 0.026), accentMat);
+  buckle.position.set(0, 0.10, 0.194);
+  driverGroup.add(buckle);
+
+  // Articulated Arms & Detailed Gloved Hands reaching Steering Wheel
+  const armRigs = [];
+  for (const s of [-1, 1]) {
+    const shoulder = new THREE.Vector3(s * 0.23, 0.35, 0.03);
+    const elbow = new THREE.Vector3(s * 0.29, 0.26, 0.23);
+    const wrist = new THREE.Vector3(s * 0.15, 0.24, 0.44);
+    const upper = beamBetween(shoulder, elbow, 0.060, suitMat);
+    const lower = beamBetween(elbow, wrist, 0.052, suitMat);
+    const segLen = elbow.distanceTo(wrist);
+
+    const elbowPad = new THREE.Mesh(new THREE.SphereGeometry(0.062, 10, 8), suitDarkMat);
+    elbowPad.position.copy(elbow);
+    driverGroup.add(elbowPad);
+
+    // Forearm cuff attached to lower arm so it tracks steering automatically
+    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.056, 0.055, 12), trimMat);
+    cuff.position.set(0, segLen * 0.5 - 0.04, 0);
+    lower.add(cuff);
+
+    // Detailed Gloved Hand (palm + fingers + thumb + knuckle guard)
+    const glove = new THREE.Group();
+    glove.position.set(s * 0.15, 0, 0.01);
+    const palm = new THREE.Mesh(new THREE.SphereGeometry(0.062, 12, 10), gloveMat);
+    palm.scale.set(0.85, 1.05, 1.15);
+    const fingers = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.035, 0.078, 10), gloveMat);
+    fingers.rotation.x = Math.PI / 2;
+    fingers.position.set(0, -0.02, 0.042);
+    const thumb = new THREE.Mesh(new THREE.CapsuleGeometry ? new THREE.CapsuleGeometry(0.018, 0.038, 6, 8) : new THREE.CylinderGeometry(0.018, 0.018, 0.055, 8), gloveMat);
+    thumb.position.set(-s * 0.042, 0.025, 0.022);
+    thumb.rotation.set(0.5, 0, s * 0.6);
+    const knuckleGuard = new THREE.Mesh(new THREE.BoxGeometry(0.072, 0.028, 0.058), carbonMat);
+    knuckleGuard.position.set(0, 0.046, 0.012);
+    glove.add(palm, fingers, thumb, knuckleGuard);
+
+    steerWheelGroup.add(glove);
+    driverGroup.add(upper, lower);
+    armRigs.push({ lower, elbow, glove, length: segLen });
+  }
+
+  // Expressive Anatomical Head Group
   const headGroup = new THREE.Group();
   headGroup.position.set(0, 0.66, 0.02);
   driverGroup.add(headGroup);
 
-  const headSphere = new THREE.Mesh(new THREE.SphereGeometry(0.31, 24, 20), skinMat);
-  headSphere.scale.set(1.04, 0.98, 1.0);
+  const headSphere = new THREE.Mesh(new THREE.SphereGeometry(0.30, 28, 22), skinMat);
+  headSphere.scale.set(0.96, 1.02, 1.0);
   headSphere.castShadow = true;
   headGroup.add(headSphere);
 
-  // Big Glossy Cartoon Eyes + Dual Glints + Rosy Cheeks
+  // Subtle Jawline / Chin Contour & Ears
+  const jawContour = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 12), skinMat);
+  jawContour.scale.set(1.02, 0.72, 0.92);
+  jawContour.position.set(0, -0.155, 0.08);
+  headGroup.add(jawContour);
+
+  // Realistic Eyes (Sclera + Colored Iris + Pupil + Specular Glint + Brow)
   const eyes = [];
   for (const s of [-1, 1]) {
     const eyeGroup = new THREE.Group();
-    eyeGroup.position.set(s * 0.115, 0.02, 0.275);
-    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.062, 16, 12), eyeMat);
-    pupil.scale.set(0.95, 1.22, 0.55);
-    const g1 = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 8), glintMat);
-    g1.position.set(s * 0.016, 0.028, 0.032);
-    const g2 = new THREE.Mesh(new THREE.SphereGeometry(0.011, 8, 8), glintMat);
-    g2.position.set(-s * 0.014, -0.022, 0.030);
-    eyeGroup.add(pupil, g1, g2);
+    eyeGroup.position.set(s * 0.105, 0.022, 0.268);
+
+    const sclera = new THREE.Mesh(new THREE.SphereGeometry(0.046, 16, 12), scleraMat);
+    sclera.scale.set(1.08, 0.78, 0.42);
+    const iris = new THREE.Mesh(new THREE.SphereGeometry(0.029, 14, 10), irisMat);
+    iris.scale.set(1.0, 1.0, 0.45);
+    iris.position.z = 0.011;
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.016, 12, 8), pupilMat);
+    pupil.scale.set(1.0, 1.0, 0.45);
+    pupil.position.z = 0.016;
+    const glint = new THREE.Mesh(new THREE.SphereGeometry(0.007, 8, 8), glintMat);
+    glint.position.set(s * 0.011, 0.011, 0.022);
+    const lashRim = new THREE.Mesh(new THREE.TorusGeometry(0.044, 0.006, 6, 12, Math.PI * 0.85), browMat);
+    lashRim.rotation.z = Math.PI * 0.075;
+    lashRim.position.set(0, 0.006, 0.012);
+
+    eyeGroup.add(sclera, iris, pupil, glint, lashRim);
     headGroup.add(eyeGroup);
     eyes.push(eyeGroup);
 
-    const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 10), cheekMat);
-    cheek.scale.set(1.2, 0.75, 0.45);
-    cheek.position.set(s * 0.19, -0.065, 0.245);
-    headGroup.add(cheek);
+    // Expressive Eyebrow
+    const brow = new THREE.Mesh(new THREE.BoxGeometry(0.076, 0.016, 0.024), browMat);
+    brow.position.set(s * 0.105, 0.078, 0.278);
+    brow.rotation.z = -s * 0.09;
+    brow.rotation.y = s * 0.22;
+    headGroup.add(brow);
   }
 
-  // Cute Nose & Smile
-  const noseBtn = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), skinMat);
-  noseBtn.position.set(0, -0.02, 0.31);
-  headGroup.add(noseBtn);
-  const smileCurve=new THREE.CatmullRomCurve3([new THREE.Vector3(-0.07,-0.105,0.287),new THREE.Vector3(0,-0.13,0.295),new THREE.Vector3(0.07,-0.105,0.287)]);
-  headGroup.add(new THREE.Mesh(new THREE.TubeGeometry(smileCurve,12,0.009,5,false),new THREE.MeshStandardMaterial({color:0x9c4a45})));
+  // Sculpted Nose Bridge & Determined Mouth
+  const noseBridge = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.022, 0.068, 10), skinMat);
+  noseBridge.position.set(0, -0.008, 0.295);
+  noseBridge.rotation.x = -0.32;
+  headGroup.add(noseBridge);
+  const mouthCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.052, -0.108, 0.272),
+    new THREE.Vector3(0, -0.118, 0.282),
+    new THREE.Vector3(0.052, -0.108, 0.272)
+  ]);
+  headGroup.add(new THREE.Mesh(new THREE.TubeGeometry(mouthCurve, 12, 0.0065, 6, false), new THREE.MeshStandardMaterial({ color: 0x8f433e, roughness: 0.6 })));
 
   // Character-Specific Headgear & Physics-Animated Accessories
   const physParts = [];
   if (charCfg.charStyle === 'dao') {
-    // Dao: Blue-White Racing Helmet + Translucent Goggles + Flowing Red Scarf
-    const helmMat = new THREE.MeshPhysicalMaterial({ color: charCfg.helmetColor, roughness: 0.2, clearcoat: 1.0 });
+    // Dao: Open-Face Pro Racing Helmet + Curved Wrap-Around Tinted Visor + Flowing Fabric Scarf
+    const helmMat = new THREE.MeshPhysicalMaterial({ color: charCfg.helmetColor, roughness: 0.18, metalness: 0.15, clearcoat: 1.0, clearcoatRoughness: 0.06 });
     const dome = new THREE.Mesh(
-      new THREE.SphereGeometry(0.335, 24, 18, 0, TAU, 0, 1.15),
+      new THREE.SphereGeometry(0.335, 28, 20, 0, TAU, 0, 1.15),
       helmMat
     );
-    dome.name='open-face-headgear';
+    dome.name = 'open-face-headgear';
     headGroup.add(dome);
-    headGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.335,24,12,Math.PI,Math.PI,1.1,1.2),helmMat));
+    headGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.335, 28, 14, Math.PI, Math.PI, 1.1, 1.2), helmMat));
 
-    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.28, 0.66), trimMat);
-    stripe.position.set(0, 0.20, -0.02);
+    // Helmet rim gasket & ear-cup cheek pads
+    const rimGasket = new THREE.Mesh(new THREE.TorusGeometry(0.322, 0.016, 8, 28), carbonMat);
+    rimGasket.rotation.x = Math.PI / 2 - 0.42;
+    rimGasket.position.set(0, 0.13, 0.02);
+    headGroup.add(rimGasket);
+
+    for (const s of [-1, 1]) {
+      const cheekPad = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.088, 0.065, 14), helmMat);
+      cheekPad.rotation.z = Math.PI / 2;
+      cheekPad.position.set(s * 0.285, -0.055, 0.03);
+      headGroup.add(cheekPad);
+
+      const earVent = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.055, 0.09), carbonMat);
+      earVent.position.set(s * 0.325, -0.045, 0.01);
+      headGroup.add(earVent);
+    }
+
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.24, 0.64), trimMat);
+    stripe.position.set(0, 0.21, -0.02);
     headGroup.add(stripe);
 
-    const goggles = new THREE.Mesh(
-      new THREE.BoxGeometry(0.50, 0.14, 0.18),
-      new THREE.MeshPhysicalMaterial({ color: 0x38b6ff, roughness: 0.1, metalness: 0.2, transparent: true, opacity: 0.72 })
+    // Curved Wrap-Around Tinted Visor (Partial Sphere Shell)
+    const visorMat = new THREE.MeshPhysicalMaterial({
+      color: 0x2ec4ff, roughness: 0.06, metalness: 0.35, clearcoat: 1.0,
+      transparent: true, opacity: 0.68, side: THREE.DoubleSide
+    });
+    const visor = new THREE.Mesh(
+      new THREE.SphereGeometry(0.346, 24, 12, Math.PI / 2 - 0.82, 1.64, 1.02, 0.36),
+      visorMat
     );
-    goggles.position.set(0, 0.16, 0.24);
-    headGroup.add(goggles);
+    headGroup.add(visor);
 
-    // Multi-segment Red Scarf trailing in wind
-    const scarfMat = new THREE.MeshStandardMaterial({ color: 0xff2a2a, roughness: 0.6, side: THREE.DoubleSide });
-    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.045, 8, 16), scarfMat);
+    // Smooth Segmented/Curved Fabric Scarf
+    const scarfMat = new THREE.MeshPhysicalMaterial({ color: 0xe62222, roughness: 0.55, sheen: 0.8, sheenRoughness: 0.45, side: THREE.DoubleSide });
+    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.20, 0.042, 10, 20), scarfMat);
     collar.rotation.x = Math.PI / 2;
-    collar.position.set(0, 0.44, 0);
+    collar.position.set(0, 0.435, 0.01);
     driverGroup.add(collar);
 
     const scarfPivot = new THREE.Group();
-    scarfPivot.position.set(0.08, 0.44, -0.20);
+    scarfPivot.position.set(0.07, 0.435, -0.18);
     driverGroup.add(scarfPivot);
-    for (let seg = 0; seg < 3; seg++) {
-      const tail = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.03, 0.28), scarfMat);
-      tail.position.set(0, -seg * 0.02, -0.14 - seg * 0.24);
-      scarfPivot.add(tail);
+
+    const scarfRows = 14, scarfLen = 0.82;
+    const sPos = [], sIdx = [];
+    for (let i = 0; i <= scarfRows; i++) {
+      const t = i / scarfRows;
+      const halfW = 0.078 * (1 - 0.48 * t);
+      const y = -Math.sin(t * Math.PI * 1.15) * 0.055 - t * 0.04;
+      const z = -t * scarfLen;
+      const waveX = Math.sin(t * Math.PI * 1.8) * 0.035;
+      sPos.push(waveX - halfW, y, z, waveX + halfW, y, z);
+      if (i < scarfRows) {
+        const b = i * 2;
+        sIdx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
+      }
     }
+    const scarfGeo = new THREE.BufferGeometry();
+    scarfGeo.setAttribute('position', new THREE.Float32BufferAttribute(sPos, 3));
+    scarfGeo.setIndex(sIdx);
+    scarfGeo.computeVertexNormals();
+    const scarfRibbon = new THREE.Mesh(scarfGeo, scarfMat);
+    scarfRibbon.castShadow = true;
+    scarfPivot.add(scarfRibbon);
     physParts.push({ pivot: scarfPivot, mode: 'scarf' });
   } else if (charCfg.charStyle === 'bazzi') {
-    // Bazzi: Plush Red Hood + Two Long Floppy Bunny/Imp Ears
-    const hoodMat = new THREE.MeshPhysicalMaterial({ color: charCfg.helmetColor, roughness: 0.55, sheen: 0.6 });
+    // Bazzi: Sculpted Plush Racing Hood + Stitched Seam Trim + Tapered Floppy Ears
+    const hoodMat = new THREE.MeshPhysicalMaterial({ color: charCfg.helmetColor, roughness: 0.55, sheen: 0.7, sheenRoughness: 0.5 });
+    const innerEarMat = new THREE.MeshStandardMaterial({ color: charCfg.cheekColor, roughness: 0.72 });
     const hood = new THREE.Mesh(
-      new THREE.SphereGeometry(0.335, 24, 18, 0, TAU, 0, 1.15),
+      new THREE.SphereGeometry(0.335, 28, 20, 0, TAU, 0, 1.15),
       hoodMat
     );
-    hood.name='open-face-headgear';
+    hood.name = 'open-face-headgear';
     headGroup.add(hood);
-    headGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.335,24,12,Math.PI,Math.PI,1.1,1.2),hoodMat));
+    headGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.335, 28, 14, Math.PI, Math.PI, 1.1, 1.2), hoodMat));
 
+    const seamTrim = new THREE.Mesh(new THREE.TorusGeometry(0.318, 0.015, 8, 28), trimMat);
+    seamTrim.rotation.x = Math.PI / 2 - 0.42;
+    seamTrim.position.set(0, 0.13, 0.02);
+    headGroup.add(seamTrim);
+
+    const earProfile = [
+      new THREE.Vector2(0.001, 0.00),
+      new THREE.Vector2(0.078, 0.03),
+      new THREE.Vector2(0.084, 0.14),
+      new THREE.Vector2(0.068, 0.28),
+      new THREE.Vector2(0.044, 0.39),
+      new THREE.Vector2(0.001, 0.43)
+    ];
     for (const s of [-1, 1]) {
       const earPivot = new THREE.Group();
-      earPivot.position.set(s * 0.17, 0.28, -0.04);
-      const earLower = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.08, 0.34, 12), hoodMat);
-      earLower.position.y = 0.17;
-      const earTip = new THREE.Mesh(new THREE.SphereGeometry(0.072, 12, 10), hoodMat);
-      earTip.position.y = 0.35;
-      earPivot.add(earLower, earTip);
-      const inner=new THREE.Mesh(new THREE.SphereGeometry(0.055,10,8),cheekMat);
-      inner.scale.set(0.65,2.7,0.35);inner.position.set(0,0.22,0.065);earPivot.add(inner);
+      earPivot.position.set(s * 0.17, 0.27, -0.04);
+      const earGeo = new THREE.LatheGeometry(earProfile, 16);
+      earGeo.scale(1.0, 1.0, 0.62);
+      earGeo.computeVertexNormals();
+      const earMesh = new THREE.Mesh(earGeo, hoodMat);
+      earPivot.add(earMesh);
+
+      const inner = new THREE.Mesh(new THREE.SphereGeometry(0.048, 12, 10), innerEarMat);
+      inner.scale.set(0.68, 3.1, 0.24);
+      inner.position.set(0, 0.21, 0.042);
+      earPivot.add(inner);
+
       earPivot.rotation.z = -s * 0.22;
       headGroup.add(earPivot);
       physParts.push({ pivot: earPivot, mode: 'ear', side: s });
     }
   } else {
-    // Dizni: Golden Hair + Cat-Ear DJ Headphones + Twin Flowing Ponytails
-    const hairMat = new THREE.MeshPhysicalMaterial({ color: 0xffca3a, roughness: 0.38, sheen: 0.5 });
+    // Dizni: Layered Sculpted Hair + Studio/Racing Headset + Multi-Segment Tapered Ponytails
+    const hairMat = new THREE.MeshPhysicalMaterial({ color: 0xffca3a, roughness: 0.36, sheen: 0.55 });
     const hairCap = new THREE.Mesh(
-      new THREE.SphereGeometry(0.335, 24, 18, 0, TAU, 0, 1.15),
+      new THREE.SphereGeometry(0.335, 28, 20, 0, TAU, 0, 1.15),
       hairMat
     );
-    hairCap.name='open-face-headgear';
+    hairCap.name = 'open-face-headgear';
     headGroup.add(hairCap);
-    headGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.335,24,12,Math.PI,Math.PI,1.1,1.2),hairMat));
+    headGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.335, 28, 14, Math.PI, Math.PI, 1.1, 1.2), hairMat));
 
-    // Headphones
-    const band = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.028, 8, 20, Math.PI), carbonMat);
-    headGroup.add(band);
+    // Layered Front Bangs Framing Face
     for (const s of [-1, 1]) {
-      const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.08, 14), accentMat);
-      cup.rotation.z = Math.PI / 2;
-      cup.position.set(s * 0.33, 0.0, 0.0);
-      headGroup.add(cup);
+      const bang = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), hairMat);
+      bang.scale.set(1.1, 0.65, 0.55);
+      bang.position.set(s * 0.13, 0.20, 0.24);
+      bang.rotation.z = -s * 0.35;
+      headGroup.add(bang);
+    }
 
+    // Detailed Studio/Racing Headset (Padded Headband + Metallic Rings + Mic Boom)
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.345, 0.026, 10, 24, Math.PI), carbonMat);
+    headGroup.add(band);
+    const bandPad = new THREE.Mesh(new THREE.TorusGeometry(0.332, 0.016, 8, 20, Math.PI * 0.65), suitDarkMat);
+    bandPad.rotation.z = Math.PI * 0.175;
+    headGroup.add(bandPad);
+
+    for (const s of [-1, 1]) {
+      const cupPad = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.105, 0.045, 16), suitDarkMat);
+      cupPad.rotation.z = Math.PI / 2;
+      cupPad.position.set(s * 0.315, 0.0, 0.0);
+      headGroup.add(cupPad);
+
+      const cupShell = new THREE.Mesh(new THREE.CylinderGeometry(0.092, 0.105, 0.055, 16), accentMat);
+      cupShell.rotation.z = Math.PI / 2;
+      cupShell.position.set(s * 0.345, 0.0, 0.0);
+      headGroup.add(cupShell);
+
+      const cupRing = new THREE.Mesh(new THREE.TorusGeometry(0.095, 0.011, 8, 18), trimMat);
+      cupRing.rotation.y = Math.PI / 2;
+      cupRing.position.set(s * 0.365, 0.0, 0.0);
+      headGroup.add(cupRing);
+
+      // Multi-Segment Tapered Ponytail
       const tailPivot = new THREE.Group();
-      tailPivot.position.set(s * 0.26, 0.12, -0.18);
-      const tailCone = new THREE.Mesh(new THREE.ConeGeometry(0.10, 0.46, 12), hairMat);
-      tailCone.rotation.x = -Math.PI / 2 - 0.35;
-      tailCone.position.set(0, -0.08, -0.20);
-      tailPivot.add(tailCone);
+      tailPivot.position.set(s * 0.25, 0.12, -0.17);
+      const segSpecs = [
+        { rTop: 0.075, rBot: 0.090, len: 0.16, y: -0.04, z: -0.07, rx: -Math.PI / 2 - 0.22 },
+        { rTop: 0.052, rBot: 0.078, len: 0.18, y: -0.08, z: -0.20, rx: -Math.PI / 2 - 0.36 },
+        { rTop: 0.018, rBot: 0.052, len: 0.18, y: -0.14, z: -0.33, rx: -Math.PI / 2 - 0.48 }
+      ];
+      for (const sp of segSpecs) {
+        const seg = new THREE.Mesh(new THREE.CylinderGeometry(sp.rTop, sp.rBot, sp.len, 12), hairMat);
+        seg.rotation.x = sp.rx;
+        seg.position.set(0, sp.y, sp.z);
+        tailPivot.add(seg);
+      }
       headGroup.add(tailPivot);
       physParts.push({ pivot: tailPivot, mode: 'tail', side: s });
     }
+
+    // Racing Mic Boom on Left Ear Cup
+    const micCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.34, -0.02, 0.03),
+      new THREE.Vector3(-0.28, -0.10, 0.18),
+      new THREE.Vector3(-0.11, -0.12, 0.28)
+    ]);
+    headGroup.add(new THREE.Mesh(new THREE.TubeGeometry(micCurve, 10, 0.008, 6, false), carbonMat));
+    const micTip = new THREE.Mesh(new THREE.SphereGeometry(0.019, 8, 8), suitDarkMat);
+    micTip.position.set(-0.105, -0.12, 0.285);
+    headGroup.add(micTip);
   }
 
   // Spinning Overhead Dizzy Stars (shown when stunned/spinning out)

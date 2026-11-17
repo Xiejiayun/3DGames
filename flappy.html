@@ -1694,7 +1694,7 @@ function measureShowBand() {
   const h = window.innerHeight || 1, t = document.querySelector('#startPanel .title').getBoundingClientRect(), m = $('menu').getBoundingClientRect();
   if (t.height > 0 && m.height > 0 && m.top > t.bottom) { showBand.top = t.bottom / h; showBand.bottom = m.top / h; }
 }
-const sideCam = { dist: 17, x: -2.6, lookX: 3.2 };
+const sideCam = { dist: 17, x: 4.2, lookX: 4.2 };
 const camGoal = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), fov: 50 };
 const camFrom = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), fov: 50 };
 const _mat = new THREE.Matrix4(), _eye = new THREE.Vector3(), _tgt = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _eul = new THREE.Euler(0, 0, 0, 'YXZ');
@@ -1716,7 +1716,7 @@ function updateCamera(dt) {
   fpRoll = damp(fpRoll, falling ? 0.38 : 0, 4, dt);
 
   if (rig === 'side') {
-    lookFrom(sideCam.x, camLookY + 2.8, sideCam.dist, sideCam.lookX, camLookY, 0);
+    lookFrom(sideCam.x, camLookY, sideCam.dist, sideCam.lookX, camLookY, 0);
     camGoal.fov = 50;
   } else if (rig === 'fp') {
     camGoal.pos.set(0.3, birdY + 0.2, 0);
@@ -2025,8 +2025,8 @@ function onResize() {
   camera.aspect = aspect;
   sideCam.dist = aspect < 1.2 ? 17 * Math.min(2.3, 1.2 / aspect) : 17;      // pull back on portrait screens so the playfield still fits
   const k = Math.min(1, aspect);
-  sideCam.x = -2.6 * k;
-  sideCam.lookX = 3.2 * k;
+  sideCam.x = 4.2 * k;
+  sideCam.lookX = 4.2 * k;
   camera.updateProjectionMatrix();
   renderer.setPixelRatio(adaptive.pixelRatio);
   renderer.setSize(w, h);

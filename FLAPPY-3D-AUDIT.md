@@ -32,7 +32,7 @@
 | 地形与植被 | user/jiaxie/flappy-landscape | [#23](https://github.com/Xiejiayun/3DGames/pull/23) |
 | 鸟类模型 | user/jiaxie/flappy-birds | [#27](https://github.com/Xiejiayun/3DGames/pull/27) |
 | 管道模型 | user/jiaxie/flappy-pipes | [#29](https://github.com/Xiejiayun/3DGames/pull/29) |
-| 镜头与渲染 | user/jiaxie/flappy-camera-light | 独立 PR，见仓库记录 |
+| 镜头与渲染 | user/jiaxie/flappy-camera-light | [#32](https://github.com/Xiejiayun/3DGames/pull/32) |
 
 - 使用实际 HTML 模块做 Chromium WebGL 回归，测试桥接代码仅在测试服务器注入，正式页面不暴露调试 API。
 - 执行 `npm ci`、`npx playwright install chromium`、`npm run test:flappy`；设置 `FLAPPY_SCREENSHOTS` 可保存截图。CI 自动检查并保存截图。

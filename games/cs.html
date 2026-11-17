@@ -378,6 +378,19 @@ h3{margin:0 0 10px;font-size:13px;font-weight:800;letter-spacing:.26em;text-tran
   #radar-wrap{width:140px;height:140px} #zone{top:166px;width:140px}
   #vitals{width:220px}
 }
+@media (max-width:600px){
+  #radar-wrap{left:12px;top:12px;width:104px;height:104px}
+  #zone{left:12px;top:122px;width:104px;font-size:9px}
+  #objective{top:146px;left:12px;right:12px;transform:none;min-width:0;max-width:none}
+  #topright{top:12px;right:12px;max-width:60vw}
+  #vitals{left:12px;bottom:18px;width:42vw}
+  #loadout{right:12px;bottom:18px;max-width:44vw}
+  #cash{font-size:16px} #ammo-mag{font-size:32px}
+  #weapon-name{font-size:10px;letter-spacing:.08em}
+  #slots{max-width:44vw;flex-wrap:wrap;justify-content:flex-end;gap:3px}
+  .slot{font-size:9px;padding:2px 4px} #hint,#noise .lbl{display:none}
+  .aware{font-size:9px;letter-spacing:.05em}
+}
 </style>
 <script type="importmap">
 { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
@@ -658,6 +671,8 @@ const CFG = {
   cont: { L40: 12.2, L20: 6.1, W: 2.44, H: 2.6 },
 };
 const FALL_V0 = Math.sqrt(2 * CFG.gravity * CFG.fall.safe);
+// Keep the weapon's horizontal framing when a desktop window becomes narrow.
+const viewmodelFov = (aspect) => 2 * Math.atan(Math.tan(CFG.vmFov * DEG / 2) * Math.max(1, (4 / 3) / aspect)) / DEG;
 
 const CALLSIGNS = {
   t: ['VIPER', 'JACKAL', 'RAVEN', 'COBRA', 'WRAITH', 'MAMBA', 'HYENA', 'KRAKEN', 'SPECTER', 'GHOUL', 'LYNX', 'ONYX', 'FANG', 'ROGUE', 'SCORPION', 'DINGO', 'HAVOC', 'TALON'],
@@ -4437,11 +4452,17 @@ class Input {
     d.addEventListener('wheel', (e) => this.wheel(e), { passive: true });
     d.addEventListener('pointerlockchange', () => this.lockChange());
     d.addEventListener('pointerlockerror', () => this.lockError());
-    window.addEventListener('blur', () => this.release());
+    const suspend = () => { this.release(); this.game.pendingPlay = false; this.game.pause(); };
+    window.addEventListener('blur', suspend);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) suspend(); });
   }
 
   down(code) { return this.keys.has(code); }
-  release() { this.keys.clear(); this.fire = false; this.ads = false; this.firePressed = false; }
+  release() {
+    this.keys.clear(); this.fire = false; this.ads = false; this.firePressed = false;
+    this.mdx = 0; this.mdy = 0; this.jumpBuf = 0;
+    if (this.crouchHold && this.game.player) this.game.player.stand();
+  }
 
   keyUp(e) {
     const code = codeOf(e);
@@ -4956,7 +4977,7 @@ class WeaponSystem {
   muzzleWorld(out) {
     const g = this.game, m = this.models[this.current];
     this.root.updateMatrixWorld(true); m.muzzle.getWorldPosition(out);
-    const k = Math.tan((g.camera.fov * DEG) / 2) / Math.tan((CFG.vmFov * DEG) / 2);
+    const k = Math.tan((g.camera.fov * DEG) / 2) / Math.tan((g.vmCamera.fov * DEG) / 2);
     out.x *= k; out.y *= k; return g.camera.localToWorld(out);
   }
 
@@ -6827,7 +6848,7 @@ class Game {
     const aspect = Math.max(1, window.innerWidth) / Math.max(1, window.innerHeight);
     this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x0c131d); this.scene.fog = new THREE.FogExp2(0x111a26, 0.0135);
     this.camera = new THREE.PerspectiveCamera(CFG.fov, aspect, 0.07, 1500); this.camera.rotation.order = 'YXZ'; this.scene.add(this.camera);
-    this.vmScene = new THREE.Scene(); this.vmCamera = new THREE.PerspectiveCamera(CFG.vmFov, aspect, 0.01, 8);
+    this.vmScene = new THREE.Scene(); this.vmCamera = new THREE.PerspectiveCamera(viewmodelFov(aspect), aspect, 0.01, 8);
 
     this.sound = new SoundManager();
     this.tex = new TextureFactory(Math.min(q.aniso, r.capabilities.getMaxAnisotropy()));
@@ -7088,7 +7109,7 @@ class Game {
   resize() {
     const w = Math.max(1, window.innerWidth), h = Math.max(1, window.innerHeight);
     this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
-    this.vmCamera.aspect = w / h; this.vmCamera.updateProjectionMatrix(); this.ui.drawScope(); this.dirty = true;
+    this.vmCamera.aspect = w / h; this.vmCamera.fov = viewmodelFov(w / h); this.vmCamera.updateProjectionMatrix(); this.ui.drawScope(); this.dirty = true;
   }
 }
 

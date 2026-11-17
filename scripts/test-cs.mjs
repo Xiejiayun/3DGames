@@ -56,3 +56,12 @@ test('barrel changes invalidate static shadows on destruction and reset', () => 
   paint.call({ drumMesh: { instanceMatrix: {} }, bandMesh: { instanceMatrix: {} }, barrels: [], drums: [], game: { renderer: { shadowMap } } });
   assert.equal(shadowMap.needsUpdate, true);
 });
+
+test('narrow viewmodel FOV preserves horizontal framing', () => {
+  const expression = html.match(/const viewmodelFov = (.*);/)[1];
+  const fov = vm.runInNewContext(expression, { CFG: { vmFov: 58 }, DEG: Math.PI / 180 });
+  assert.ok(Math.abs(fov(16 / 9) - 58) < 1e-10);
+  const radians = Math.PI / 180;
+  const horizontal = aspect => Math.tan(fov(aspect) * radians / 2) * aspect;
+  assert.ok(Math.abs(horizontal(0.5) - horizontal(4 / 3)) < 1e-10);
+});

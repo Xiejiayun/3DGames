@@ -47,6 +47,13 @@ try {
       if (!road || road.geometry.attributes.normal.getY(0) < .9) failures.push('road must face up');
       if (!qa.world.getObjectByName('road-foundation')) failures.push('missing deck');
       if (!qa.world.getObjectByName('deck-pier')) failures.push('missing piers');
+      qa.world.updateMatrixWorld(true);
+      for(const index of [0,240,420]) {
+        const s=qa.samples[index];
+        const ray=new qa.THREE.Raycaster(s.pos.clone().addScaledVector(s.right,8.9).add(new qa.THREE.Vector3(0,2,0)),new qa.THREE.Vector3(0,-1,0),0,3);
+        const hit=ray.intersectObject(qa.world.getObjectByName('road-foundation'))[0];
+        if(!hit || hit.point.y<s.pos.y-.1) failures.push('unsupported shoulder gap');
+      }
       if (id === 0) {
         const shell = qa.world.getObjectByName('sea-tunnel-shell');
         if (!shell) failures.push('missing continuous sea tunnel');
@@ -110,6 +117,17 @@ try {
         }
       }
       const owner=qa.racers[0];
+      const ramp=qa.ramps[0];
+      const resetAtRamp=(across)=>{
+        owner.pos.copy(ramp.pos).addScaledVector(ramp.right,across);owner.sampleIdx=Math.floor(.29*600);
+        owner.heading=Math.atan2(ramp.tangent.x,ramp.tangent.z);owner.speed=35;
+        owner.airY=0;owner.airVy=0;owner.doingTrick=false;owner.trickAngle=0;
+      };
+      resetAtRamp(ramp.halfWidth+1.5);qa.stepRacer(owner,1/60,1);
+      if(owner.doingTrick) failures.push('jump triggered outside ramp');
+      resetAtRamp(0);qa.stepRacer(owner,1/60,1);
+      if(!owner.doingTrick || owner.visual.chassisFrame.rotation.x===0) failures.push('jump does not move complete chassis');
+      owner.airY=0;owner.airVy=0;owner.doingTrick=false;owner.trickAngle=0;
       owner.sampleIdx=100;owner.pos.copy(qa.samples[100].pos);owner.heading=Math.atan2(qa.samples[100].tangent.x,qa.samples[100].tangent.z);
       owner.speed=0;qa.stepRacer(owner,0,2);
       if(Math.abs(owner.visual.chassisFrame.rotation.x+Math.asin(qa.samples[100].tangent.y))>.001) failures.push('kart does not follow slope');
@@ -175,6 +193,11 @@ try {
   await page.keyboard.up('ArrowUp');await page.keyboard.up('ArrowRight');
   const after=await page.evaluate(()=>qa.racers[0].pos.toArray());
   assert.ok(Math.hypot(after[0]-before[0],after[2]-before[2])>2,'keyboard driving must move the kart');
+  const handErrors=await page.evaluate(()=>{
+    const r=qa.racers[0];r.visual.root.updateMatrixWorld(true);
+    return r.visual.armRigs.map(rig=>new qa.THREE.Vector3(0,rig.length/2,0).applyMatrix4(rig.lower.matrixWorld).distanceTo(rig.glove.getWorldPosition(new qa.THREE.Vector3())));
+  });
+  assert.ok(handErrors.every(e=>e<.001),'arms must meet hands while steering');
   await page.keyboard.press('Escape');
   assert.equal(await page.evaluate(()=>qa.state),'paused');
   await page.keyboard.press('Escape');

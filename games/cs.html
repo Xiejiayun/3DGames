@@ -3705,7 +3705,8 @@ class MapBuilder {
     xs.forEach((x, i) => { d.position.set(x, 0.65, Y.maxZ - 0.3); d.rotation.set(0, 0, 0); d.updateMatrix(); bollards.setMatrixAt(i, d.matrix); W.addBox(x - 0.25, 0.34, Y.maxZ - 0.55, x + 0.25, 0.96, Y.maxZ - 0.05, { nav: false }); });
     bollards.castShadow = true; bollards.frustumCulled = false; this.scene.add(bollards);
     this.waterNormal = this.tf.waterNormal(); this.waterNormal.repeat.set(70, 40);
-    const water = new THREE.Mesh(new THREE.PlaneGeometry(1200, 600), new THREE.MeshStandardMaterial({ color: 0x06141f, roughness: 0.16, metalness: 0.55, normalMap: this.waterNormal, normalScale: new THREE.Vector2(0.55, 0.55) }));
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(1200, 600), new THREE.MeshStandardMaterial({ color: 0x0b2533, roughness: 0.4, metalness: 0.25, envMapIntensity: 0.14, normalMap: this.waterNormal, normalScale: new THREE.Vector2(0.22, 0.16) }));
+    this.water = water;
     water.rotation.x = -Math.PI / 2; water.position.set(0, CFG.waterY, Y.maxZ + 300); this.scene.add(water);
   }
 
@@ -3941,6 +3942,11 @@ class MapBuilder {
       const stay = this.box(0.3, 0.3, 46, cx, 39.4, 57, M.darkSteel, { cast: false }); stay.rotation.x = 0.25;
       const stayB = this.box(0.3, 0.3, 26, cx, 39.4, 22, M.darkSteel, { cast: false }); stayB.rotation.x = -0.42;
       this.box(2.6, 2.6, 3.2, cx + 2.6, 30, 50, M.white);
+      const cabGlass = new THREE.MeshStandardMaterial({ color: 0x304c60, roughness: 0.24, metalness: 0.2, emissive: 0x284858, emissiveIntensity: 0.25 });
+      this.box(2.24, 1.45, 0.025, cx + 2.6, 30.25, 48.385, cabGlass, { cast: false });
+      this.box(0.025, 1.45, 2.7, cx + 3.915, 30.25, 50, cabGlass, { cast: false });
+      this.box(0.1, 1.5, 0.05, cx + 2.6, 30.25, 48.36, M.steel, { cast: false });
+      this.box(2.85, 0.14, 3.45, cx + 2.6, 31.37, 50, M.roof);
       this.box(0.08, 12, 0.08, cx - 1, 25.4, 49, M.darkSteel, { cast: false }); this.box(0.08, 12, 0.08, cx + 1, 25.4, 49, M.darkSteel, { cast: false });
       this.box(0.08, 12, 0.08, cx - 1, 25.4, 54.5, M.darkSteel, { cast: false }); this.box(0.08, 12, 0.08, cx + 1, 25.4, 54.5, M.darkSteel, { cast: false });
       this.cont(cx, 51.75, 0, 40, 2, null, { baseY: 16.8, deco: true });
@@ -3961,6 +3967,19 @@ class MapBuilder {
     this.box(150, 10, 24, 14, 3.4, 66, M.hull, { cast: false });
     this.box(150, 3.2, 24.1, 14, -3.2, 66, M.hullRed, { cast: false });
     this.box(150.2, 0.5, 24.3, 14, 8.6, 66, M.white, { cast: false });
+    this.box(148, 0.16, 0.12, 14, 5.3, 53.94, M.steel, { cast: false });
+    const fenders = new THREE.InstancedMesh(this.geo(1.2, 3.2, 0.6), M.rubber, 12), dummy = new THREE.Object3D();
+    for (let i = 0; i < 12; i++) { dummy.position.set(-54 + i * 12, 2.6, 53.7); dummy.updateMatrix(); fenders.setMatrixAt(i, dummy.matrix); }
+    this.scene.add(fenders);
+    const marks = new THREE.InstancedMesh(this.geo(0.42, 0.12, 0.03), M.white, 18);
+    for (let i = 0; i < 18; i++) { dummy.position.set((i < 9 ? -58 : 82), -1 + (i % 9) * 0.48, 53.975); dummy.updateMatrix(); marks.setMatrixAt(i, dummy.matrix); }
+    this.scene.add(marks);
+    const name = new THREE.Mesh(new THREE.PlaneGeometry(14, 1.6), new THREE.MeshBasicMaterial({ map: tf.sign('NORDHAVN · 07', 768, 96, '#c2cbd1', '#141a22') }));
+    name.position.set(65, 6.7, 53.98); name.rotation.y = Math.PI; this.scene.add(name);
+    for (const [x0, x1] of [[-43.33, -50], [43.37, 55]]) {
+      const curve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(x0, 0.7, 41.7), new THREE.Vector3((x0 + x1) / 2, 0.8, 48), new THREE.Vector3(x1, 6.4, 53.7));
+      this.scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 16, 0.045, 5, false), M.plank));
+    }
     const bow = this.box(17, 13.2, 17, 89, 1.8, 66, M.hull, { cast: false }); bow.rotation.y = Math.PI / 4;
     const win = tf.windows(14, 9, 0.38, true);
     const sup = new THREE.Mesh(new THREE.BoxGeometry(13, 19, 21), new THREE.MeshStandardMaterial({ color: 0x9aa3ab, roughness: 0.8, emissive: 0xffffff, emissiveMap: win, emissiveIntensity: 0.85, map: win }));

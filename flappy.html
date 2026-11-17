@@ -1539,11 +1539,13 @@ function setView(mode) {
   savePref(CFG.VIEW_KEY, mode);
   for (const b of viewButtons) b.classList.toggle('sel', b.dataset.view === mode);
   $('viewBtnText').textContent = TEXT[mode];
-  if (state === 'start') { for (const p of pipes) p.setGap(p.baseY, currentGap()); }
-  else {
+  if (state === 'start') {
+    for (const p of pipes) p.setGap(p.baseY, currentGap());
+    setRig(mode, booted ? 0.35 : 0);
+  } else {
     for (const p of pipes) if (p.x > 2) p.setGap(p.baseY, currentGap());
     viewGraceT = 0.5;
-    setRig(mode, 0.6);
+    setRig(mode, 0.45);
   }
   fpReticle.style.display = state === 'play' && mode === 'fp' && !paused ? 'block' : 'none';
 }
@@ -1575,7 +1577,7 @@ function resetGame() {
   fpReticle.style.display = 'none';
   overPanel.classList.remove('show');
   startPanel.classList.add('show');
-  setRig('show', 0.9);
+  setRig(viewMode, booted ? 0.45 : 0);
 }
 function startGame() {
   state = 'play'; paused = false;
@@ -1584,7 +1586,7 @@ function startGame() {
   viewBtn.style.display = 'flex';
   pauseBtn.style.display = 'flex';
   fpReticle.style.display = viewMode === 'fp' ? 'block' : 'none';
-  setRig(viewMode, 1.0);
+  setRig(viewMode, 0);
 }
 function flap() {
   vy = CFG.FLAP_V;
@@ -1688,7 +1690,7 @@ $('pauseRestartBtn').addEventListener('click', () => { $('pauseRestartBtn').blur
 /* ---------------------------------------------------------------------
    18. Camera rigs: 'show' (start screen close-up), 'side' (default view), 'fp' (first person)
    --------------------------------------------------------------------- */
-let rig = 'show', camT = 1, camDur = 1, camLookY = CFG.START_Y, fpPitch = 0, fpRoll = 0;
+let rig = viewMode, camT = 1, camDur = 1, camLookY = CFG.START_Y, fpPitch = 0, fpRoll = 0;
 const showBand = { top: 0.18, bottom: 0.52 };              // free part of the start screen, as fractions of its height
 function measureShowBand() {
   const h = window.innerHeight || 1, t = document.querySelector('#startPanel .title').getBoundingClientRect(), m = $('menu').getBoundingClientRect();
@@ -1701,7 +1703,9 @@ const _mat = new THREE.Matrix4(), _eye = new THREE.Vector3(), _tgt = new THREE.V
 function setRig(next, duration) {
   if (rig === next) return;
   camFrom.pos.copy(camera.position); camFrom.quat.copy(camera.quaternion); camFrom.fov = camera.fov;
-  rig = next; camT = 0; camDur = duration;
+  rig = next;
+  if (!duration || duration <= 0) { camT = 1; camDur = 0; }
+  else { camT = 0; camDur = duration; }
 }
 function lookFrom(ex, ey, ez, tx, ty, tz) {
   _eye.set(ex, ey, ez); _tgt.set(tx, ty, tz);

@@ -7,7 +7,7 @@ import { chromium } from 'playwright';
 const root = new URL('../', import.meta.url);
 const html = await readFile(new URL('games/flappy.html', root), 'utf8');
 const bridge = `window.qa = {
-  THREE, scene, camera, renderer, bird, pipes, chunks, terrainH, lumpy, flock, feathers, cloudMesh, cloudField, farMeshes, lakeMist, sun, waterMat, skyUniforms,
+  THREE, scene, camera, renderer, bird, pipes, chunks, terrainH, lumpy, flock, feathers, cloudMesh, cloudField, farMeshes, lakeMist, sun, waterMat, skyUniforms, cloudAtlas, bgHeightRT, skyRT,
   setBird, setQuality, resetGame, startGame, flap, update, animateVisuals,
   updateCamera, togglePause, CFG,
   get state() { return state; }, get birdY() { return birdY; },
@@ -38,7 +38,7 @@ async function screenshot(name) {
 }
 try {
   await page.goto(`http://127.0.0.1:${server.address().port}/games/flappy.html`);
-  await page.waitForFunction(() => window.__fb3dReady, null, { timeout: 60000 });
+  await page.waitForFunction(() => window.__fb3dReady && window.qa, null, { timeout: 60000 });
   await page.evaluate(() => qa.stop());
   const landscape = await page.evaluate(() => {
     qa.setQuality('low'); qa.render();
@@ -154,8 +154,20 @@ try {
   await page.waitForFunction(() => window.__fb3dReady, null, { timeout: 60000 });
   await page.evaluate(() => qa.stop());
   assert.equal(await page.evaluate(() => qa.paused), true, 'restored gameplay waits for the player to resume');
+  const restoredTextures = await page.evaluate(() => {
+    const cloud = new Uint8Array(1024 * 1024 * 4);
+    qa.renderer.readRenderTargetPixels(qa.cloudAtlas, 0, 0, 1024, 1024, cloud);
+    let opaque = 0;
+    for (let i = 3; i < cloud.length; i += 4) if (cloud[i] > 128) opaque++;
+    const terrain = new Uint8Array(4), sky = new Uint16Array(4);
+    qa.renderer.readRenderTargetPixels(qa.bgHeightRT, 0, 0, 1, 1, terrain);
+    qa.renderer.readRenderTargetPixels(qa.skyRT, 256, 96, 1, 1, sky);
+    return { cloudPixels: opaque, terrainAO: terrain[3], sky: Array.from(sky.slice(0, 3)) };
+  });
+  assert(restoredTextures.cloudPixels > 1000 && restoredTextures.terrainAO > 0 && restoredTextures.sky.some(v => v > 0), 'restored GPU targets must contain sky, mountain and cloud data');
   await screenshot('context-restored');
-  console.log('PASS Flappy camera, scenery quality, pause, shadows and context recovery');
+  console.log('Restored GPU targets:', restoredTextures);
+  console.log('PASS Flappy camera, scenery quality, pause, shadows and context recovery', sceneryQuality);
   assert.deepEqual(errors, [], 'browser and shader errors');
   console.log('PASS Flappy landscape:', landscape);
 } finally {

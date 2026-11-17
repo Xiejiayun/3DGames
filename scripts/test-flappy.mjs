@@ -8,7 +8,7 @@ const root = new URL('../', import.meta.url);
 const html = await readFile(new URL('games/flappy.html', root), 'utf8');
 const bridge = `window.qa = {
   THREE, scene, camera, renderer, bird, pipes, chunks, terrainH, lumpy, flock,
-  setBird, setView, setQuality, resetGame, startGame, flap, update, animateVisuals,
+  setBird, setQuality, resetGame, startGame, flap, update, animateVisuals,
   updateCamera, togglePause, CFG, skyMat,
   get state() { return state; }, get birdY() { return birdY; },
   set birdY(v) { birdY = v; }, set scroll(v) { scroll = v; },

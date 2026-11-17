@@ -960,6 +960,7 @@ const skyMat = new THREE.ShaderMaterial({
   `
 });
 
+let environmentTarget = null;
 function buildEnvMapForTrack(trackCfg) {
   skyMat.uniforms.uZenith.value.setRGB(...trackCfg.zenith);
   skyMat.uniforms.uMid.value.setRGB(...trackCfg.mid);
@@ -976,9 +977,13 @@ function buildEnvMapForTrack(trackCfg) {
   floor.position.y = -2;
   envScene.add(floor);
   const pmrem = new THREE.PMREMGenerator(renderer);
-  const tex = pmrem.fromScene(envScene, 0.02).texture;
+  const nextTarget = pmrem.fromScene(envScene, 0.02);
   pmrem.dispose();
-  scene.environment = tex;
+  envScene.children.forEach(o => o.geometry.dispose());
+  floor.material.dispose();
+  scene.environment = nextTarget.texture;
+  if (environmentTarget) environmentTarget.dispose();
+  environmentTarget = nextTarget;
 }
 
 /* ---------------------------------------------------------------------
@@ -1465,7 +1470,7 @@ function buildMenu() {
   const dict = I18N[lang];
   const charWrap = $('charChoices');
   charWrap.innerHTML = '';
-  previewRenderers.forEach(p => p.renderer.dispose());
+  previewRenderers.forEach(p => { disposeObject(p.kart.root); p.renderer.dispose(); });
   previewRenderers.length = 0;
 
   CHARS.forEach((c, idx) => {
@@ -1650,19 +1655,49 @@ let itemBoxes = [];
 let animatedProps = [];
 let snowPoints = null;
 
+// Rebuilt worlds own their generated textures; the sky and tire texture are shared.
+function disposeObject(root) {
+  const geometries = new Set(), materials = new Set(), textures = new Set();
+  root.traverse(o => {
+    if (o.geometry) geometries.add(o.geometry);
+    for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+      if (!m || m === skyMat) continue;
+      materials.add(m);
+      for (const value of Object.values(m)) {
+        if (value?.isTexture && value !== sharedTireTex) textures.add(value);
+      }
+    }
+    if (o.shadow) o.shadow.dispose();
+  });
+  geometries.forEach(g => g.dispose());
+  materials.forEach(m => m.dispose());
+  textures.forEach(t => t.dispose());
+}
+
+function trackFrame(sample) {
+  const group = new THREE.Group();
+  group.position.copy(sample.pos);
+  group.lookAt(sample.pos.clone().add(sample.tangent));
+  return group;
+}
+
+function beamBetween(a, b, radius, material) {
+  const delta = b.clone().sub(a);
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, delta.length(), 6), material);
+  mesh.position.copy(a).add(b).multiplyScalar(0.5);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
+  return mesh;
+}
+
 function buildTrackAndWorld(trackCfg) {
+  let seed = { coast: 1024, forest: 2048, alpine: 4096 }[trackCfg.id];
+  const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   buildEnvMapForTrack(trackCfg);
   previewRenderers.forEach(p => { p.scene.environment = scene.environment; });
 
   if (worldGroup) {
     scene.remove(worldGroup);
-    worldGroup.traverse((o) => {
-      if (o.geometry) o.geometry.dispose();
-      if (o.material && o.material !== skyMat) {
-        if (Array.isArray(o.material)) o.material.forEach(m => m.dispose());
-        else o.material.dispose();
-      }
-    });
+    disposeObject(worldGroup);
   }
   worldGroup = new THREE.Group();
   scene.add(worldGroup);
@@ -1782,7 +1817,44 @@ function buildTrackAndWorld(trackCfg) {
     clearcoat: trackCfg.id === 'alpine' ? 0.65 : 0.08
   }));
   roadMesh.receiveShadow = true;
+  roadMesh.name = 'road-surface';
   worldGroup.add(roadMesh);
+
+  // Give the elevated ribbon a solid deck and piers down to the actual ground.
+  const deckPos = [], deckIdx = [];
+  const deckMat = new THREE.MeshStandardMaterial({ color: 0x56606a, roughness: 0.88, side: THREE.DoubleSide });
+  for (let i = 0; i <= SAMPLES; i++) {
+    const s = trackSamples[i % SAMPLES];
+    for (const side of [-1, 1]) {
+      const p = s.pos.clone().addScaledVector(s.right, side * WALL_HALF_W);
+      deckPos.push(p.x, p.y + 0.02, p.z, p.x, p.y - 0.65, p.z);
+    }
+    if (i < SAMPLES) {
+      const b = i * 4;
+      deckIdx.push(b,b+4,b+1, b+1,b+4,b+5, b+2,b+3,b+6, b+3,b+7,b+6,
+        b+1,b+5,b+3, b+3,b+5,b+7);
+    }
+  }
+  const deckGeo = new THREE.BufferGeometry();
+  deckGeo.setAttribute('position', new THREE.Float32BufferAttribute(deckPos, 3));
+  deckGeo.setIndex(deckIdx);
+  deckGeo.computeVertexNormals();
+  const deck = new THREE.Mesh(deckGeo, deckMat);
+  deck.name = 'road-foundation';
+  worldGroup.add(deck);
+  for (let i = 0; i < SAMPLES; i += 24) {
+    const s = trackSamples[i];
+    const bottom = trackCfg.id === 'coast' ? -19.2 : -3.2;
+    const height = s.pos.y - 0.65 - bottom;
+    if (height <= 0) continue;
+    for (const side of [-1, 1]) {
+      const pier = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.8, height, 8), deckMat);
+      pier.position.copy(s.pos).addScaledVector(s.right, side * 5.8);
+      pier.position.y = bottom + height / 2;
+      pier.name = 'deck-pier';
+      worldGroup.add(pier);
+    }
+  }
 
   const kerbGeo = new THREE.BufferGeometry();
   kerbGeo.setAttribute('position', new THREE.Float32BufferAttribute(kerbPos, 3));
@@ -1834,7 +1906,7 @@ function buildTrackAndWorld(trackCfg) {
     const pad = new THREE.Mesh(padGeo, padMat);
     pad.position.copy(s.pos).add(new THREE.Vector3(0, 0.13, 0));
     pad.lookAt(s.pos.clone().add(s.tangent).add(new THREE.Vector3(0, 0.13, 0)));
-    pad.rotateX(Math.PI / 2);
+    pad.rotateX(-Math.PI / 2);
     worldGroup.add(pad);
     boostPads.push({ pos: s.pos.clone(), radius: 3.6 });
   });
@@ -1846,12 +1918,18 @@ function buildTrackAndWorld(trackCfg) {
     const rampGrp = new THREE.Group();
     rampGrp.position.copy(s.pos);
     rampGrp.lookAt(s.pos.clone().add(s.tangent));
-    const wedge = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.65, 5.2), rampMat);
-    wedge.rotation.x = -0.18;
-    wedge.position.y = 0.28;
+    const profile = new THREE.Shape();
+    profile.moveTo(-2.6, 0.06); profile.lineTo(2.6, 0.06);
+    profile.lineTo(2.6, 0.95); profile.closePath();
+    const wedgeGeo = new THREE.ExtrudeGeometry(profile, { depth: 7.6, bevelEnabled: false });
+    // Shape X is travel (+Z); extrusion Z spans the road (+X).
+    wedgeGeo.rotateY(-Math.PI / 2);
+    wedgeGeo.translate(3.8, 0, 0);
+    const wedge = new THREE.Mesh(wedgeGeo, rampMat);
+    wedge.name = 'jump-ramp';
     rampGrp.add(wedge);
     worldGroup.add(rampGrp);
-    jumpRamps.push({ pos: s.pos.clone(), radius: 4.5 });
+    jumpRamps.push({ pos: s.pos.clone(), tangent: s.tangent.clone(), right: s.right.clone(), halfWidth: 3.8, halfLength: 2.6 });
   });
 
   // Rainbow Item Boxes (Clusters of 3 across track at 4 locations)
@@ -1880,7 +1958,8 @@ function buildTrackAndWorld(trackCfg) {
     new THREE.PlaneGeometry(1000, 1000).rotateX(-Math.PI / 2),
     new THREE.MeshStandardMaterial({ color: trackCfg.groundColor, roughness: 0.94 })
   );
-  ground.position.y = -3.2;
+  ground.position.y = trackCfg.id === 'coast' ? -19.2 : -3.2;
+  ground.name = 'ground';
   ground.receiveShadow = true;
   worldGroup.add(ground);
 
@@ -1978,11 +2057,11 @@ function buildTrackAndWorld(trackCfg) {
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x7c5333, roughness: 0.9 });
     const leafMat = new THREE.MeshStandardMaterial({ color: 0x2b9348, roughness: 0.7, side: THREE.DoubleSide });
     for (let i = 0; i < 60; i++) {
-      const x = (Math.random() - 0.5) * 380, z = (Math.random() - 0.3) * 360;
+      const x = (random() - 0.5) * 380, z = (random() - 0.3) * 360;
       if (!isClearOfTrack(x, z, 16)) continue;
       const palm = new THREE.Group();
       palm.position.set(x, -0.5, z);
-      const h = 7 + Math.random() * 4;
+      const h = 7 + random() * 4;
       const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.45, h, 8), trunkMat);
       tr.position.y = h / 2;
       palm.add(tr);
@@ -2035,7 +2114,7 @@ function buildTrackAndWorld(trackCfg) {
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c3a21, roughness: 0.9 });
     const pineMat = new THREE.MeshStandardMaterial({ color: 0x1b4332, roughness: 0.85 });
     for (let i = 0; i < 95; i++) {
-      const x = (Math.random() - 0.5) * 400, z = (Math.random() - 0.3) * 380;
+      const x = (random() - 0.5) * 400, z = (random() - 0.3) * 380;
       if (!isClearOfTrack(x, z, 16)) continue;
       const tree = new THREE.Group();
       tree.position.set(x, -1.0, z);
@@ -2081,7 +2160,7 @@ function buildTrackAndWorld(trackCfg) {
     const frostMat = new THREE.MeshStandardMaterial({ color: 0x2b5876, roughness: 0.8 });
     const snowCapMat = new THREE.MeshStandardMaterial({ color: 0xf4f9ff, roughness: 0.6 });
     for (let i = 0; i < 75; i++) {
-      const x = (Math.random() - 0.5) * 400, z = (Math.random() - 0.3) * 380;
+      const x = (random() - 0.5) * 400, z = (random() - 0.3) * 380;
       if (!isClearOfTrack(x, z, 16)) continue;
       const tree = new THREE.Group();
       tree.position.set(x, -1.0, z);
@@ -2098,9 +2177,9 @@ function buildTrackAndWorld(trackCfg) {
     const snowGeo = new THREE.BufferGeometry();
     const snowArr = new Float32Array(1000 * 3);
     for (let i = 0; i < 1000; i++) {
-      snowArr[i * 3] = (Math.random() - 0.5) * 300;
-      snowArr[i * 3 + 1] = Math.random() * 52;
-      snowArr[i * 3 + 2] = (Math.random() - 0.5) * 300;
+      snowArr[i * 3] = (random() - 0.5) * 300;
+      snowArr[i * 3 + 1] = random() * 52;
+      snowArr[i * 3 + 2] = (random() - 0.5) * 300;
     }
     snowGeo.setAttribute('position', new THREE.BufferAttribute(snowArr, 3));
     snowPoints = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.7, transparent: true, opacity: 0.85 }));
@@ -2164,6 +2243,7 @@ function clearProjectiles() {
   while (activeProjectiles.length > 0) {
     const p = activeProjectiles.pop();
     projectileGroup.remove(p.mesh);
+    disposeObject(p.mesh);
   }
 }
 
@@ -2244,6 +2324,7 @@ function updateProjectiles(dt) {
     p.life -= dt;
     if (p.life <= 0) {
       projectileGroup.remove(p.mesh);
+      disposeObject(p.mesh);
       activeProjectiles.splice(i, 1);
       continue;
     }
@@ -2263,6 +2344,7 @@ function updateProjectiles(dt) {
       if (p.target && dist < 2.2) {
         inflictHit(p.target, 'missile');
         projectileGroup.remove(p.mesh);
+        disposeObject(p.mesh);
         activeProjectiles.splice(i, 1);
         continue;
       }
@@ -2273,6 +2355,7 @@ function updateProjectiles(dt) {
         if (r.pos.distanceToSquared(p.pos) < 7.5) {
           inflictHit(r, 'bubble');
           projectileGroup.remove(p.mesh);
+          disposeObject(p.mesh);
           activeProjectiles.splice(i, 1);
           break;
         }
@@ -2284,6 +2367,7 @@ function updateProjectiles(dt) {
         if (r.pos.distanceToSquared(p.pos) < 3.4) {
           inflictHit(r, 'banana');
           projectileGroup.remove(p.mesh);
+          disposeObject(p.mesh);
           activeProjectiles.splice(i, 1);
           break;
         }
@@ -2446,7 +2530,7 @@ function createRacer(charCfg, index, isPlayer) {
 }
 
 function clearRacers() {
-  racers.forEach(r => scene.remove(r.visual.root));
+  racers.forEach(r => { scene.remove(r.visual.root); disposeObject(r.visual.root); });
   racers = [];
   clearProjectiles();
 }
@@ -2769,7 +2853,11 @@ function stepRacer(r, dt, nowSec) {
 
   // Jump Ramps & Airborne 360° Trick Physics
   for (const ramp of jumpRamps) {
-    if (r.airY <= 0.05 && r.speed > 26 && r.pos.distanceToSquared(ramp.pos) < ramp.radius * ramp.radius) {
+    const relative = r.pos.clone().sub(ramp.pos);
+    const along = relative.dot(ramp.tangent);
+    const across = relative.dot(ramp.right);
+    if (r.airY <= 0.05 && r.speed > 26 && Math.abs(across) < ramp.halfWidth &&
+        along >= -ramp.halfLength && along <= ramp.halfLength) {
       r.airVy = 13.5;
       r.airY = 0.25;
       r.doingTrick = true;

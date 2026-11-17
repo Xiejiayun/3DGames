@@ -43,15 +43,7 @@
   }
   #score.pop { animation: pop 0.2s ease-out; }
   @keyframes pop { 0% { transform: scale(1.3); } 100% { transform: scale(1); } }
-  #viewBtn {
-    position: absolute; inset-block-start: max(14px, env(safe-area-inset-top)); inset-inline-end: 14px;
-    pointer-events: auto; cursor: pointer; display: none; align-items: center; gap: 7px;
-    border: 1px solid var(--line); border-radius: 999px; background: var(--glass); color: var(--paper);
-    font-size: 13px; font-weight: 700; line-height: 1; padding: 10px 14px;
-    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-  }
-  #viewBtn:hover { background: var(--glass-strong); }
-  #viewBtn svg, .chip svg, .top-btn svg { inline-size: 18px; block-size: 18px; flex: none; }
+  .chip svg, .top-btn svg { inline-size: 18px; block-size: 18px; flex: none; }
   #topBtns {
     position: absolute; inset-block-start: max(14px, env(safe-area-inset-top)); inset-inline-start: 14px;
     display: flex; gap: 8px; z-index: 4;
@@ -65,19 +57,6 @@
   .top-btn:hover { background: var(--glass-strong); }
   .top-btn.off { opacity: 0.55; }
   #pauseBtn { display: none; }
-  #fpReticle {
-    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    width: 44px; height: 2px; display: none; pointer-events: none;
-  }
-  #fpReticle::before, #fpReticle::after {
-    content: ""; position: absolute; top: 0; width: 12px; height: 2px; border-radius: 2px;
-    background: rgba(255, 255, 255, 0.55); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-  }
-  #fpReticle::before { left: 0; } #fpReticle::after { right: 0; }
-  #fpReticle i {
-    position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px;
-    border-radius: 50%; background: rgba(255, 210, 90, 0.85); box-shadow: 0 0 4px rgba(0,0,0,.6);
-  }
   #pausePanel { justify-content: center; gap: 18px; background: rgba(8, 14, 22, 0.44); }
   .pause-title { font-size: clamp(32px, 6vw, 56px); font-weight: 900; letter-spacing: 2px; text-shadow: 0 3px 0 var(--shade); }
   .btn-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
@@ -112,11 +91,9 @@
     -webkit-backdrop-filter: blur(12px) saturate(1.2); backdrop-filter: blur(12px) saturate(1.2);
     box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3);
   }
-  .menu-cols { display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px 16px; }
   .menu-label { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; color: var(--muted); margin-block-end: 7px; }
   .choices { display: grid; gap: 8px; }
   #birdChoices { grid-template-columns: repeat(3, 1fr); }
-  #viewChoices { grid-template-rows: 1fr 1fr; block-size: calc(100% - 22px); }
   #qualChoices { grid-template-columns: repeat(4, 1fr); }
   .qual-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-block-end: 7px; }
   .qual-head .menu-label { margin-block-end: 0; }
@@ -183,17 +160,12 @@
     background: #1d2a38; text-align: center; padding: 24px; font-size: 17px; line-height: 1.6;
   }
 
-  @media (max-width: 540px) {
-    .menu-cols { grid-template-columns: 1fr; }
-    #viewChoices { grid-template-rows: none; grid-template-columns: 1fr 1fr; block-size: auto; }
-  }
   @media (max-height: 470px) {
     #startPanel { padding-block: 8px; }
     .title { font-size: clamp(22px, 7.5vh, 40px); }
     .menu { gap: 8px; padding: 10px 14px; border-radius: 18px; }
     .chip { padding: 6px 8px; font-size: 14px; }
     .chip.bird { flex-direction: row; gap: 5px; padding: 5px 4px; }
-    .menu-cols { gap: 8px 14px; }
     .menu-label { margin-block-end: 4px; }
     .chip.bird canvas { inline-size: 30px; block-size: 30px; }
     .start { padding: 9px 28px; }
@@ -216,7 +188,6 @@
 <body>
 <div id="ui">
   <div id="vignette"></div>
-  <div id="fpReticle"><i></i></div>
   <div id="score" aria-live="polite">0</div>
   <div id="topBtns">
     <button id="muteBtn" class="top-btn" type="button" aria-label="Mute">
@@ -226,35 +197,15 @@
       <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
     </button>
   </div>
-  <button id="viewBtn" type="button">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h11a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M16 12l5-3v8l-5-3"/></svg>
-    <span id="viewBtnText"></span>
-  </button>
-
   <div id="startPanel" class="panel">
     <div class="title">FLAPPY BIRD <span>3D</span></div>
     <div class="menu" id="menu">
-      <div class="menu-cols">
-        <div>
-          <div class="menu-label" data-i18n="chooseBird"></div>
-          <div class="choices" id="birdChoices">
-            <button type="button" class="chip bird" data-bird="blue"><canvas width="96" height="96"></canvas><span data-i18n="blue"></span></button>
-            <button type="button" class="chip bird" data-bird="red"><canvas width="96" height="96"></canvas><span data-i18n="red"></span></button>
-            <button type="button" class="chip bird" data-bird="yellow"><canvas width="96" height="96"></canvas><span data-i18n="yellow"></span></button>
-          </div>
-        </div>
-        <div>
-          <div class="menu-label" data-i18n="chooseView"></div>
-          <div class="choices" id="viewChoices">
-            <button type="button" class="chip view" data-view="side">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h11a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M16 12l5-3v8l-5-3"/></svg>
-              <span data-i18n="side"></span>
-            </button>
-            <button type="button" class="chip view" data-view="fp">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
-              <span data-i18n="fp"></span>
-            </button>
-          </div>
+      <div>
+        <div class="menu-label" data-i18n="chooseBird"></div>
+        <div class="choices" id="birdChoices">
+          <button type="button" class="chip bird" data-bird="blue"><canvas width="96" height="96"></canvas><span data-i18n="blue"></span></button>
+          <button type="button" class="chip bird" data-bird="red"><canvas width="96" height="96"></canvas><span data-i18n="red"></span></button>
+          <button type="button" class="chip bird" data-bird="yellow"><canvas width="96" height="96"></canvas><span data-i18n="yellow"></span></button>
         </div>
       </div>
       <div>
@@ -313,9 +264,8 @@ const TEXT = {
   zh: {
     loading: '正在搭建场景…', slow: '加载比较慢。如果一直停在这里，请检查网络后刷新页面。',
     chooseBird: '选择小鸟', blue: '小蓝', red: '小红', yellow: '小黄',
-    chooseView: '选择视角', side: '默认视角', fp: '第一人称',
     chooseQual: '画质模式', qualAuto: '自动', qualHigh: '高', qualMed: '中', qualLow: '低 (CPU)', qualCpuHint: '检测到无GPU软渲染，已自动启用低画质',
-    start: '开始游戏', hint: '点击画面 / 空格 / ↑ 起飞 · ← → 换小鸟 · V 换视角 · P 暂停 · M 静音', hintTouch: '点击屏幕任意位置起飞',
+    start: '开始游戏', hint: '点击画面 / 空格 / ↑ 起飞 · ← → 换小鸟 · P 暂停 · M 静音', hintTouch: '点击屏幕任意位置起飞',
     over: '游戏结束', score: '得分', best: '最高分', newBest: '新纪录', again: '再玩一次', againHint: '也可以按 空格 / 回车',
     paused: '已暂停', resume: '继续游戏', restart: '重新开始',
     medal: '奖牌', medalNone: '暂无', medalBronze: '🥉 铜牌', medalSilver: '🥈 银牌', medalGold: '🥇 金牌', medalPlat: '💎 白金',
@@ -325,9 +275,8 @@ const TEXT = {
   en: {
     loading: 'Building the scene…', slow: 'This is taking a while. If it stays here, check your connection and reload.',
     chooseBird: 'CHOOSE YOUR BIRD', blue: 'Blue', red: 'Red', yellow: 'Yellow',
-    chooseView: 'CAMERA VIEW', side: 'Side view', fp: 'First person',
     chooseQual: 'GRAPHICS', qualAuto: 'Auto', qualHigh: 'High', qualMed: 'Med', qualLow: 'Low (CPU)', qualCpuHint: 'Software WebGL detected — Low mode active',
-    start: 'Start', hint: 'Click / Space / ↑ flap  ·  ← → bird  ·  V view  ·  P pause  ·  M mute', hintTouch: 'Tap anywhere to flap',
+    start: 'Start', hint: 'Click / Space / ↑ flap  ·  ← → bird  ·  P pause  ·  M mute', hintTouch: 'Tap anywhere to flap',
     over: 'GAME OVER', score: 'SCORE', best: 'BEST', newBest: 'NEW', again: 'Play Again', againHint: 'or press Space / Enter',
     paused: 'PAUSED', resume: 'Resume', restart: 'Restart',
     medal: 'MEDAL', medalNone: 'NONE', medalBronze: '🥉 BRONZE', medalSilver: '🥈 SILVER', medalGold: '🥇 GOLD', medalPlat: '💎 PLATINUM',
@@ -377,10 +326,9 @@ const CFG = {
   FLAP_V: 8.2,            // upward velocity after a flap
   MAX_FALL: 13.5,         // terminal velocity
   SPEED: 4.6,             // forward speed (units / s)
-  PIPE_GAP: 3.7,          // gap height in the side view
-  PIPE_GAP_FP: 4.3,       // slightly wider gap in first person (height is harder to judge there)
+  PIPE_GAP: 3.7,          // gap height
   PIPE_SPACING: 7.6,
-  PIPE_COUNT: 30,         // enough pipes to fill the view to the horizon in first person
+  PIPE_COUNT: 14,
   FIRST_PIPE_X: 18,
   PIPE_R: 0.95, RIM_R: 1.2, RIM_H: 0.6,
   GAP_MIN: 3.4, GAP_MAX: 9.8, GAP_MAX_DELTA: 3.6,
@@ -388,7 +336,7 @@ const CFG = {
   REST_Y: 0.5,            // bird centre height when it lies on the ground
   HITBOX_SCALE: 0.9,      // bird hitbox is 10% smaller than its body
   SHAKE_DUR: 0.45,
-  BEST_KEY: 'flappy3d_best', BIRD_KEY: 'flappy3d_bird', VIEW_KEY: 'flappy3d_view', MUTE_KEY: 'flappy3d_mute', QUAL_KEY: 'flappy3d_qual'
+  BEST_KEY: 'flappy3d_best', BIRD_KEY: 'flappy3d_bird', MUTE_KEY: 'flappy3d_mute', QUAL_KEY: 'flappy3d_qual'
 };
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -1356,12 +1304,6 @@ function spawnFeathers(count, burst) {
     if (--left <= 0) break;
   }
 }
-// Beak tip shown at the bottom of the screen in first person.
-const fpBeak = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.2, 18).rotateX(-Math.PI / 2), bird.mats.beak);
-fpBeak.scale.set(1, 0.5, 1);
-fpBeak.position.set(0, -0.285, -0.34);
-fpBeak.visible = false;
-camera.add(fpBeak);
 const birdBox = new THREE.Box3(), birdCenter = new THREE.Vector3();
 
 // 2D portrait for the selection buttons
@@ -1483,10 +1425,10 @@ function sfxSelect() {
 /* ---------------------------------------------------------------------
    16. UI + game state
    --------------------------------------------------------------------- */
-const scoreEl = $('score'), startPanel = $('startPanel'), overPanel = $('overPanel'), pausePanel = $('pausePanel'), viewBtn = $('viewBtn');
-const pauseBtn = $('pauseBtn'), muteBtn = $('muteBtn'), fpReticle = $('fpReticle'), medalBadge = $('medalBadge');
+const scoreEl = $('score'), startPanel = $('startPanel'), overPanel = $('overPanel'), pausePanel = $('pausePanel');
+const pauseBtn = $('pauseBtn'), muteBtn = $('muteBtn'), medalBadge = $('medalBadge');
 const finalScoreEl = $('finalScore'), bestScoreEl = $('bestScore'), newBestEl = $('newBest'), flashEl = $('flash');
-const birdButtons = [...document.querySelectorAll('#birdChoices .chip')], viewButtons = [...document.querySelectorAll('#viewChoices .chip')];
+const birdButtons = [...document.querySelectorAll('#birdChoices .chip')];
 function loadPref(key, allowed, fallback) {
   try { const v = localStorage.getItem(key); return allowed.includes(v) ? v : fallback; } catch (e) { return fallback; }
 }
@@ -1494,7 +1436,7 @@ function savePref(key, value) { try { localStorage.setItem(key, String(value)); 
 function loadBest() { try { return parseInt(localStorage.getItem(CFG.BEST_KEY) || '0', 10) || 0; } catch (e) { return 0; } }
 
 let state = 'start';                    // 'start' | 'play' | 'dying' | 'over'
-let paused = false, viewGraceT = 0;
+let paused = false;
 let muted = loadPref(CFG.MUTE_KEY, ['0', '1'], '0') === '1';
 function applyMute() {
   if (master) master.gain.value = muted ? 0 : 0.6;
@@ -1511,8 +1453,6 @@ let knockV = 0, knockDir = 1;
 let scroll = 0;
 let flapBoost = 0, wingPhase = 0, squash = 0, blinkT = 2, shakeT = 0, showT = 0, tod = 0.04;
 let birdSkin = loadPref(CFG.BIRD_KEY, SKIN_ORDER, 'yellow');
-let viewMode = loadPref(CFG.VIEW_KEY, ['side', 'fp'], 'side');
-const currentGap = () => (viewMode === 'fp' ? CFG.PIPE_GAP_FP : CFG.PIPE_GAP);
 const curSpeed = () => CFG.SPEED * (1 + Math.min(0.45, score * 0.008));
 
 function setScore(v) {
@@ -1537,21 +1477,6 @@ function setBird(name) {
   }
   squash = 1;
 }
-function setView(mode) {
-  viewMode = mode;
-  savePref(CFG.VIEW_KEY, mode);
-  for (const b of viewButtons) b.classList.toggle('sel', b.dataset.view === mode);
-  $('viewBtnText').textContent = TEXT[mode];
-  if (state === 'start') {
-    for (const p of pipes) p.setGap(p.baseY, currentGap());
-    setRig(mode, booted ? 0.35 : 0);
-  } else {
-    for (const p of pipes) if (p.x > 2) p.setGap(p.baseY, currentGap());
-    viewGraceT = 0.5;
-    setRig(mode, 0.45);
-  }
-  fpReticle.style.display = state === 'play' && mode === 'fp' && !paused ? 'block' : 'none';
-}
 function resetPipes() {
   lastGapY = CFG.START_Y;
   pipes.forEach((p, i) => {
@@ -1559,37 +1484,30 @@ function resetPipes() {
     lastGapY = randomGap(lastGapY);
     p.scored = false; p.bobAmp = 0; p.bobSpeed = 0; p.bobPhase = 0;
     p.appear = i < 4 ? 1 : 0;
-    p.setGap(lastGapY, currentGap());
+    p.setGap(lastGapY, CFG.PIPE_GAP);
   });
 }
 function togglePause(force) {
   if (state !== 'play') return;
   paused = force === undefined ? !paused : !!force;
   pausePanel.classList.toggle('show', paused);
-  fpReticle.style.display = viewMode === 'fp' && !paused ? 'block' : 'none';
 }
 function resetGame() {
-  state = 'start'; paused = false; viewGraceT = 0;
+  state = 'start'; paused = false;
   pausePanel.classList.remove('show');
   setScore(0);
   birdY = CFG.START_Y; vy = 0; pitch = 0; bobT = 0; landed = false; flapBoost = 0;
   resetPipes();
   scoreEl.style.display = 'none';
-  viewBtn.style.display = 'none';
   pauseBtn.style.display = 'none';
-  fpReticle.style.display = 'none';
   overPanel.classList.remove('show');
   startPanel.classList.add('show');
-  setRig(viewMode, booted ? 0.45 : 0);
 }
 function startGame() {
   state = 'play'; paused = false;
   startPanel.classList.remove('show');
   scoreEl.style.display = 'block';
-  viewBtn.style.display = 'flex';
   pauseBtn.style.display = 'flex';
-  fpReticle.style.display = viewMode === 'fp' ? 'block' : 'none';
-  setRig(viewMode, 0);
 }
 function flap() {
   vy = CFG.FLAP_V;
@@ -1607,7 +1525,6 @@ function die(hitGround, pipe) {
   knockDir = pipe && pipe.x < 0 ? -1 : 1;
   knockV = hitGround ? 0 : 3.4;
   shakeT = CFG.SHAKE_DUR;
-  fpReticle.style.display = 'none';
   pauseBtn.style.display = 'none';
   flash();
   sfxCrash();
@@ -1626,9 +1543,7 @@ function showGameOver() {
   medalBadge.className = 'medal ' + m[0];
   medalBadge.textContent = TEXT[m[1]];
   scoreEl.style.display = 'none';
-  viewBtn.style.display = 'none';
   pauseBtn.style.display = 'none';
-  fpReticle.style.display = 'none';
   overPanel.classList.add('show');
 }
 function onAction() {
@@ -1643,7 +1558,7 @@ function onAction() {
    --------------------------------------------------------------------- */
 window.addEventListener('pointerdown', e => {
   if (e.pointerType === 'mouse' && e.button !== 0) return;
-  if (e.target instanceof Element && e.target.closest('#menu, #overPanel, #pausePanel, #viewBtn, #topBtns')) return;
+  if (e.target instanceof Element && e.target.closest('#menu, #overPanel, #pausePanel, #topBtns')) return;
   e.preventDefault();
   onAction();
 }, { passive: false });
@@ -1665,9 +1580,6 @@ window.addEventListener('keydown', e => {
     e.preventDefault(); togglePause();
   } else if (e.code === 'KeyM' && !e.repeat) {
     ensureAudio(); toggleMute();
-  } else if (e.code === 'KeyV' && !e.repeat && !paused && (state === 'start' || state === 'play')) {
-    ensureAudio(); sfxSelect();
-    setView(viewMode === 'fp' ? 'side' : 'fp');
   } else if (state === 'start' && !e.repeat) {
     const i = SKIN_ORDER.indexOf(birdSkin);
     let next = null;
@@ -1681,19 +1593,17 @@ for (const b of birdButtons) {
   drawBirdIcon(b.querySelector('canvas'), b.dataset.bird);
   b.addEventListener('click', () => { ensureAudio(); sfxSelect(); setBird(b.dataset.bird); b.blur(); });
 }
-for (const b of viewButtons) b.addEventListener('click', () => { ensureAudio(); sfxSelect(); setView(b.dataset.view); b.blur(); });
 $('startBtn').addEventListener('click', e => { e.currentTarget.blur(); onAction(); });
 $('playBtn').addEventListener('click', e => { e.currentTarget.blur(); ensureAudio(); resetGame(); });
-viewBtn.addEventListener('click', () => { viewBtn.blur(); if (state === 'play' && !paused) { sfxSelect(); setView(viewMode === 'fp' ? 'side' : 'fp'); } });
 muteBtn.addEventListener('click', () => { muteBtn.blur(); ensureAudio(); toggleMute(); });
 pauseBtn.addEventListener('click', () => { pauseBtn.blur(); togglePause(); });
 $('resumeBtn').addEventListener('click', () => { $('resumeBtn').blur(); togglePause(false); });
 $('pauseRestartBtn').addEventListener('click', () => { $('pauseRestartBtn').blur(); resetGame(); });
 
 /* ---------------------------------------------------------------------
-   18. Camera rigs: 'show' (start screen close-up), 'side' (default view), 'fp' (first person)
+   18. Camera rig: side view
    --------------------------------------------------------------------- */
-let rig = viewMode, camT = 1, camDur = 1, camLookY = CFG.START_Y, fpPitch = 0, fpRoll = 0;
+let camLookY = CFG.START_Y;
 const showBand = { top: 0.18, bottom: 0.52 };              // free part of the start screen, as fractions of its height
 function measureShowBand() {
   const h = window.innerHeight || 1, t = document.querySelector('#startPanel .title').getBoundingClientRect(), m = $('menu').getBoundingClientRect();
@@ -1701,54 +1611,19 @@ function measureShowBand() {
 }
 const sideCam = { dist: 17, x: 4.2, lookX: 4.2 };
 const camGoal = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), fov: 50 };
-const camFrom = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), fov: 50 };
-const _mat = new THREE.Matrix4(), _eye = new THREE.Vector3(), _tgt = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _eul = new THREE.Euler(0, 0, 0, 'YXZ');
-function setRig(next, duration) {
-  if (rig === next) return;
-  camFrom.pos.copy(camera.position); camFrom.quat.copy(camera.quaternion); camFrom.fov = camera.fov;
-  rig = next;
-  if (!duration || duration <= 0) { camT = 1; camDur = 0; }
-  else { camT = 0; camDur = duration; }
-}
+const _mat = new THREE.Matrix4(), _eye = new THREE.Vector3(), _tgt = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
 function lookFrom(ex, ey, ez, tx, ty, tz) {
   _eye.set(ex, ey, ez); _tgt.set(tx, ty, tz);
   camGoal.pos.copy(_eye);
   camGoal.quat.setFromRotationMatrix(_mat.lookAt(_eye, _tgt, _up));
 }
 function updateCamera(dt) {
-  const aspect = camera.aspect;
   camLookY = damp(camLookY, CFG.START_Y + (birdY - CFG.START_Y) * 0.3, 3, dt);
-  const falling = state === 'dying' || state === 'over';
-  fpPitch = damp(fpPitch, falling ? -0.42 : clamp(pitch * 0.3, -0.34, 0.2), falling ? 4 : 7, dt);
-  fpRoll = damp(fpRoll, falling ? 0.38 : 0, 4, dt);
-
-  if (rig === 'side') {
-    lookFrom(sideCam.x, camLookY, sideCam.dist, sideCam.lookX, camLookY, 0);
-    camGoal.fov = 50;
-  } else if (rig === 'fp') {
-    camGoal.pos.set(0.3, birdY + 0.2, 0);
-    camGoal.quat.setFromEuler(_eul.set(fpPitch, -Math.PI / 2, fpRoll));
-    camGoal.fov = aspect < 1 ? 86 : 74;
-  } else {
-    // Frame the bird inside the free band between the title and the menu, whatever the screen shape.
-    const fov = 36, tanHalf = Math.tan(fov * Math.PI / 360), bandH = Math.max(0.12, showBand.bottom - showBand.top);
-    const visibleH = Math.max(1.7 / Math.min(0.5, bandH * 0.9), 2.5 / aspect);        // world height shown on screen
-    const dist = visibleH / (2 * tanHalf), ndcY = 1 - (showBand.top + showBand.bottom);   // band centre in NDC
-    const sway = Math.sin(showT * 0.45) * 0.07, ty = CFG.START_Y + 0.06 - ndcY * tanHalf * dist;
-    lookFrom(0.05 + (0.77 + sway) * dist, ty + 0.1 * dist, (0.63 - sway) * dist, 0.05, ty, 0);
-    camGoal.fov = fov;
-  }
-  if (camT < 1) {
-    camT = Math.min(1, camT + dt / camDur);
-    const e = smooth01(camT);
-    camera.position.lerpVectors(camFrom.pos, camGoal.pos, e);
-    camera.quaternion.slerpQuaternions(camFrom.quat, camGoal.quat, e);
-    camera.fov = lerp(camFrom.fov, camGoal.fov, e);
-  } else {
-    camera.position.copy(camGoal.pos);
-    camera.quaternion.copy(camGoal.quat);
-    camera.fov = camGoal.fov;
-  }
+  lookFrom(sideCam.x, camLookY, sideCam.dist, sideCam.lookX, camLookY, 0);
+  camGoal.fov = 50;
+  camera.position.copy(camGoal.pos);
+  camera.quaternion.copy(camGoal.quat);
+  camera.fov = camGoal.fov;
   if (shakeT > 0) {                                        // brief shake on impact
     shakeT = Math.max(0, shakeT - dt);
     const m = 0.5 * (shakeT / CFG.SHAKE_DUR);
@@ -1757,12 +1632,7 @@ function updateCamera(dt) {
     camera.rotateZ((Math.random() * 2 - 1) * m * 0.06);
   }
   camera.updateProjectionMatrix();
-  // The bird model is hidden while the camera sits inside its head; the beak tip is shown instead.
-  const inside = camera.position.distanceTo(birdCenter.set(0, birdY, 0)) < 0.95;
-  bird.root.visible = !inside;
-  fpBeak.visible = inside && rig === 'fp';
-  fpBeak.position.y = -0.86 * 0.44 * Math.tan(camera.fov * Math.PI / 360);
-  fpBeak.scale.x = clamp(aspect * 1.1, 0.5, 1);
+  bird.root.visible = true;
   sky.position.copy(camera.position);
 }
 
@@ -1779,7 +1649,7 @@ function scrollWorld(h, movePipes) {
     if (p.bobAmp > 0) {
       p.bobPhase += p.bobSpeed * h;
       const y = p.baseY + Math.sin(p.bobPhase) * p.bobAmp;
-      p.lo = y - currentGap() / 2; p.hi = y + currentGap() / 2; p.pose();
+      p.lo = y - CFG.PIPE_GAP / 2; p.hi = y + CFG.PIPE_GAP / 2; p.pose();
     }
     if (p.x > maxX) maxX = p.x;
   }
@@ -1792,7 +1662,7 @@ function scrollWorld(h, movePipes) {
       p.bobAmp = move ? 0.8 + Math.random() * 0.5 : 0;
       p.bobSpeed = move ? 1.4 + Math.random() * 0.8 : 0;
       p.bobPhase = Math.random() * TAU;
-      p.setGap(lastGapY, currentGap());
+      p.setGap(lastGapY, CFG.PIPE_GAP);
     }
   }
 }
@@ -1805,7 +1675,6 @@ function update(h) {
     pitch = damp(pitch, Math.sin(bobT * 3.2 + 0.6) * 0.1, 8, h);
     scrollWorld(h, false);
   } else if (state === 'play') {
-    viewGraceT = Math.max(0, viewGraceT - h);
     vy = Math.max(vy - CFG.GRAVITY * h, -CFG.MAX_FALL);
     birdY += vy * h;
     if (birdY > CFG.CEILING) { birdY = CFG.CEILING; if (vy > 0) vy = 0; }
@@ -1818,12 +1687,10 @@ function update(h) {
     }
     birdBox.setFromCenterAndSize(birdCenter.set(0, birdY, 0), bird.hitSize);
     if (birdBox.min.y <= CFG.GROUND_Y) { birdY = CFG.REST_Y; die(true); return; }
-    if (viewGraceT <= 0) {
-      for (const p of pipes) {
-        if (Math.abs(p.x) > CFG.RIM_R + 1.5) continue;
-        p.updateBoxes();
-        for (const box of p.boxes) if (birdBox.intersectsBox(box)) { die(false, p); return; }
-      }
+    for (const p of pipes) {
+      if (Math.abs(p.x) > CFG.RIM_R + 1.5) continue;
+      p.updateBoxes();
+      for (const box of p.boxes) if (birdBox.intersectsBox(box)) { die(false, p); return; }
     }
   } else if (state === 'dying') {
     dyingT += h;
@@ -1991,7 +1858,7 @@ function animateVisuals(dt) {
   updateCamera(dt);
 
   if (windGain) {
-    const target = state === 'play' && !paused ? (viewMode === 'fp' ? 0.1 : 0.045) + Math.min(0.06, Math.abs(vy) * 0.004) : 0.015;
+    const target = state === 'play' && !paused ? 0.045 + Math.min(0.06, Math.abs(vy) * 0.004) : 0.015;
     windGain.gain.value = damp(windGain.gain.value, target, 3, dt);
   }
 }
@@ -2103,7 +1970,6 @@ function tick(now) {
 
 setQuality(qualPref);
 setBird(birdSkin);
-setView(viewMode);
 squash = 0;
 resetGame();
 for (const p of pipes) { p.appear = 1; p.pose(); }

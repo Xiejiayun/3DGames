@@ -32,6 +32,21 @@ jobs:
       - name: Install deployment tools
         run: npm ci
 
+      - name: Install browser for kart checks
+        run: npx playwright install --with-deps chromium
+
+      - name: Check kart 3D scenes
+        run: npm run test:kart
+        env:
+          KART_SCREENSHOTS: ${{ runner.temp }}/kart-screenshots
+
+      - name: Save kart screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kart-3d-screenshots
+          path: ${{ runner.temp }}/kart-screenshots
+          retention-days: 7
       - name: Test CS scene regressions
         run: npm test
 

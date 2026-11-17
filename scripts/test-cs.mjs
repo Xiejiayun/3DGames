@@ -45,3 +45,23 @@ test('a step clearance query cannot discard a later wall collision', () => {
   assert.equal(body.hitX, true);
   assert.ok(body.pos.x <= -0.26);
 });
+
+test('barrel changes invalidate static shadows on destruction and reset', () => {
+  const start = html.indexOf('  paintDrums() {');
+  const end = html.indexOf('  hitDrum(', start);
+  const method = html.slice(start, end);
+  // Exercise the real method with an empty instance list and renderer adapter.
+  const paint = vm.runInNewContext('({' + method + '})', { THREE: { Object3D: class {}, Color: class {} } }).paintDrums;
+  const shadowMap = { needsUpdate: false };
+  paint.call({ drumMesh: { instanceMatrix: {} }, bandMesh: { instanceMatrix: {} }, barrels: [], drums: [], game: { renderer: { shadowMap } } });
+  assert.equal(shadowMap.needsUpdate, true);
+});
+
+test('narrow viewmodel FOV preserves horizontal framing', () => {
+  const expression = html.match(/const viewmodelFov = (.*);/)[1];
+  const fov = vm.runInNewContext(expression, { CFG: { vmFov: 58 }, DEG: Math.PI / 180 });
+  assert.ok(Math.abs(fov(16 / 9) - 58) < 1e-10);
+  const radians = Math.PI / 180;
+  const horizontal = aspect => Math.tan(fov(aspect) * radians / 2) * aspect;
+  assert.ok(Math.abs(horizontal(0.5) - horizontal(4 / 3)) < 1e-10);
+});

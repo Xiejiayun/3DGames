@@ -320,7 +320,8 @@ const TEXT = {
     paused: '已暂停', resume: '继续游戏', restart: '重新开始',
     medal: '奖牌', medalNone: '暂无', medalBronze: '🥉 铜牌', medalSilver: '🥈 银牌', medalGold: '🥇 金牌', medalPlat: '💎 白金',
     errCdn: '3D 引擎（Three.js）加载失败。请检查网络连接后刷新页面。',
-    errGl: '当前浏览器无法启用 WebGL，3D 游戏无法运行。'
+    errGl: '当前浏览器无法启用 WebGL，3D 游戏无法运行。',
+    contextLost: '图形连接中断，正在恢复场景…'
   },
   en: {
     loading: 'Building the scene…', slow: 'This is taking a while. If it stays here, check your connection and reload.',
@@ -332,7 +333,8 @@ const TEXT = {
     paused: 'PAUSED', resume: 'Resume', restart: 'Restart',
     medal: 'MEDAL', medalNone: 'NONE', medalBronze: '🥉 BRONZE', medalSilver: '🥈 SILVER', medalGold: '🥇 GOLD', medalPlat: '💎 PLATINUM',
     errCdn: 'Could not load the 3D engine (Three.js). Check your connection and reload the page.',
-    errGl: 'WebGL is not available in this browser, so the 3D game cannot start.'
+    errGl: 'WebGL is not available in this browser, so the 3D game cannot start.',
+    contextLost: 'Graphics connection lost. Restoring the scene…'
   }
 }[LANG];
 document.documentElement.lang = LANG === 'zh' ? 'zh-CN' : 'en';
@@ -1541,7 +1543,7 @@ function setView(mode) {
   $('viewBtnText').textContent = TEXT[mode];
   if (state === 'start') {
     for (const p of pipes) p.setGap(p.baseY, currentGap());
-    setRig(mode, booted ? 0.35 : 0);
+    setRig('show', booted ? 0.35 : 0);
   } else {
     for (const p of pipes) if (p.x > 2) p.setGap(p.baseY, currentGap());
     viewGraceT = 0.5;
@@ -1577,7 +1579,7 @@ function resetGame() {
   fpReticle.style.display = 'none';
   overPanel.classList.remove('show');
   startPanel.classList.add('show');
-  setRig(viewMode, booted ? 0.45 : 0);
+  setRig('show', booted ? 0.45 : 0);
 }
 function startGame() {
   state = 'play'; paused = false;
@@ -1746,7 +1748,7 @@ function updateCamera(dt) {
     camera.quaternion.copy(camGoal.quat);
     camera.fov = camGoal.fov;
   }
-  if (shakeT > 0) {                                        // brief shake on impact
+  if (shakeT > 0 && !paused) {                                        // brief shake on impact
     shakeT = Math.max(0, shakeT - dt);
     const m = 0.5 * (shakeT / CFG.SHAKE_DUR);
     camera.position.x += (Math.random() * 2 - 1) * m;
@@ -1870,7 +1872,9 @@ function sampleAtm(t, idx) {
 }
 function updateAtmosphere(dt) {
   const targetTod = state === 'play' ? ((score * 0.018) % 1) : tod;
-  if (state === 'play' && !paused) tod = damp(tod, targetTod < tod && targetTod < 0.1 ? targetTod + 1 : targetTod, 0.8, dt) % 1;
+  // Interpolate on the unit circle, so dusk/day transitions never reverse across zero.
+  const todDelta = ((targetTod - tod + 1.5) % 1) - 0.5;
+  if (state === 'play' && !paused) tod = (damp(tod, tod + todDelta, 0.8, dt) + 1) % 1;
   else if (state === 'start') tod = (tod + dt * 0.005) % 1;
   const ang = tod * TAU;
   SUN_DIR.set(-0.30 + Math.sin(ang) * 0.35, Math.cos(ang) * 0.76 + 0.06, 0.60).normalize();
@@ -1888,13 +1892,16 @@ function updateAtmosphere(dt) {
   skyMat.uniforms.uTime.value = showT;
   HORIZON.setRGB(h[0], h[1], h[2]);
   renderer.setClearColor(HORIZON);
+  // Match the visible moon when the sun is below the horizon; never light terrain from underneath.
+  const lightDir = SUN_DIR.y >= 0 ? SUN_DIR : new THREE.Vector3(-SUN_DIR.x, Math.abs(SUN_DIR.y) * 0.7 + 0.35, -SUN_DIR.z).normalize();
+  sun.position.copy(sun.target.position).addScaledVector(lightDir, 150);
   sun.color.setRGB(sc[0], sc[1], sc[2]);
   sun.intensity = sInt;
   hemiLight.color.setRGB(m[0] * 0.9 + 0.25, m[1] * 0.9 + 0.25, m[2] * 0.9 + 0.3);
   hemiLight.groundColor.setRGB(0.22 * (1 - night * 0.7), 0.32 * (1 - night * 0.7), 0.14 * (1 - night * 0.5));
   hemiLight.intensity = hInt;
-  scene.environmentIntensity = lerp(0.9, 0.35, night);
-  waterMat.color.setRGB(wc[0], wc[1], wc[2]);
+  scene.environmentIntensity = qCfg.env ? lerp(0.9, 0.12, night) : 0;
+  waterMat.color.setRGB(wc[0], wc[1], wc[2], THREE.SRGBColorSpace);
   lowland.material.color.setRGB(lerp(0.28, 0.04, night), lerp(0.42, 0.06, night), lerp(0.20, 0.10, night));
   mistMat.color.setRGB(h[0], h[1], h[2]);
   mistMat.opacity = 0.14 + 0.08 * (1 - night);
@@ -1905,6 +1912,7 @@ function updateAtmosphere(dt) {
 }
 
 function animateVisuals(dt) {
+  dt = paused ? 0 : dt; // One visual clock freezes particles, clouds, blinking and pipe reveals too.
   const alive = state === 'start' || state === 'play';
   if (!paused) showT += dt;
   updateAtmosphere(paused ? 0 : dt);
@@ -2050,6 +2058,11 @@ function setQuality(pref) {
   QUALITY.shadowSize = qCfg.shadowSize;
   QUALITY.grass = qCfg.grass;
   renderer.shadowMap.enabled = qCfg.shadows;
+  if (sun.shadow.mapSize.x !== qCfg.shadowSize) {
+    sun.shadow.mapSize.set(qCfg.shadowSize, qCfg.shadowSize);
+    if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+    sun.shadow.needsUpdate = true;
+  }
   renderer.toneMapping = qCfg.simpleSky ? THREE.NoToneMapping : THREE.NeutralToneMapping;
   skyMat.uniforms.uSimple.value = qCfg.simpleSky ? 1 : 0;
   if (qCfg.env) {
@@ -2097,6 +2110,26 @@ function tick(now) {
   }
   requestAnimationFrame(tick);
 }
+
+renderer.domElement.addEventListener('webglcontextlost', event => {
+  event.preventDefault();
+  running = false;
+  window.__fb3dReady = false;
+  if (state === 'play') togglePause(true);
+  $('loadingText').textContent = TEXT.contextLost;
+  $('loading').classList.remove('hide');
+});
+renderer.domElement.addEventListener('webglcontextrestored', () => {
+  try {
+    // Render-target contents do not survive context loss; capture the environment again.
+    if (cachedEnvTex) cachedEnvTex.dispose();
+    cachedEnvTex = null;
+    scene.environment = qCfg.env ? ensureEnvMap() : null;
+    renderer.shadowMap.needsUpdate = true;
+    booted = false; acc = 0; last = performance.now(); running = true;
+    requestAnimationFrame(tick);
+  } catch (err) { showError(TEXT.errGl); console.error('Scene restoration failed', err); }
+});
 
 setQuality(qualPref);
 setBird(birdSkin);

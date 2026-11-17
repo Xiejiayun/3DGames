@@ -63,6 +63,18 @@ try {
           if (ray.intersectObject(ocean).length) failures.push('sea slices driving clearance');
         }
       }
+      if (id === 1) {
+        for (const name of ['forest-cave-shell','forest-suspension-bridge','waterfall-pool','forest-boulder']) {
+          if (!qa.world.getObjectByName(name)) failures.push(`missing ${name}`);
+        }
+        qa.world.updateMatrixWorld(true);
+        const cliff = qa.world.getObjectByName('waterfall');
+        for (const s of qa.samples) {
+          const ray = new qa.THREE.Raycaster(s.pos.clone().add(new qa.THREE.Vector3(0,1.5,0)),s.tangent,0,4);
+          if (ray.intersectObject(cliff,true).length) failures.push('waterfall obstructs track');
+        }
+        qa.world.traverse(o => { if (o.name==='redwood' && o.position.y!==-3.2) failures.push('floating redwood'); });
+      }
       if (qa.ramps.some(r => !r.halfWidth || !r.tangent)) failures.push('ramp trigger has no frame');
       const wedge = qa.world.getObjectByName('jump-ramp');
       wedge.geometry.computeBoundingBox();

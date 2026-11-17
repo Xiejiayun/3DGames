@@ -117,6 +117,10 @@
   .choices { display: grid; gap: 8px; }
   #birdChoices { grid-template-columns: repeat(3, 1fr); }
   #viewChoices { grid-template-rows: 1fr 1fr; block-size: calc(100% - 22px); }
+  #qualChoices { grid-template-columns: repeat(4, 1fr); }
+  .qual-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-block-end: 7px; }
+  .qual-head .menu-label { margin-block-end: 0; }
+  .qual-note { font-size: 11px; font-weight: 700; color: var(--accent); opacity: 0.92; }
   .chip {
     pointer-events: auto; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
     border: 2px solid transparent; border-radius: 16px; background: var(--chip); color: var(--paper);
@@ -253,6 +257,18 @@
           </div>
         </div>
       </div>
+      <div>
+        <div class="qual-head">
+          <div class="menu-label" data-i18n="chooseQual"></div>
+          <span class="qual-note" id="qualNote"></span>
+        </div>
+        <div class="choices" id="qualChoices">
+          <button type="button" class="chip" data-qual="auto" data-i18n="qualAuto"></button>
+          <button type="button" class="chip" data-qual="high" data-i18n="qualHigh"></button>
+          <button type="button" class="chip" data-qual="med" data-i18n="qualMed"></button>
+          <button type="button" class="chip" data-qual="low" data-i18n="qualLow"></button>
+        </div>
+      </div>
       <button type="button" id="startBtn" class="start" data-i18n="start"></button>
       <div class="hint" data-i18n="hint"></div>
     </div>
@@ -298,6 +314,7 @@ const TEXT = {
     loading: '正在搭建场景…', slow: '加载比较慢。如果一直停在这里，请检查网络后刷新页面。',
     chooseBird: '选择小鸟', blue: '小蓝', red: '小红', yellow: '小黄',
     chooseView: '选择视角', side: '默认视角', fp: '第一人称',
+    chooseQual: '画质模式', qualAuto: '自动', qualHigh: '高', qualMed: '中', qualLow: '低 (CPU)', qualCpuHint: '检测到无GPU软渲染，已自动启用低画质',
     start: '开始游戏', hint: '点击画面 / 空格 / ↑ 起飞 · ← → 换小鸟 · V 换视角 · P 暂停 · M 静音', hintTouch: '点击屏幕任意位置起飞',
     over: '游戏结束', score: '得分', best: '最高分', newBest: '新纪录', again: '再玩一次', againHint: '也可以按 空格 / 回车',
     paused: '已暂停', resume: '继续游戏', restart: '重新开始',
@@ -309,6 +326,7 @@ const TEXT = {
     loading: 'Building the scene…', slow: 'This is taking a while. If it stays here, check your connection and reload.',
     chooseBird: 'CHOOSE YOUR BIRD', blue: 'Blue', red: 'Red', yellow: 'Yellow',
     chooseView: 'CAMERA VIEW', side: 'Side view', fp: 'First person',
+    chooseQual: 'GRAPHICS', qualAuto: 'Auto', qualHigh: 'High', qualMed: 'Med', qualLow: 'Low (CPU)', qualCpuHint: 'Software WebGL detected — Low mode active',
     start: 'Start', hint: 'Click / Space / ↑ flap  ·  ← → bird  ·  V view  ·  P pause  ·  M mute', hintTouch: 'Tap anywhere to flap',
     over: 'GAME OVER', score: 'SCORE', best: 'BEST', newBest: 'NEW', again: 'Play Again', againHint: 'or press Space / Enter',
     paused: 'PAUSED', resume: 'Resume', restart: 'Restart',
@@ -370,7 +388,7 @@ const CFG = {
   REST_Y: 0.5,            // bird centre height when it lies on the ground
   HITBOX_SCALE: 0.9,      // bird hitbox is 10% smaller than its body
   SHAKE_DUR: 0.45,
-  BEST_KEY: 'flappy3d_best', BIRD_KEY: 'flappy3d_bird', VIEW_KEY: 'flappy3d_view', MUTE_KEY: 'flappy3d_mute'
+  BEST_KEY: 'flappy3d_best', BIRD_KEY: 'flappy3d_bird', VIEW_KEY: 'flappy3d_view', MUTE_KEY: 'flappy3d_mute', QUAL_KEY: 'flappy3d_qual'
 };
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -382,19 +400,41 @@ const damp = (cur, target, rate, dt) => cur + (target - cur) * (1 - Math.exp(-ra
 /* ---------------------------------------------------------------------
    3. Renderer, scene, camera
    --------------------------------------------------------------------- */
+const COARSE = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);   // phones / tablets
+function detectSoftwareGL() {
+  try {
+    const c = document.createElement('canvas');
+    const gl = c.getContext('webgl2') || c.getContext('webgl') || c.getContext('experimental-webgl');
+    if (!gl) return false;
+    const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+    const r = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '') : String(gl.getParameter(gl.RENDERER) || '');
+    const sw = /swiftshader|llvmpipe|softpipe|software|basic render driver|mesa offscreen/i.test(r);
+    const lose = gl.getExtension('WEBGL_lose_context');
+    if (lose) lose.loseContext();
+    return sw;
+  } catch { return false; }
+}
+const IS_SOFTWARE_GL = detectSoftwareGL();
+const QUAL_PRESETS = {
+  high: { maxPixelRatio: 2, shadowSize: 2048, shadows: true, env: true, grass: 1, mist: true, antialias: true, simpleSky: false, fpsCap: 0 },
+  med:  { maxPixelRatio: 1.25, shadowSize: 1024, shadows: true, env: true, grass: 0.45, mist: true, antialias: false, simpleSky: false, fpsCap: 0 },
+  low:  { maxPixelRatio: 0.7, shadowSize: 512, shadows: false, env: false, grass: 0, mist: false, antialias: false, simpleSky: true, fpsCap: 30 }
+};
+let qualPref = (() => { try { const v = localStorage.getItem(CFG.QUAL_KEY); return ['auto', 'high', 'med', 'low'].includes(v) ? v : 'auto'; } catch { return 'auto'; } })();
+const resolveQual = p => p === 'auto' ? (IS_SOFTWARE_GL ? 'low' : COARSE ? 'med' : 'high') : p;
+let qCfg = QUAL_PRESETS[resolveQual(qualPref)];
+const QUALITY = { maxPixelRatio: qCfg.maxPixelRatio, shadowSize: qCfg.shadowSize, grass: qCfg.grass };
 let renderer;
 try {
-  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer = new THREE.WebGLRenderer({ antialias: qCfg.antialias, powerPreference: qCfg.antialias ? 'high-performance' : 'low-power' });
 } catch (err) { showError(TEXT.errGl); throw err; }
-const COARSE = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);   // phones / tablets
-const QUALITY = { maxPixelRatio: COARSE ? 1.75 : 2, shadowSize: COARSE ? 1024 : 2048, grass: COARSE ? 0.5 : 1 };
 if (COARSE) document.querySelector('#menu .hint').textContent = TEXT.hintTouch;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, QUALITY.maxPixelRatio));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
+renderer.shadowMap.enabled = qCfg.shadows;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMapping = qCfg.simpleSky ? THREE.NoToneMapping : THREE.NeutralToneMapping;
 renderer.toneMappingExposure = 1.0;
 document.body.prepend(renderer.domElement);
 
@@ -605,7 +645,8 @@ const skyMat = new THREE.ShaderMaterial({
     uCloudA: { value: new THREE.Color(0.80, 0.85, 0.93) },
     uCloudB: { value: new THREE.Color(1.04, 1.04, 1.04) },
     uNight: { value: 0 },
-    uTime: { value: 0 }
+    uTime: { value: 0 },
+    uSimple: { value: qCfg.simpleSky ? 1 : 0 }
   },
   vertexShader: /* glsl */`
     varying vec3 vDir;
@@ -624,6 +665,7 @@ const skyMat = new THREE.ShaderMaterial({
     uniform vec3 uCloudB;
     uniform float uNight;
     uniform float uTime;
+    uniform float uSimple;
     varying vec3 vDir;
     float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
     float noise(vec2 p) {
@@ -648,7 +690,7 @@ const skyMat = new THREE.ShaderMaterial({
       col += uSunCol * (pow(sd, 6.0) * 0.22 + pow(sd, 75.0) * 0.45) * (0.35 + 0.65 * sunUp);
       col += mix(uSunCol, vec3(1.0, 0.97, 0.9), 0.5) * smoothstep(0.9995, 0.9998, sd) * 14.0 * sunUp;
       // stars + moon at dusk / night
-      if (uNight > 0.02 && h > 0.03) {
+      if (uSimple < 0.5 && uNight > 0.02 && h > 0.03) {
         vec2 suv = d.xz / (h + 0.35) * 85.0;
         vec2 id = floor(suv), gv = fract(suv) - 0.5;
         float r = hash(id);
@@ -662,7 +704,7 @@ const skyMat = new THREE.ShaderMaterial({
         col += vec3(0.55, 0.72, 0.95) * pow(md, 48.0) * 0.35 * uNight;
         col += vec3(0.88, 0.93, 1.0) * smoothstep(0.99945, 0.99968, md) * 2.2 * uNight;
       }
-      if (h > 0.02) {
+      if (uSimple < 0.5 && h > 0.02) {
         vec2 p = d.xz / (h + 0.16) * 1.1 + vec2(uTime * 0.004, 0.0);
         float base = fbm(p + vec2(3.1, 1.7));
         float wisp = fbm(p * 2.6 + base * 1.4);
@@ -736,7 +778,9 @@ lowland.rotation.x = -Math.PI / 2;
 lowland.position.y = -4;
 scene.add(lowland);
 
-scene.environment = (() => {
+let cachedEnvTex = null;
+function ensureEnvMap() {
+  if (cachedEnvTex) return cachedEnvTex;
   const env = new THREE.Scene();
   env.fog = scene.fog;
   env.add(new THREE.Mesh(sky.geometry, skyMat));
@@ -750,11 +794,17 @@ scene.environment = (() => {
   const l = new THREE.DirectionalLight(sun.color, sun.intensity); l.position.copy(SUN_DIR); env.add(l);
   env.add(new THREE.HemisphereLight(0xbfd9ff, 0x5c7a3a, 1.2));
   const pmrem = new THREE.PMREMGenerator(renderer);
-  const tex = pmrem.fromScene(env, 0, 1, 1500).texture;
+  cachedEnvTex = pmrem.fromScene(env, 0, 1, 1500).texture;
   pmrem.dispose();
-  return tex;
-})();
-scene.environmentIntensity = 0.9;
+  return cachedEnvTex;
+}
+if (qCfg.env) {
+  scene.environment = ensureEnvMap();
+  scene.environmentIntensity = 0.9;
+} else {
+  scene.environment = null;
+  scene.environmentIntensity = 0;
+}
 
 /* ---------------------------------------------------------------------
    9. Terrain: flat lawn under the flight path, a lake behind it, meadow in front, hills further out
@@ -1909,15 +1959,19 @@ function animateVisuals(dt) {
     c.position.x -= dt * (c.userData.drift + sp);
     if (c.position.x < -470) c.position.x += 1130;
   }
-  for (const m of lakeMist) {
-    m.position.x -= dt * (1.2 + sp * 0.6);
-    if (m.position.x < -220) m.position.x += 500;
-  }
-  flock.position.x -= dt * (4.5 + sp * 0.25);
-  if (flock.position.x < -220) flock.position.x = 240;
-  for (const b of flock.children) {
-    const fl = Math.sin(showT * 7 + b.userData.phase) * 0.16;
-    b.scale.y = fl >= 0 ? 1 + fl * 3 : 1 + fl * 3;
+  for (const m of lakeMist) m.visible = qCfg.mist;
+  flock.visible = qCfg.mist;
+  if (qCfg.mist) {
+    for (const m of lakeMist) {
+      m.position.x -= dt * (1.2 + sp * 0.6);
+      if (m.position.x < -220) m.position.x += 500;
+    }
+    flock.position.x -= dt * (4.5 + sp * 0.25);
+    if (flock.position.x < -220) flock.position.x = 240;
+    for (const b of flock.children) {
+      const fl = Math.sin(showT * 7 + b.userData.phase) * 0.16;
+      b.scale.y = fl >= 0 ? 1 + fl * 3 : 1 + fl * 3;
+    }
   }
 
   // --- pipes ---
@@ -1940,7 +1994,7 @@ function animateVisuals(dt) {
    --------------------------------------------------------------------- */
 // If the frame rate stays low, render at a lower resolution, then thin the grass. Stops when a step brings no gain.
 const adaptive = {
-  enabled: true, pixelRatio: Math.min(window.devicePixelRatio || 1, QUALITY.maxPixelRatio), grass: 1, time: 0, frames: 0, warmup: 2, pending: null,
+  enabled: true, pixelRatio: Math.min(window.devicePixelRatio || 1, QUALITY.maxPixelRatio), grass: QUALITY.grass, time: 0, frames: 0, warmup: 2, pending: null,
   apply(pixelRatio, grass) {
     this.grass = grass;
     if (pixelRatio !== this.pixelRatio) { this.pixelRatio = pixelRatio; renderer.setPixelRatio(pixelRatio); renderer.setSize(window.innerWidth, window.innerHeight); }
@@ -1954,11 +2008,13 @@ const adaptive = {
     if (this.warmup > 0) { this.warmup--; return; }
     if (this.pending) {
       const before = this.pending; this.pending = null;
-      if (fps < before.fps * 1.1) { this.apply(before.pixelRatio, before.grass); this.enabled = false; return; }
+      if (fps < before.fps * 1.05 && !IS_SOFTWARE_GL) { this.apply(before.pixelRatio, before.grass); this.enabled = false; return; }
     }
-    if (fps >= 45) return;
+    const targetFps = qCfg.fpsCap > 0 ? qCfg.fpsCap * 0.8 : 45;
+    if (fps >= targetFps) return;
+    const minPr = resolveQual(qualPref) === 'low' ? 0.5 : 0.75;
     const before = { fps, pixelRatio: this.pixelRatio, grass: this.grass };
-    if (this.pixelRatio > 0.75) this.apply(Math.max(0.75, this.pixelRatio * 0.8), this.grass);
+    if (this.pixelRatio > minPr) this.apply(Math.max(minPr, this.pixelRatio * 0.8), this.grass);
     else if (this.grass > 0.35) this.apply(this.pixelRatio, this.grass * 0.6);
     else { this.enabled = false; return; }
     this.pending = before;
@@ -1981,6 +2037,36 @@ window.addEventListener('resize', onResize);
 /* ---------------------------------------------------------------------
    22. Main loop: real deltaTime feeds a fixed-step accumulator
    --------------------------------------------------------------------- */
+function setQuality(pref) {
+  qualPref = ['auto', 'high', 'med', 'low'].includes(pref) ? pref : 'auto';
+  try { localStorage.setItem(CFG.QUAL_KEY, qualPref); } catch {}
+  const resolved = resolveQual(qualPref);
+  qCfg = QUAL_PRESETS[resolved];
+  QUALITY.maxPixelRatio = qCfg.maxPixelRatio;
+  QUALITY.shadowSize = qCfg.shadowSize;
+  QUALITY.grass = qCfg.grass;
+  renderer.shadowMap.enabled = qCfg.shadows;
+  renderer.toneMapping = qCfg.simpleSky ? THREE.NoToneMapping : THREE.NeutralToneMapping;
+  skyMat.uniforms.uSimple.value = qCfg.simpleSky ? 1 : 0;
+  if (qCfg.env) {
+    scene.environment = ensureEnvMap();
+    scene.environmentIntensity = 0.9;
+  } else {
+    scene.environment = null;
+    scene.environmentIntensity = 0;
+  }
+  adaptive.enabled = true;
+  adaptive.warmup = 2;
+  adaptive.pending = null;
+  adaptive.apply(Math.min(window.devicePixelRatio || 1, QUALITY.maxPixelRatio), QUALITY.grass);
+  for (const b of document.querySelectorAll('#qualChoices .chip')) b.classList.toggle('sel', b.dataset.qual === qualPref);
+  const note = $('qualNote');
+  if (note) note.textContent = (qualPref === 'auto' && IS_SOFTWARE_GL) ? TEXT.qualCpuHint : '';
+}
+for (const b of document.querySelectorAll('#qualChoices .chip')) {
+  b.addEventListener('click', () => { ensureAudio(); sfxSelect(); setQuality(b.dataset.qual); });
+}
+
 let running = true, booted = false, last = performance.now(), acc = 0;
 function renderFrame(dt) {
   animateVisuals(dt);
@@ -1988,6 +2074,10 @@ function renderFrame(dt) {
 }
 function tick(now) {
   if (!running) return;
+  if (qCfg.fpsCap > 0 && (now - last) < (1000 / qCfg.fpsCap) - 1) {
+    requestAnimationFrame(tick);
+    return;
+  }
   let dt = (now - last) / 1000;
   last = now;
   adaptive.sample(dt);
@@ -2004,6 +2094,7 @@ function tick(now) {
   requestAnimationFrame(tick);
 }
 
+setQuality(qualPref);
 setBird(birdSkin);
 setView(viewMode);
 squash = 0;

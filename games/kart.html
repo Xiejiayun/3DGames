@@ -2214,27 +2214,72 @@ function buildTrackAndWorld(trackCfg) {
       color: 0x90e0ef, emissive: 0x0077b6, emissiveIntensity: 0.35,
       roughness: 0.12, transmission: 0.55, transparent: true, opacity: 0.78, clearcoat: 1
     });
+    buildVault(228,312,11.3,new THREE.MeshPhysicalMaterial({color:0x68bbd3,roughness:0.25,
+      transparent:true,opacity:0.25,depthWrite:false,side:THREE.DoubleSide}),'alpine-ice-shell');
     for (let i = Math.floor(0.38 * SAMPLES); i <= Math.floor(0.52 * SAMPLES); i += 8) {
       const s = trackSamples[i];
       const iceGate = new THREE.Group();
       iceGate.position.copy(s.pos);
       iceGate.lookAt(s.pos.clone().add(s.tangent));
-      const torus = new THREE.Mesh(new THREE.TorusGeometry(ROAD_HALF_W + 1.2, 0.65, 8, 16, Math.PI), iceArchMat);
+      const torus = new THREE.Mesh(new THREE.TorusGeometry(11.3, 0.35, 8, 24, Math.PI), iceArchMat);
       iceGate.add(torus);
+      for(const side of [-1,1]) for(let c=0;c<3;c++) {
+        const crystal=new THREE.Mesh(new THREE.ConeGeometry(0.4+c*0.08,2+c*0.8,5),iceArchMat);
+        crystal.position.set(side*(10.3+c*0.6),1+c*0.4,c*0.6);
+        crystal.rotation.z=-side*0.18;iceGate.add(crystal);
+      }
       worldGroup.add(iceGate);
     }
 
-    // Moving Aerial Cable Cars (Gondolas)
-    for (let g = 0; g < 3; g++) {
-      const gondola = new THREE.Group();
-      const cabin = new THREE.Mesh(new THREE.BoxGeometry(3.6, 2.8, 2.6), new THREE.MeshStandardMaterial({ color: 0xe63946 }));
-      const hanger = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 4.0, 6), new THREE.MeshStandardMaterial({ color: 0xd9e2ec }));
-      hanger.position.y = 3.0;
-      gondola.add(cabin, hanger);
-      gondola.position.set(0, 36, 65);
-      worldGroup.add(gondola);
-      animatedProps.push({ mesh: gondola, type: 'gondola', phase: g * 2.1 });
+    // One closed cable path drives both the visible rope and cabin attachment.
+    const cablePath=new THREE.CatmullRomCurve3([
+      [-195,48,61],[-75,42,61],[0,40,61],[75,42,61],[195,48,61],
+      [200,48,65],[195,48,69],[75,42,69],[0,40,69],[-75,42,69],[-195,48,69],[-200,48,65]
+    ].map(p=>new THREE.Vector3(...p)),true,'centripetal');
+    const cableMat=new THREE.MeshStandardMaterial({color:0x263645,roughness:0.6,metalness:0.6});
+    const cable=new THREE.Mesh(new THREE.TubeGeometry(cablePath,240,0.07,5,true),cableMat);
+    cable.name='gondola-cable';worldGroup.add(cable);
+    const supportMat=new THREE.MeshStandardMaterial({color:0x9baebd,roughness:0.45,metalness:0.65});
+    for(const x of [-195,195]) {
+      const station=new THREE.Group();station.position.set(x,-3.2,65);station.name='gondola-station';
+      for(const z of [-8,8]) {
+        const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.65,1.3,50.7,10),supportMat);leg.position.set(0,25.35,z);station.add(leg);
+        const foot=new THREE.Mesh(new THREE.BoxGeometry(4,1,4),supportMat);foot.position.set(0,0.5,z);station.add(foot);
+      }
+      const cross=new THREE.Mesh(new THREE.BoxGeometry(2.2,0.8,20),supportMat);cross.position.y=51.2;station.add(cross);
+      for(const z of [-4,4]) {
+        const sheave=new THREE.Mesh(new THREE.TorusGeometry(0.65,0.12,6,12),cableMat);sheave.rotation.y=Math.PI/2;sheave.position.set(0,50.6,z);station.add(sheave);
+      }
+      worldGroup.add(station);
     }
+    const cabinMat=new THREE.MeshStandardMaterial({color:0xde3f4b,roughness:0.4});
+    const glassMat=new THREE.MeshPhysicalMaterial({color:0x8dd9f0,roughness:0.12,metalness:0.25,clearcoat:1});
+    for(let g=0;g<3;g++) {
+      const gondola=new THREE.Group();gondola.name='gondola';
+      const cabin=new THREE.Mesh(new THREE.BoxGeometry(3.6,2.8,2.6),cabinMat);cabin.position.y=-6.4;gondola.add(cabin);
+      const hanger=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,5,8),supportMat);hanger.position.y=-2.5;gondola.add(hanger);
+      const roof=new THREE.Mesh(new THREE.BoxGeometry(3.85,0.22,2.85),supportMat);roof.position.y=-4.95;gondola.add(roof);
+      for(const side of [-1,1]) {
+        const window=new THREE.Mesh(new THREE.BoxGeometry(3,1.2,0.035),glassMat);window.position.set(0,-5.85,side*1.315);gondola.add(window);
+        const endWindow=new THREE.Mesh(new THREE.BoxGeometry(0.035,1.2,2),glassMat);endWindow.position.set(side*1.815,-5.85,0);gondola.add(endWindow);
+      }
+      const seam=new THREE.Mesh(new THREE.BoxGeometry(0.05,2.5,0.04),supportMat);seam.position.set(0,-6.4,1.34);gondola.add(seam);
+      gondola.position.copy(cablePath.getPointAt(g/3));worldGroup.add(gondola);
+      animatedProps.push({mesh:gondola,type:'gondola',path:cablePath,phase:g/3});
+    }
+
+    // A lake with its own shoreline, away from the driving ribbon.
+    const lake=new THREE.Group();lake.name='frozen-lake';lake.position.set(0,-2.8,55);
+    const shore=new THREE.Mesh(new THREE.CylinderGeometry(25,27,0.5,48),new THREE.MeshStandardMaterial({color:0xe8f5ff,roughness:0.8}));
+    lake.add(shore);
+    const ice=new THREE.Mesh(new THREE.CylinderGeometry(23.5,23.5,0.2,48),new THREE.MeshPhysicalMaterial({color:0x52a9c5,roughness:0.16,metalness:0.22,clearcoat:1}));ice.position.y=0.28;lake.add(ice);
+    const crackMat=new THREE.LineBasicMaterial({color:0xc2f8ff,transparent:true,opacity:0.65});
+    for(let c=0;c<7;c++) {
+      const a=c/7*TAU,points=[];
+      for(let j=0;j<5;j++) points.push(new THREE.Vector3(Math.cos(a+j*0.07)*j*4,0.39,Math.sin(a+j*0.07)*j*4));
+      lake.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),crackMat));
+    }
+    worldGroup.add(lake);
 
     // Frosted Pines & Snowfall
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3b32, roughness: 0.9 });
@@ -2244,7 +2289,8 @@ function buildTrackAndWorld(trackCfg) {
       const x = (random() - 0.5) * 400, z = (random() - 0.3) * 380;
       if (!isClearOfTrack(x, z, 16)) continue;
       const tree = new THREE.Group();
-      tree.position.set(x, -1.0, z);
+      if (Math.hypot(x,z-55)<29) continue;
+      tree.name='frosted-pine';tree.position.set(x, -3.2, z);
       const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.45, 3.0, 6), trunkMat);
       tr.position.y = 1.5;
       const c1 = new THREE.Mesh(new THREE.ConeGeometry(2.5, 5.5, 7), frostMat);
@@ -3274,8 +3320,10 @@ function animate(now) {
     if (ap.type === 'bob') {
       ap.mesh.position.y = ap.baseY + Math.sin(nowSec * 1.5 + ap.phase) * 3.2;
     } else if (ap.type === 'gondola') {
-      ap.mesh.position.x = Math.sin(nowSec * 0.35 + ap.phase) * 145;
-      ap.mesh.position.y = 38 + Math.cos(nowSec * 0.35 + ap.phase) * 8;
+      const u=(nowSec*0.025+ap.phase)%1;
+      ap.mesh.position.copy(ap.path.getPointAt(u));
+      const tangent=ap.path.getTangentAt(u);
+      ap.mesh.rotation.y=Math.atan2(tangent.x,tangent.z);
     } else if (ap.type === 'fish') {
       const a=nowSec*0.65+ap.phase;
       ap.mesh.position.copy(ap.center).add(new THREE.Vector3(Math.cos(a)*1.2,Math.sin(a*1.3)*0.4,Math.sin(a)*1.2));
@@ -3291,7 +3339,7 @@ function animate(now) {
     const arr = snowPoints.geometry.attributes.position.array;
     for (let i = 1; i < arr.length; i += 3) {
       arr[i] -= dt * 10;
-      if (arr[i] < 0) arr[i] = 52;
+      if (arr[i] < -3.2) arr[i] = 52;
     }
     snowPoints.geometry.attributes.position.needsUpdate = true;
   }

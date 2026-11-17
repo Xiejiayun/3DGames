@@ -20,7 +20,7 @@ html,body{min-height:100%;background:radial-gradient(ellipse at 20% 0%,rgba(45,9
   color:var(--fg);font-family:var(--font);line-height:1.6;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}
 
-.wrap{max-width:1120px;margin:0 auto;padding:36px 22px 54px}
+.wrap{max-width:1280px;margin:0 auto;padding:36px 22px 54px}
 
 header{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:34px;flex-wrap:wrap}
 .eyebrow{font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--cool);font-weight:700}
@@ -33,7 +33,7 @@ h1 span{color:var(--accent)}
   font-size:12.5px;font-weight:700;font-family:inherit;transition:background .15s,color .15s}
 .lang-switch button.on{background:var(--fg);color:var(--bg)}
 
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
 
 .card{display:flex;flex-direction:column;background:linear-gradient(155deg,rgba(120,160,205,.12),rgba(10,16,26,.82));
   border:1px solid var(--line);border-radius:18px;overflow:hidden;
@@ -46,12 +46,15 @@ h1 span{color:var(--accent)}
   linear-gradient(135deg,#0d1726,#080d16)}
 .banner.fb{background:radial-gradient(circle at 85% 20%,rgba(111,214,255,.26),transparent 60%),
   linear-gradient(135deg,#102840,#0a1624)}
+.banner.kart{background:radial-gradient(circle at 85% 20%,rgba(114,240,164,.24),transparent 60%),
+  linear-gradient(135deg,#102b28,#091418)}
 
 .tag-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
 .badge{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:3px 10px;
   border-radius:999px;border:1px solid var(--line);background:rgba(0,0,0,.32)}
 .badge.tactical{color:var(--accent);border-color:rgba(255,178,62,.4)}
 .badge.arcade{color:var(--cool);border-color:rgba(111,214,255,.4)}
+.badge.racing{color:var(--ok);border-color:rgba(114,240,164,.4)}
 .tech{font-family:var(--mono);font-size:11px;color:var(--dim)}
 
 .card h2{font-size:26px;font-weight:800;letter-spacing:.03em}
@@ -64,6 +67,7 @@ h1 span{color:var(--accent)}
 .feats li{display:flex;gap:9px;align-items:flex-start}
 .feats li::before{content:"▸";color:var(--cool);font-weight:700;flex:none}
 .card.cs-card .feats li::before{color:var(--accent)}
+.card.kart-card .feats li::before{color:var(--ok)}
 
 .keys{padding:12px 14px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.08);border-radius:10px;
   font-size:12px;color:var(--dim)}
@@ -76,6 +80,7 @@ h1 span{color:var(--accent)}
   font-size:14px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;transition:transform .12s,filter .15s}
 .play.primary{background:var(--accent);color:#1a1002}
 .play.cool{background:var(--cool);color:#041624}
+.play.ok{background:var(--ok);color:#042012}
 .play:hover{filter:brightness(1.08);transform:translateY(-1px)}
 .file-link{font-family:var(--mono);font-size:12px;color:var(--faint)}
 
@@ -83,7 +88,10 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.0
   display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
   font-size:12px;color:var(--faint)}
 
-@media (max-width:860px){
+@media (max-width:1060px){
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:720px){
   .grid{grid-template-columns:minmax(0,1fr)}
 }
 </style>
@@ -158,6 +166,34 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.0
         </div>
       </div>
     </article>
+
+    <!-- Turbo Kart 3D -->
+    <article class="card kart-card">
+      <div class="banner kart">
+        <div class="tag-row">
+          <span class="badge racing" data-i18n="kart.badge">3D 卡丁车竞速 · Racing</span>
+          <span class="tech">Three.js r186 · Web Audio</span>
+        </div>
+        <h2>TURBO KART 3D · 极速卡丁车</h2>
+        <p class="tagline" data-i18n="kart.tagline">漂移集气 · 氮气喷射 · 三大主题赛道</p>
+      </div>
+      <div class="body">
+        <p class="desc" data-i18n="kart.desc">经典的 3D 卡丁车竞速体验：自由选择 3 位车手、3 条立体环境赛道与 3 档难度，与 AI 对手展开 3 圈极速对决。</p>
+        <ul class="feats" data-i18n-html="kart.feats">
+          <li><b>3 位车手与 3D 实时预览：</b>皮蛋·烈焰（均衡）、宝宝·疾风（漂移集气）、黑妞·雷霆（极速），菜单内置实时 3D 旋转展示。</li>
+          <li><b>3 大真实 3D 赛道环境：</b>阳光海滨（海浪棕榈灯塔）、森林峡谷（林海岩石坡道）、雪山冰道（雪峰冰湖飞雪），赛道含加速带与氮气晶石。</li>
+          <li><b>漂移小喷与氮气爆发：</b>按住 Shift 漂移集气触发小喷与 N2O 氮气胶囊，支持追尾/车手/远景三视角切换及最佳圈速本地保存。</li>
+        </ul>
+        <div class="keys">
+          <div class="keys-title" data-i18n="controls">核心操作</div>
+          <div data-i18n-html="kart.keys"><kbd>W A S D</kbd> / <kbd>↑ ↓ ← →</kbd> 驾驶 · <kbd>Shift</kbd> 漂移 · <kbd>空格</kbd> 氮气 · <kbd>V</kbd> 切换视角</div>
+        </div>
+        <div class="actions">
+          <a class="play ok" href="kart.html" data-i18n="play">开始游玩 →</a>
+          <span class="file-link">kart.html</span>
+        </div>
+      </div>
+    </article>
   </main>
 
   <footer>
@@ -171,7 +207,7 @@ const TEXT = {
   zh: {
     eyebrow: 'ZERO-ASSET WEBGL GAMES · PURE PROCEDURAL 3D',
     title: '3D 网页游戏 <span>合集</span>',
-    subtitle: '两款完全基于 Three.js 构建的单文件网页 3D 游戏——无任何外部贴图、模型或音频文件，所有画面、几何体与音效均由代码实时生成。',
+    subtitle: '三款完全基于 Three.js 构建的单文件网页 3D 游戏——无任何外部贴图、模型或音频文件，所有画面、几何体与音效均由代码实时生成。',
     controls: '核心操作',
     play: '开始游玩 →',
     'cs.badge': '3D 战术射击 · FPS',
@@ -184,12 +220,17 @@ const TEXT = {
     'fb.desc': '将经典的飞鸟穿梭重制为全 3D 立体世界，拥有动态天空、云朵与管道场景，同时兼容桌面键鼠与手机触控操作。',
     'fb.feats': '<li><b>双视角模式：</b>可在经典的<b>默认侧视视角</b>与极具代入感的<b>第一人称视角</b>之间无缝切换（第一人称下管道间距会自动适当放宽以平衡判断难度）。</li><li><b>3 只 3D 小鸟角色：</b>提供小蓝、小红、小黄三只程序化建模的小鸟，主菜单配有实时 3D 预览卡片。</li><li><b>零外部资源：</b>全部 3D 几何体、光影与合成音效均由浏览器端实时生成，并自动保存本地最高分纪录。</li>',
     'fb.keys': '<kbd>点击画面</kbd> / <kbd>空格</kbd> / <kbd>↑</kbd> 起飞 · <kbd>←</kbd> <kbd>→</kbd> 切换小鸟 · <kbd>V</kbd> 切换视角',
-    'footer.note': '提示：两款游戏均通过 CDN 加载 Three.js，请联网并建议通过本地 HTTP 服务器或现代浏览器打开。',
+    'kart.badge': '3D 卡丁车竞速 · Racing',
+    'kart.tagline': '漂移集气 · 氮气喷射 · 三大主题赛道',
+    'kart.desc': '经典的 3D 卡丁车竞速体验：自由选择 3 位车手、3 条立体环境赛道与 3 档难度，与 AI 对手展开 3 圈极速对决。',
+    'kart.feats': '<li><b>3 位车手与 3D 实时预览：</b>皮蛋·烈焰（均衡）、宝宝·疾风（漂移集气）、黑妞·雷霆（极速），菜单内置实时 3D 旋转展示。</li><li><b>3 大真实 3D 赛道环境：</b>阳光海滨（海浪棕榈灯塔）、森林峡谷（林海岩石坡道）、雪山冰道（雪峰冰湖飞雪），赛道含加速带与氮气晶石。</li><li><b>漂移小喷与氮气爆发：</b>按住 Shift 漂移集气触发小喷与 N2O 氮气胶囊，支持追尾/车手/远景三视角切换及最佳圈速本地保存。</li>',
+    'kart.keys': '<kbd>W A S D</kbd> / <kbd>↑ ↓ ← →</kbd> 驾驶 · <kbd>Shift</kbd> 漂移 · <kbd>空格</kbd> 氮气 · <kbd>V</kbd> 切换视角',
+    'footer.note': '提示：所有游戏均通过 CDN 加载 Three.js，请联网并建议通过本地 HTTP 服务器或现代浏览器打开。',
   },
   en: {
     eyebrow: 'ZERO-ASSET WEBGL GAMES · PURE PROCEDURAL 3D',
     title: '3D Games <span>Collection</span>',
-    subtitle: 'Two single-file 3D browser games built with Three.js — zero external textures, models, or audio files. Everything is generated procedurally in code.',
+    subtitle: 'Three single-file 3D browser games built with Three.js — zero external textures, models, or audio files. Everything is generated procedurally in code.',
     controls: 'Controls',
     play: 'Play Now →',
     'cs.badge': 'Tactical FPS · 3D',
@@ -202,7 +243,12 @@ const TEXT = {
     'fb.desc': 'A full 3D take on the classic pipe-dodging flyer with procedural skies, clouds, and models, supporting both desktop and mobile touch controls.',
     'fb.feats': '<li><b>Dual Camera Views:</b> Switch seamlessly between the classic <b>Side View</b> and an immersive <b>First-Person View</b> (with adjusted pipe gaps for depth perception).</li><li><b>3 Playable 3D Birds:</b> Choose between Blue, Red, and Yellow birds with live 3D preview cards on the start menu.</li><li><b>Zero External Assets:</b> All geometry, lighting, and synthesized sound effects run locally in-browser with persistent high-score tracking.</li>',
     'fb.keys': '<kbd>Click</kbd> / <kbd>Space</kbd> / <kbd>↑</kbd> Flap · <kbd>←</kbd> <kbd>→</kbd> Switch Bird · <kbd>V</kbd> Switch View',
-    'footer.note': 'Note: Both games load Three.js from a CDN; an internet connection and modern WebGL browser are required.',
+    'kart.badge': '3D Kart Racing',
+    'kart.tagline': 'Drift & Nitro Boost · 3 Themed Tracks',
+    'kart.desc': 'Classic 3D kart racing: choose from 3 drivers, 3 procedural 3D tracks, and 3 difficulty levels in a 3-lap showdown against AI rivals.',
+    'kart.feats': '<li><b>3 Drivers with Live 3D Previews:</b> Blaze (Balanced), Frost (Drift Pro), and Volt (Top Speed), each with unique stats and 3D models.</li><li><b>3 Realistic 3D Environments:</b> Sunny Coast (ocean, palms & lighthouse), Forest Canyon (pines, hills & rocks), and Alpine Frost (snowy peaks & snowfall).</li><li><b>Drift Mini-Turbo & N2O:</b> Hold Shift to drift and charge Nitro, release for Mini-Turbo, press Space for N2O boost, with 3 camera views and local best records.</li>',
+    'kart.keys': '<kbd>W A S D</kbd> / <kbd>↑ ↓ ← →</kbd> Drive · <kbd>Shift</kbd> Drift · <kbd>Space</kbd> Nitro · <kbd>V</kbd> Camera',
+    'footer.note': 'Note: All games load Three.js from a CDN; an internet connection and modern WebGL browser are required.',
   }
 };
 

@@ -881,15 +881,20 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'hi
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.08;
+renderer.toneMappingExposure = 1.03;
 document.body.insertBefore(renderer.domElement, $('speedLines'));
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.3, 1050);
+let sunLight = null;
 
 function applyQuality() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, highQuality ? 2 : 1.15));
   renderer.shadowMap.enabled = highQuality;
+  if (sunLight) {
+    sunLight.castShadow = highQuality;
+    sunLight.shadow.needsUpdate = true;
+  }
   $('qualBtn').textContent = highQuality ? 'HQ' : 'LQ';
   $('qualBtn').classList.toggle('off', !highQuality);
 }
@@ -974,18 +979,92 @@ function buildEnvMapForTrack(trackCfg) {
   skyMat.uniforms.uAurora.value = trackCfg.aurora;
 
   const envScene = new THREE.Scene();
-  envScene.add(new THREE.Mesh(new THREE.SphereGeometry(80, 24, 16), skyMat));
-  const floor = new THREE.Mesh(
-    new THREE.CircleGeometry(100, 16).rotateX(-Math.PI / 2),
-    new THREE.MeshBasicMaterial({ color: trackCfg.groundColor })
+  const tempGeos = [], tempMats = [];
+  const trackGeo = g => { tempGeos.push(g); return g; };
+  const trackMat = m => { tempMats.push(m); return m; };
+
+  envScene.add(new THREE.Mesh(trackGeo(new THREE.SphereGeometry(80, 24, 16)), skyMat));
+
+  // Bright HDR sun-bounce disc & soft halo for crisp clearcoat, chrome, and visor reflections
+  const sunCoreColor = new THREE.Color(...trackCfg.sunCol).multiplyScalar(trackCfg.id === 'alpine' ? 2.6 : 3.8);
+  const sunHaloColor = new THREE.Color(...trackCfg.sunCol).multiplyScalar(1.35);
+  const sunCore = new THREE.Mesh(
+    trackGeo(new THREE.CircleGeometry(4.2, 20)),
+    trackMat(new THREE.MeshBasicMaterial({ color: sunCoreColor, toneMapped: false, side: THREE.DoubleSide }))
   );
-  floor.position.y = -2;
+  sunCore.position.copy(SUN_DIR).multiplyScalar(68);
+  sunCore.lookAt(0, 0, 0);
+  envScene.add(sunCore);
+
+  const sunHalo = new THREE.Mesh(
+    trackGeo(new THREE.RingGeometry(4.2, 12.5, 24)),
+    trackMat(new THREE.MeshBasicMaterial({ color: sunHaloColor, transparent: true, opacity: 0.42, toneMapped: false, side: THREE.DoubleSide }))
+  );
+  sunHalo.position.copy(SUN_DIR).multiplyScalar(69);
+  sunHalo.lookAt(0, 0, 0);
+  envScene.add(sunHalo);
+
+  // Distant mountain / horizon silhouette rings so reflections have layered skyline contrast
+  const horizonCol = new THREE.Color(...trackCfg.horizon);
+  const baseCol = new THREE.Color(trackCfg.groundColor);
+  const addRidgeRing = (radius, baseY, peakAmp, freqA, freqB, phase, darkTint, hazeMix) => {
+    const segs = 96;
+    const pos = [], col = [], idx = [];
+    const ridgeBase = baseCol.clone().lerp(new THREE.Color(darkTint), 0.55);
+    const ridgePeak = ridgeBase.clone().lerp(horizonCol, hazeMix);
+    for (let i = 0; i <= segs; i++) {
+      const a = (i / segs) * Math.PI * 2;
+      const h = Math.max(1.2,
+        peakAmp * (0.52 + 0.30 * Math.sin(a * freqA + phase) + 0.18 * Math.cos(a * freqB - phase * 1.7))
+      );
+      const x = Math.cos(a) * radius, z = Math.sin(a) * radius;
+      pos.push(x, baseY, z, x, baseY + h, z);
+      col.push(ridgeBase.r, ridgeBase.g, ridgeBase.b, ridgePeak.r, ridgePeak.g, ridgePeak.b);
+      if (i < segs) {
+        const b = i * 2;
+        idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
+      }
+    }
+    const geo = trackGeo(new THREE.BufferGeometry());
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    geo.setIndex(idx);
+    envScene.add(new THREE.Mesh(geo, trackMat(new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }))));
+  };
+  addRidgeRing(66, -2.5, 13.5, 5, 11, 0.4, trackCfg.id === 'alpine' ? 0x1a2c44 : 0x22303c, 0.52);
+  addRidgeRing(54, -2.5, 7.5, 7, 17, 1.9, trackCfg.id === 'forest' ? 0x162b1c : 0x26323e, 0.28);
+
+  // Ground-bounce variation disc (warm sun-bounce toward sun azimuth, cool shadow-bounce opposite)
+  const floorGeo = trackGeo(new THREE.CircleGeometry(96, 36).rotateX(-Math.PI / 2));
+  const fPos = floorGeo.attributes.position;
+  const fCol = new Float32Array(fPos.count * 3);
+  const sunFlat = new THREE.Vector2(SUN_DIR.x, SUN_DIR.z).normalize();
+  const cTmp = new THREE.Color();
+  const sunBounce = new THREE.Color(...trackCfg.sunCol);
+  for (let i = 0; i < fPos.count; i++) {
+    const x = fPos.getX(i), z = fPos.getZ(i);
+    const len = Math.hypot(x, z);
+    const dirDot = len > 0.001 ? (x * sunFlat.x + z * sunFlat.y) / len : 0;
+    const radial = Math.min(1, len / 96);
+    cTmp.copy(baseCol);
+    cTmp.multiplyScalar(0.72 + 0.36 * (dirDot * 0.5 + 0.5));
+    cTmp.lerp(sunBounce, Math.max(0, dirDot) * 0.16);
+    cTmp.lerp(horizonCol, radial * 0.38);
+    fCol[i * 3] = cTmp.r; fCol[i * 3 + 1] = cTmp.g; fCol[i * 3 + 2] = cTmp.b;
+  }
+  floorGeo.setAttribute('color', new THREE.BufferAttribute(fCol, 3));
+  const floor = new THREE.Mesh(
+    floorGeo,
+    trackMat(new THREE.MeshBasicMaterial({ vertexColors: true }))
+  );
+  floor.position.y = -2.2;
   envScene.add(floor);
+
   const pmrem = new THREE.PMREMGenerator(renderer);
   const nextTarget = pmrem.fromScene(envScene, 0.02);
   pmrem.dispose();
-  envScene.children.forEach(o => o.geometry.dispose());
-  floor.material.dispose();
+  tempGeos.forEach(g => g.dispose());
+  tempMats.forEach(m => m.dispose());
   scene.environment = nextTarget.texture;
   if (environmentTarget) environmentTarget.dispose();
   environmentTarget = nextTarget;
@@ -2585,14 +2664,32 @@ function buildTrackAndWorld(trackCfg) {
   mtnGeo.computeVertexNormals();
   worldGroup.add(new THREE.Mesh(mtnGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 })));
 
-  // Lighting
-  worldGroup.add(new THREE.HemisphereLight(0xffffff, trackCfg.groundColor, 0.95));
-  const sun = new THREE.DirectionalLight(0xfff5e4, 1.65);
-  sun.position.set(110, 170, 80);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  Object.assign(sun.shadow.camera, { left: -190, right: 190, top: 190, bottom: -190, near: 20, far: 440 });
-  worldGroup.add(sun);
+  // Lighting & Track-Tuned Tone Mapping Exposure
+  renderer.toneMappingExposure = trackCfg.id === 'alpine' ? 0.98 : trackCfg.id === 'forest' ? 1.07 : 1.03;
+  worldGroup.add(new THREE.HemisphereLight(
+    trackCfg.id === 'alpine' ? 0xd8ecff : 0xffffff,
+    trackCfg.groundColor,
+    trackCfg.id === 'alpine' ? 0.78 : 0.85
+  ));
+  const sunColor = trackCfg.id === 'alpine' ? 0xdceeff : trackCfg.id === 'forest' ? 0xffeec8 : 0xfff5e4;
+  const sunIntensity = trackCfg.id === 'alpine' ? 1.55 : trackCfg.id === 'forest' ? 1.75 : 1.80;
+  sunLight = new THREE.DirectionalLight(sunColor, sunIntensity);
+  sunLight.position.set(110, 170, 80);
+  sunLight.castShadow = highQuality;
+  sunLight.shadow.mapSize.set(2048, 2048);
+  sunLight.shadow.bias = -0.0004;
+  sunLight.shadow.normalBias = 0.03;
+  Object.assign(sunLight.shadow.camera, { left: -55, right: 55, top: 55, bottom: -55, near: 10, far: 320 });
+  sunLight.shadow.camera.updateProjectionMatrix();
+  worldGroup.add(sunLight);
+  worldGroup.add(sunLight.target);
+
+  // Subtle secondary cool rim/fill light from opposite azimuth to separate dark tires & carbon from shadow
+  const rimColor = trackCfg.id === 'alpine' ? 0x6ea8ff : trackCfg.id === 'forest' ? 0x8cc4b8 : 0x88b8f0;
+  const rimLight = new THREE.DirectionalLight(rimColor, trackCfg.id === 'alpine' ? 0.48 : 0.42);
+  rimLight.position.set(-110, 85, -80);
+  rimLight.castShadow = false;
+  worldGroup.add(rimLight);
 
   // Track Spline
   const ctrlPts = trackCfg.points.map(p => new THREE.Vector3(p[0], p[1], p[2]));
@@ -4307,6 +4404,18 @@ let lastTime = performance.now();
 const camPosSmooth = new THREE.Vector3();
 const camLookSmooth = new THREE.Vector3();
 
+function updateSunShadow() {
+  if (!sunLight || !player) return;
+  const texel = 110 / 2048;
+  const tx = Math.round(player.pos.x / texel) * texel;
+  const ty = Math.round(player.pos.y / texel) * texel;
+  const tz = Math.round(player.pos.z / texel) * texel;
+  sunLight.target.position.set(tx, ty, tz);
+  sunLight.position.set(tx + 110, ty + 170, tz + 80);
+  sunLight.target.updateMatrixWorld();
+  sunLight.updateMatrixWorld();
+}
+
 function animate(now) {
   requestAnimationFrame(animate);
   const dt = Math.min(0.05, (now - lastTime) / 1000);
@@ -4405,6 +4514,7 @@ function animate(now) {
       camPosSmooth.copy(camera.position);
       camLookSmooth.copy(player.pos);
     }
+    updateSunShadow();
     renderer.render(scene, camera);
     return;
   }
@@ -4504,6 +4614,7 @@ function animate(now) {
     }
   }
 
+  updateSunShadow();
   renderer.render(scene, camera);
 }
 

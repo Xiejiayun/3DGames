@@ -505,6 +505,7 @@ h3{margin:0 0 10px;font-size:13px;font-weight:800;letter-spacing:.26em;text-tran
       <span data-i18n="set.crouch">Crouch</span><div class="seg" id="set-crouch"><button type="button" data-crouch="0" data-i18n="set.toggle">Toggle</button><button type="button" data-crouch="1" data-i18n="set.hold">Hold</button></div><span></span>
       <span data-i18n="set.ads">Aim (RMB)</span><div class="seg" id="set-ads"><button type="button" data-ads="0" data-i18n="set.hold">Hold</button><button type="button" data-ads="1" data-i18n="set.toggle">Toggle</button></div><span></span>
       <span data-i18n="set.cross">Crosshair</span><div class="seg" id="set-cross"><button type="button" data-cross="#eef3f8" data-i18n="col.white">White</button><button type="button" data-cross="#72f0a4" data-i18n="col.green">Green</button><button type="button" data-cross="#6fd6ff" data-i18n="col.cyan">Cyan</button><button type="button" data-cross="#ffb23e" data-i18n="col.amber">Amber</button></div><span></span>
+      <span data-i18n="set.qual">Graphics</span><div class="seg" id="set-qual"><button type="button" data-qual="auto" data-i18n="qual.auto">Auto</button><button type="button" data-qual="high" data-i18n="qual.high">High</button><button type="button" data-qual="med" data-i18n="qual.med">Med</button><button type="button" data-qual="low" data-i18n="qual.low">Low (CPU)</button></div><span></span>
       <span data-i18n="set.diff">Difficulty</span><span class="txt" id="set-diff-val"></span><span></span>
     </div>
     <div class="pause-keys"><h3 data-i18n="help.title">Controls</h3><div class="keylist" id="pause-keys"></div></div>
@@ -565,6 +566,13 @@ h3{margin:0 0 10px;font-size:13px;font-weight:800;letter-spacing:.26em;text-tran
           <button type="button" data-diff="hard" data-i18n="diff.hard">Veteran</button>
         </div>
         <div class="diff-desc" id="diff-desc"></div>
+        <div class="seg diffs" id="start-qual" style="margin-top:8px">
+          <button type="button" data-qual="auto" data-i18n="qual.auto">Auto</button>
+          <button type="button" data-qual="high" data-i18n="qual.high">High</button>
+          <button type="button" data-qual="med" data-i18n="qual.med">Med</button>
+          <button type="button" data-qual="low" data-i18n="qual.low">Low (CPU)</button>
+        </div>
+        <div class="diff-desc" id="qual-hint"></div>
         <div class="start-foot">
           <button type="button" class="btn" id="btn-deploy" disabled data-i18n="btn.deploy">Deploy</button>
           <span id="boot-status" data-i18n="boot.loading">Loading engine…</span>
@@ -693,6 +701,38 @@ const Difficulty = {
     this.current = id;
     try { window.localStorage.setItem('midnight-port.diff', id); } catch (err) { /* storage blocked */ }
   },
+};
+
+const Quality = {
+  isSoftware: (() => {
+    try {
+      const c = document.createElement('canvas');
+      const gl = c.getContext('webgl2') || c.getContext('webgl') || c.getContext('experimental-webgl');
+      if (!gl) return false;
+      const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+      const r = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '') : String(gl.getParameter(gl.RENDERER) || '');
+      const sw = /swiftshader|llvmpipe|softpipe|software|basic render driver|mesa offscreen/i.test(r);
+      const lose = gl.getExtension('WEBGL_lose_context');
+      if (lose) lose.loseContext();
+      return sw;
+    } catch { return false; }
+  })(),
+  presets: {
+    high: { pr: 1.5, antialias: true, shadows: true, env: true, aniso: 8, tone: true, fpsCap: 0 },
+    med:  { pr: 1.0, antialias: false, shadows: true, env: true, aniso: 2, tone: true, fpsCap: 0 },
+    low:  { pr: 0.65, antialias: false, shadows: false, env: false, aniso: 1, tone: false, fpsCap: 30 },
+  },
+  pref: 'auto',
+  load() {
+    try { const v = window.localStorage.getItem('midnight-port.qual'); if (['auto', 'high', 'med', 'low'].includes(v)) this.pref = v; } catch (err) { /* storage blocked */ }
+  },
+  set(v) {
+    if (!['auto', 'high', 'med', 'low'].includes(v)) return;
+    this.pref = v;
+    try { window.localStorage.setItem('midnight-port.qual', v); } catch (err) { /* storage blocked */ }
+  },
+  resolve() { return this.pref === 'auto' ? (this.isSoftware ? 'low' : 'high') : this.pref; },
+  cfg() { return this.presets[this.resolve()]; },
 };
 
 /* ─────────────────────────────── SoundManager ─────────────────────────────── */
@@ -1419,6 +1459,8 @@ const I18N = {
     'pause.title': 'Paused', 'set.sens': 'Mouse sensitivity', 'set.vol': 'Volume', 'set.lang': 'Language',
     'set.bars': 'Enemy health bars', 'set.on': 'On', 'set.off': 'Off', 'set.diff': 'Difficulty',
     'set.crouch': 'Crouch', 'set.ads': 'Aim (RMB)', 'set.toggle': 'Toggle', 'set.hold': 'Hold', 'set.cross': 'Crosshair',
+    'set.qual': 'Graphics', 'qual.auto': 'Auto', 'qual.high': 'High', 'qual.med': 'Med', 'qual.low': 'Low (CPU)',
+    'qual.swHint': 'Software WebGL detected — Low (CPU) mode enabled automatically',
     'col.white': 'White', 'col.green': 'Green', 'col.cyan': 'Cyan', 'col.amber': 'Amber',
     'end.eyebrow': 'After-action report',
     'end.win': 'Mission Complete', 'end.lose': 'Mission Failed', 'end.campaign': 'Port Secured',
@@ -1534,6 +1576,8 @@ const I18N = {
     'pause.title': '已暂停', 'set.sens': '鼠标灵敏度', 'set.vol': '音量', 'set.lang': '语言',
     'set.bars': '敌人血条', 'set.on': '开', 'set.off': '关', 'set.diff': '难度',
     'set.crouch': '下蹲方式', 'set.ads': '开镜方式', 'set.toggle': '切换', 'set.hold': '按住', 'set.cross': '准星颜色',
+    'set.qual': '画质模式', 'qual.auto': '自动', 'qual.high': '高', 'qual.med': '中', 'qual.low': '低 (CPU)',
+    'qual.swHint': '检测到无 GPU 软渲染，已自动启用低画质 (CPU) 模式',
     'col.white': '白', 'col.green': '绿', 'col.cyan': '青', 'col.amber': '琥珀',
     'end.eyebrow': '战后总结',
     'end.win': '任务完成', 'end.lose': '任务失败', 'end.campaign': '港口已肃清',
@@ -5646,13 +5690,14 @@ class Showcase {
     this.game = game; this.ok = false; this.time = 0; this.current = null; this.models = {};
     this.canvas = document.getElementById('shop-canvas'); this.aspect = 16 / 9; this.tan = Math.tan(14 * DEG);
     try {
-      const r = (this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true, preserveDrawingBuffer: true }));
-      r.setPixelRatio(1); r.setSize(640, 360, false); r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.1; r.setClearColor(0x000000, 0);
+      const q = Quality.cfg();
+      const r = (this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: q.antialias, alpha: true, preserveDrawingBuffer: true }));
+      r.setPixelRatio(1); r.setSize(640, 360, false); r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = q.tone ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping; r.toneMappingExposure = 1.1; r.setClearColor(0x000000, 0);
       this.scene = new THREE.Scene(); this.camera = new THREE.PerspectiveCamera(28, this.aspect, 0.03, 20);
       this.scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x4a4038, 2.3));
       const key = new THREE.DirectionalLight(0xfff0dc, 4.4); key.position.set(1.4, 2.2, 1.8); this.scene.add(key);
       const rim = new THREE.DirectionalLight(0x9fc4ff, 2.0); rim.position.set(-1.6, 0.7, -1.4); this.scene.add(rim);
-      this.pivot = new THREE.Group(); this.scene.add(this.pivot); this.scene.environment = buildEnvMap(r); this.ok = true;
+      this.pivot = new THREE.Group(); this.scene.add(this.pivot); if (q.env) this.scene.environment = buildEnvMap(r); this.ok = true;
     } catch (err) { this.ok = false; this.canvas.classList.add('hidden'); }
   }
   model(id) {
@@ -5744,6 +5789,9 @@ class UIManager {
       this.el.cross.style.setProperty('--cross-color', this.crossColor);
       try { window.localStorage.setItem('midnight-port.crossColor', this.crossColor); } catch (err) { /* storage blocked */ }
       this.syncSettings(); game.sound.ui(0);
+    }));
+    document.querySelectorAll('#set-qual button, #start-qual button').forEach((b) => b.addEventListener('click', () => {
+      game.setQuality(b.dataset.qual); game.sound.ui(1);
     }));
     document.querySelectorAll('.lang button').forEach((b) => b.addEventListener('click', () => { this.setLang(b.dataset.lang, true); game.sound.ui(1); }));
     this.sens = $('set-sens'); this.vol = $('set-vol');
@@ -5914,6 +5962,9 @@ class UIManager {
       document.querySelectorAll('#set-ads button').forEach((b) => b.classList.toggle('on', (b.dataset.ads === '1') === g.input.adsToggle));
     }
     document.querySelectorAll('#set-cross button').forEach((b) => b.classList.toggle('on', b.dataset.cross === this.crossColor));
+    document.querySelectorAll('#set-qual button, #start-qual button').forEach((b) => b.classList.toggle('on', b.dataset.qual === Quality.pref));
+    const qh = this.$('qual-hint');
+    if (qh) qh.textContent = (Quality.pref === 'auto' && Quality.isSoftware) ? tr('qual.swHint') : '';
     this.$('set-diff-val').textContent = tr('diff.' + Difficulty.current);
   }
 
@@ -6159,13 +6210,15 @@ class Game {
     this.best = { level: 0, kills: 0 };
     try { const b = JSON.parse(window.localStorage.getItem('midnight-port.best')); if (b && b.level) this.best = b; } catch (err) { /* storage blocked */ }
     Difficulty.load();
+    Quality.load();
     this.canvas = document.getElementById('view');
 
-    const r = (this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, powerPreference: 'high-performance' }));
-    this.pr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const q = Quality.cfg();
+    const r = (this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: q.antialias, powerPreference: q.antialias ? 'high-performance' : 'low-power' }));
+    this.pr = Math.min(window.devicePixelRatio || 1, q.pr);
     r.setPixelRatio(this.pr); r.setSize(Math.max(1, window.innerWidth), Math.max(1, window.innerHeight), false);
-    r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.2;
-    r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFShadowMap; r.shadowMap.autoUpdate = false; r.shadowMap.needsUpdate = true; r.autoClear = false;
+    r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = q.tone ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping; r.toneMappingExposure = 1.2;
+    r.shadowMap.enabled = q.shadows; r.shadowMap.type = THREE.PCFShadowMap; r.shadowMap.autoUpdate = false; r.shadowMap.needsUpdate = q.shadows; r.autoClear = false;
 
     const aspect = Math.max(1, window.innerWidth) / Math.max(1, window.innerHeight);
     this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x060a12); this.scene.fog = new THREE.FogExp2(0x0a111c, CFG.fogDensity);
@@ -6173,13 +6226,15 @@ class Game {
     this.vmScene = new THREE.Scene(); this.vmCamera = new THREE.PerspectiveCamera(CFG.vmFov, aspect, 0.01, 8);
 
     this.sound = new SoundManager();
-    this.tex = new TextureFactory(Math.min(8, r.capabilities.getMaxAnisotropy()));
+    this.tex = new TextureFactory(Math.min(q.aniso, r.capabilities.getMaxAnisotropy()));
     this.kit = new ModelKit(this.tex); this.chars = new CharacterKit(this.kit);
     this.world = new PhysicsWorld(); this.map = new MapBuilder(this); this.map.build();
     this.fx = new Effects(this); this.ui = new UIManager(this); this.input = new Input(this);
     this.player = new Player(this); this.weapons = new WeaponSystem(this); this.grenades = new GrenadeSystem(this);
     this.loot = new LootSystem(this); this.enemies = new EnemyAI(this); this.enemies.reset(1);
-    this.vmScene.environment = buildEnvMap(r);
+    this.envTex = q.env ? buildEnvMap(r) : null;
+    this.scene.environment = this.envTex;
+    this.vmScene.environment = this.envTex;
     this.warmUp(); this.ui.refreshMission(); this.ui.syncSettings(); this.ui.showcase.thumbs();
 
     this.perfT = 0; this.perfN = 0; this.perfCool = 3;
@@ -6350,8 +6405,31 @@ class Game {
     this.camera.lookAt(0, 2, 2);
   }
 
+  setQuality(pref) {
+    Quality.set(pref);
+    const q = Quality.cfg(), r = this.renderer;
+    r.shadowMap.enabled = q.shadows;
+    if (q.shadows) r.shadowMap.needsUpdate = true;
+    r.toneMapping = q.tone ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+    if (q.env) {
+      if (!this.envTex) this.envTex = buildEnvMap(r);
+      this.scene.environment = this.envTex;
+      this.vmScene.environment = this.envTex;
+    } else {
+      this.scene.environment = null;
+      this.vmScene.environment = null;
+    }
+    this.pr = Math.min(window.devicePixelRatio || 1, q.pr);
+    r.setPixelRatio(this.pr);
+    r.setSize(Math.max(1, window.innerWidth), Math.max(1, window.innerHeight), false);
+    this.ui.syncSettings();
+    this.dirty = true;
+  }
+
   frame(now) {
     requestAnimationFrame(this._frame);
+    const cap = Quality.cfg().fpsCap;
+    if (cap > 0 && this.last >= 0 && (now - this.last) < (1000 / cap) - 1) return;
     if (this.last < 0) this.last = now;
     const raw = (now - this.last) / 1000; this.last = now;
     const dt = clamp(raw, 0, 0.05); this.clock += dt;
@@ -6377,8 +6455,9 @@ class Game {
     this.perfCool -= raw; if (this.perfCool > 0) return;
     this.perfT += raw; this.perfN++; if (this.perfN < 90) return;
     const avg = this.perfT / this.perfN; this.perfT = 0; this.perfN = 0;
-    if (avg > 0.026 && this.pr > 0.6) {
-      this.pr = Math.max(0.6, this.pr * 0.82); this.renderer.setPixelRatio(this.pr);
+    const minPr = Quality.resolve() === 'low' ? 0.5 : 0.6;
+    if (avg > 0.032 && this.pr > minPr) {
+      this.pr = Math.max(minPr, this.pr * 0.82); this.renderer.setPixelRatio(this.pr);
       this.renderer.setSize(Math.max(1, window.innerWidth), Math.max(1, window.innerHeight), false); this.perfCool = 2;
     }
   }

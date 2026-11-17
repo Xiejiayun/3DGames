@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { chromium } from 'playwright';
 
 const html = await readFile(new URL('../games/kart.html', import.meta.url), 'utf8');
-const expose = `globalThis.qa = { THREE, scene, camera, renderer, TRACKS, CHARS,
+const expose = `globalThis.qa = { THREE, scene, camera, renderer, skyMat, TRACKS, CHARS,
   buildTrackAndWorld, buildKartMesh, startRace, backToMenu, spawnItemEffect,
   stepRacer, updateProjectiles, animate, disposeObject, previewRenderers, get samples(){return trackSamples},
   get world(){return worldGroup}, get racers(){return racers},
@@ -43,6 +43,13 @@ try {
         const a = o.geometry?.attributes.position?.array;
         if (a && !a.every(Number.isFinite)) failures.push(`nonfinite geometry: ${o.name}`);
       });
+      const checkColorMap=o=>{
+        for(const m of (Array.isArray(o.material)?o.material:[o.material])) {
+          if(m?.map && m.map.colorSpace!==qa.THREE.SRGBColorSpace) failures.push('color texture lacks sRGB');
+        }
+      };
+      qa.world.traverse(checkColorMap);
+      qa.racers.forEach(r=>r.visual.root.traverse(checkColorMap));
       const road = qa.world.getObjectByName('road-surface');
       if (!road || road.geometry.attributes.normal.getY(0) < .9) failures.push('road must face up');
       if (!qa.world.getObjectByName('road-foundation')) failures.push('missing deck');
@@ -55,6 +62,10 @@ try {
         if(!hit || hit.point.y<s.pos.y-.1) failures.push('unsupported shoulder gap');
       }
       if (id === 0) {
+        qa.camera.position.set(0,-5,0);qa.renderer.render(qa.scene,qa.camera);
+        if(qa.skyMat.uniforms.uUnderwater.value!==1) failures.push('bright sky remains underwater');
+        qa.camera.position.y=5;qa.renderer.render(qa.scene,qa.camera);
+        if(qa.skyMat.uniforms.uUnderwater.value!==0) failures.push('underwater tint remains above water');
         const shell = qa.world.getObjectByName('sea-tunnel-shell');
         if (!shell) failures.push('missing continuous sea tunnel');
         const fish = qa.props.filter(p => p.type === 'fish');

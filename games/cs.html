@@ -3139,7 +3139,7 @@ class PhysicsWorld {
   }
 
   _axis(b, axis, sign) {
-    const p = b.pos, r = b.radius, cols = this._query(p.x - r, p.z - r, p.x + r, p.z + r), E = this.EPS;
+    const p = b.pos, r = b.radius, cols = this._query(p.x - r, p.z - r, p.x + r, p.z + r).slice(), E = this.EPS;
     const allow = b.onGround ? b.step : b.airStep;
     for (let i = 0; i < cols.length; i++) {
       const c = cols[i];
@@ -3257,6 +3257,18 @@ class PhysicsWorld {
     return deepest > 0;
   }
 
+  walkableLink(a, b, radius = 0.42) {
+    const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.25));
+    let y = a.y;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps, x = lerp(a.x, b.x, t), z = lerp(a.z, b.z, t);
+      const floor = this.groundAt(x, z, radius, y + 0.55);
+      if (Math.abs(floor - y) > 0.55 || !this.bodyFree(x, floor, z, radius, 1.74)) return false;
+      y = floor;
+    }
+    return Math.abs(y - b.y) < 0.1;
+  }
+
   corridorClear(x0, z0, x1, z1, r, y = 0) {
     const cols = this._query(Math.min(x0, x1) - r, Math.min(z0, z1) - r, Math.max(x0, x1) + r, Math.max(z0, z1) + r);
     const dx = x1 - x0, dz = z1 - z0;
@@ -3318,10 +3330,10 @@ function distPointSeg(px, py, pz, ax, ay, az, bx, by, bz) {
 
 /* ───────────────────────────────── NavGraph ───────────────────────────────── */
 class NavGraph {
-  constructor(world, points, maxLink = 27, radius = 0.6) {
+  constructor(world, points, maxLink = 27, radius = 0.42) {
     this.world = world;
     this.radius = radius;
-    this.nodes = points.map((p, i) => ({ id: i, x: p[0], z: p[1], y: p[2] || 0, links: [] }));
+    this.nodes = points.map((p, i) => ({ id: i, x: p[0], z: p[1], y: world.groundAt(p[0], p[1], radius, (p[2] || 0) + 0.55), links: [] }));
     const N = this.nodes;
     for (let i = 0; i < N.length; i++) {
       for (let j = i + 1; j < N.length; j++) {
@@ -3329,9 +3341,8 @@ class NavGraph {
         if (dy > 2.8) continue;
         const d = Math.hypot(N[i].x - N[j].x, N[i].z - N[j].z);
         if (d > (dy > 0.5 ? 14 : maxLink)) continue;
-        // elevated links (ramps & roofs): use the higher node's floor or ramp clearance
-        const yCheck = Math.max(N[i].y, N[j].y);
-        if (!world.corridorClear(N[i].x, N[i].z, N[j].x, N[j].z, dy > 0.5 ? 0.35 : radius, dy > 0.5 ? Math.min(N[i].y, N[j].y) + 2.1 : yCheck)) continue;
+        // Check the supported route in both directions, including slope and headroom.
+        if (!world.walkableLink(N[i], N[j], radius) || !world.walkableLink(N[j], N[i], radius)) continue;
         const cost = d + dy * 1.4;
         N[i].links.push({ to: j, d: cost });
         N[j].links.push({ to: i, d: cost });
@@ -3438,7 +3449,7 @@ const NAV_POINTS = [
   [0.8, -13], [0.8, -2], [-3.6, 3.5], [-3.6, 12.5],
   [5.5, -9.24], [20.7, -9.24], [5.5, 2.02], [20.7, 2.02], [5.5, 13.8], [20.7, 13.8],
   // elevated ramp route up to the warehouse roof (south face)
-  [-39.8, 16.27, 0], [-30.8, 16.27, 2.6], [-25.6, 16.27, 2.6], [-18.8, 16.27, 5.2], [-12.5, 16.27, 7.8], [-12.5, 13.5, 7.8], [-14, 8, 7.8], [-28, 4, 7.8], [-28, -8, 7.8], [-14, -8, 7.8],
+  [-39.8, 16.27, 0], [-30.8, 16.27, 2.6], [-26, 16.27, 2.6], [-19.3, 16.27, 5.2], [-12.5, 16.27, 7.8], [-12.5, 13.5, 7.8], [-14, 8, 7.8], [-28, 4, 7.8], [-28, -8, 7.8], [-14, -8, 7.8],
 ];
 
 const PATROLS = [
@@ -3555,6 +3566,13 @@ class MapBuilder {
       post.position.set((len * i) / posts, 0.53, 0); post.castShadow = true; grp.add(post);
     }
     this.scene.add(grp);
+    for (const mesh of grp.children) this.meshCollider(mesh);
+  }
+
+  meshCollider(mesh, o = {}) {
+    mesh.updateWorldMatrix(true, false);
+    const b = new THREE.Box3().setFromObject(mesh);
+    return this.world.addBox(b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z, o);
   }
 
   sandbags(x, y, z, ry = 0, rows = 3) {
@@ -3575,6 +3593,7 @@ class MapBuilder {
       }
     }
     this.scene.add(grp);
+    for (const mesh of grp.children) this.meshCollider(mesh, { mat: 'sand', cover: true });
   }
 
   lightShaft(x, y, z, tx, ty, tz, color, rTop, rBot, opacity = 0.14) {

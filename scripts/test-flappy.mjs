@@ -9,12 +9,12 @@ const html = await readFile(new URL('games/flappy.html', root), 'utf8');
 const bridge = `window.qa = {
   THREE, scene, camera, renderer, bird, pipes, chunks, terrainH, lumpy, flock, feathers,
   setBird, setQuality, resetGame, startGame, flap, update, animateVisuals,
-  updateCamera, togglePause, CFG, skyMat,
+  updateCamera, togglePause, CFG,
   get state() { return state; }, get birdY() { return birdY; },
   set birdY(v) { birdY = v; }, set scroll(v) { scroll = v; },
   set score(v) { score = v; }, set tod(v) { tod = v; },
   stop() { running = false; adaptive.enabled = false; },
-  render(dt = 0) { animateVisuals(dt); renderer.render(scene, camera); }
+  render(dt = 0) { renderFrame(dt); }
 };`;
 const server = createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -82,8 +82,6 @@ try {
   for (const skin of ['blue', 'red', 'yellow']) {
     await page.evaluate(name => {
       qa.setBird(name); qa.render();
-      qa.camera.position.set(2, qa.birdY + 1, 2);
-      qa.camera.lookAt(0, qa.birdY, 0); qa.renderer.render(qa.scene, qa.camera);
     }, skin);
     await screenshot('bird-' + skin);
   }

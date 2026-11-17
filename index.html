@@ -8,8 +8,8 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b1424'/%3E%3Cpolygon points='32,10 54,22 32,34 10,22' fill='%236fd6ff'/%3E%3Cpolygon points='10,22 32,34 32,56 10,44' fill='%232e7db8'/%3E%3Cpolygon points='54,22 32,34 32,56 54,44' fill='%23ffb23e'/%3E%3Cpath d='M32 10L54 22V44L32 56L10 44V22Z' fill='none' stroke='%23eef3f8' stroke-opacity='.35' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
 :root{
-  --bg:#06090f; --bg2:#0c1320; --fg:#eef3f8; --dim:#93a3b5; --faint:#5c6b7c;
-  --panel:rgba(13,20,33,.72); --line:rgba(255,255,255,.14); --line-hi:rgba(111,214,255,.38);
+  --bg:#06090f; --bg2:#0c1320; --fg:#eef3f8; --dim:#98a8ba; --faint:#5c6b7c;
+  --panel:rgba(13,20,33,.72); --line:rgba(255,255,255,.13); --line-hi:rgba(111,214,255,.38);
   --accent:#ffb23e; --cool:#6fd6ff; --ok:#72f0a4; --danger:#ff5a4d;
   --font:"Segoe UI","PingFang SC","Microsoft YaHei","Hiragino Sans GB","Helvetica Neue",Arial,sans-serif;
   --mono:"Consolas","SFMono-Regular","Menlo",monospace;
@@ -20,28 +20,28 @@ html,body{min-height:100%;background:radial-gradient(ellipse at 20% 0%,rgba(45,9
   color:var(--fg);font-family:var(--font);line-height:1.6;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}
 
-.wrap{max-width:1280px;margin:0 auto;padding:36px 22px 54px}
+.wrap{max-width:1280px;margin:0 auto;padding:36px 24px 54px}
 
-header{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:34px;flex-wrap:wrap}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:32px;flex-wrap:wrap}
 .eyebrow{font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--cool);font-weight:700}
-h1{font-size:clamp(30px,5vw,46px);font-weight:800;letter-spacing:.04em;margin-top:6px;line-height:1.1}
+h1{font-size:clamp(30px,5vw,44px);font-weight:800;letter-spacing:.03em;margin-top:6px;line-height:1.12}
 h1 span{color:var(--accent)}
-.sub{margin-top:10px;color:var(--dim);max-width:680px;font-size:14.5px}
+.sub{margin-top:10px;color:var(--dim);max-width:680px;font-size:14.5px;line-height:1.6}
 
 .lang-switch{display:flex;gap:6px;background:var(--panel);padding:4px;border:1px solid var(--line);border-radius:8px}
 .lang-switch button{cursor:pointer;background:none;border:0;color:var(--dim);padding:6px 14px;border-radius:6px;
   font-size:12.5px;font-weight:700;font-family:inherit;transition:background .15s,color .15s}
 .lang-switch button.on{background:var(--fg);color:var(--bg)}
 
-.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;align-items:stretch}
 
-.card{display:flex;flex-direction:column;background:linear-gradient(155deg,rgba(120,160,205,.12),rgba(10,16,26,.82));
+.card{display:flex;flex-direction:column;background:linear-gradient(160deg,rgba(120,160,205,.1),rgba(10,16,26,.86));
   border:1px solid var(--line);border-radius:18px;overflow:hidden;
   box-shadow:0 24px 60px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.12);
   transition:transform .18s ease,border-color .18s ease}
 .card:hover{transform:translateY(-3px);border-color:var(--line-hi)}
 
-.banner{position:relative;padding:24px 26px 20px;border-bottom:1px solid var(--line)}
+.banner{position:relative;padding:22px 24px 18px;border-bottom:1px solid var(--line)}
 .banner.cs{background:radial-gradient(circle at 85% 20%,rgba(255,178,62,.2),transparent 60%),
   linear-gradient(135deg,#0d1726,#080d16)}
 .banner.fb{background:radial-gradient(circle at 85% 20%,rgba(111,214,255,.26),transparent 60%),
@@ -50,34 +50,41 @@ h1 span{color:var(--accent)}
   linear-gradient(135deg,#102b28,#091418)}
 
 .tag-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
-.badge{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:3px 10px;
-  border-radius:999px;border:1px solid var(--line);background:rgba(0,0,0,.32)}
+.badge{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:3px 10px;
+  border-radius:999px;border:1px solid var(--line);background:rgba(0,0,0,.32);white-space:nowrap}
 .badge.tactical{color:var(--accent);border-color:rgba(255,178,62,.4)}
 .badge.arcade{color:var(--cool);border-color:rgba(111,214,255,.4)}
 .badge.racing{color:var(--ok);border-color:rgba(114,240,164,.4)}
-.tech{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.tech{font-family:var(--mono);font-size:11px;color:var(--dim);white-space:nowrap}
 
-.card h2{font-size:26px;font-weight:800;letter-spacing:.03em}
-.card .tagline{margin-top:4px;font-size:13.5px;color:var(--dim)}
+.card h2{font-size:clamp(20px,1.8vw,23px);font-weight:800;letter-spacing:.02em;line-height:1.25;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .tagline{margin-top:5px;font-size:13px;color:var(--dim);line-height:1.4;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-.body{padding:22px 26px 26px;display:flex;flex-direction:column;gap:16px;flex:1}
-.desc{font-size:13.5px;color:var(--fg);opacity:.92}
+.body{padding:20px 24px 24px;display:flex;flex-direction:column;gap:16px;flex:1}
+.desc{font-size:13.5px;color:var(--fg);opacity:.92;line-height:1.58;min-height:4.74em}
 
-.feats{list-style:none;display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--dim)}
-.feats li{display:flex;gap:9px;align-items:flex-start}
-.feats li::before{content:"▸";color:var(--cool);font-weight:700;flex:none}
+.feats{list-style:none;display:flex;flex-direction:column;gap:10px;font-size:13px;color:var(--dim);flex:1}
+.feats li{position:relative;padding-left:16px;line-height:1.56}
+.feats li::before{content:"▸";position:absolute;left:0;top:0;color:var(--cool);font-weight:700}
 .card.cs-card .feats li::before{color:var(--accent)}
 .card.kart-card .feats li::before{color:var(--ok)}
+.feats b{color:var(--fg);font-weight:600}
+.feats kbd,.keys kbd{font-family:var(--mono);font-size:11px;padding:1px 6px;border-radius:4px;
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);color:var(--fg);
+  display:inline-block;line-height:1.35}
 
-.keys{padding:12px 14px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.08);border-radius:10px;
-  font-size:12px;color:var(--dim)}
-.keys-title{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--fg);margin-bottom:6px}
-.keys kbd{font-family:var(--mono);font-size:11px;padding:1px 6px;border-radius:4px;background:rgba(255,255,255,.1);
-  border:1px solid rgba(255,255,255,.16);color:var(--fg)}
+.keys{margin-top:auto;padding:12px 14px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;font-size:12px;color:var(--dim);min-height:84px;display:flex;flex-direction:column;justify-content:center}
+.keys-title{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--fg);
+  opacity:.85;margin-bottom:7px}
+.keys-list{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+.k-item{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;line-height:1.4}
 
-.actions{margin-top:auto;padding-top:6px;display:flex;align-items:center;justify-content:space-between;gap:14px}
-.play{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;border-radius:8px;
-  font-size:14px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;transition:transform .12s,filter .15s}
+.actions{padding-top:4px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.play{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 22px;border-radius:8px;
+  font-size:13.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;transition:transform .12s,filter .15s}
 .play.primary{background:var(--accent);color:#1a1002}
 .play.cool{background:var(--cool);color:#041624}
 .play.ok{background:var(--ok);color:#042012}
@@ -88,11 +95,13 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.0
   display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
   font-size:12px;color:var(--faint)}
 
-@media (max-width:1060px){
+@media (max-width:1080px){
   .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (max-width:720px){
   .grid{grid-template-columns:minmax(0,1fr)}
+  .desc{min-height:0}
+  .keys{min-height:0}
 }
 </style>
 </head>
@@ -102,7 +111,7 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.0
     <div>
       <div class="eyebrow" data-i18n="eyebrow">ZERO-ASSET WEBGL GAMES · PURE PROCEDURAL 3D</div>
       <h1 data-i18n-html="title">3D Games <span>Collection</span></h1>
-      <p class="sub" data-i18n="subtitle">两款完全基于 Three.js 构建的单文件网页 3D 游戏——无任何外部贴图、模型或音频文件，所有画面、几何体与音效均由代码实时生成。</p>
+      <p class="sub" data-i18n="subtitle">三款完全基于 Three.js 构建的单文件网页 3D 游戏——无任何外部贴图、模型或音频文件，所有画面、几何体与音效均由代码实时生成。</p>
     </div>
     <div class="lang-switch" role="group" aria-label="Language">
       <button type="button" data-lang="zh" class="on">中文</button>
@@ -118,19 +127,28 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.0
           <span class="badge tactical" data-i18n="cs.badge">3D 战术射击 · FPS</span>
           <span class="tech">Three.js r160 · Web Audio</span>
         </div>
-        <h2>MIDNIGHT PORT · 午夜港口</h2>
+        <h2 data-i18n="cs.title">午夜港口 · MIDNIGHT PORT</h2>
         <p class="tagline" data-i18n="cs.tagline">7 号码头集装箱堆场 · 双阵营夜战</p>
       </div>
       <div class="body">
-        <p class="desc" data-i18n="cs.desc">扮演反恐精英（M4A1）或恐怖分子（AK-47），在雾气弥漫的午夜集装箱港口展开 5 关战役与无尽模式对抗。双方遵循对等规则：100 点自动回血生命、听声辨位、手雷与高处跌落伤害。</p>
+        <p class="desc" data-i18n="cs.desc">扮演反恐精英（M4A1）或恐怖分子（AK-47），在午夜集装箱港口展开 5 关战役与无尽模式对抗。双方遵循对等规则：100 点自动回血、听声辨位、手雷与跌落伤害。</p>
         <ul class="feats" data-i18n-html="cs.feats">
-          <li><b>完整武器库与穿透：</b>战术匕首（背后真背刺秒杀）、P226 手枪、M4A1 / AK-47、AX-50 重型狙击枪、破片手雷与烟雾弹；子弹可穿透木箱，红色油桶击中会爆炸。</li>
-          <li><b>立体战术 AI：</b>巡逻兵（含突击手/重甲兵）与屋顶哨兵（含狙击手），支持沿斜坡爬上仓库屋顶追击、投掷烟雾弹与手雷、躲避爆炸及空间化换弹/脚步音效。</li>
-          <li><b>经济与自定义：</b>击杀掉落现金/弹药/护甲箱，随时按 B 打开 3D 预览购买菜单；支持中英双语、下蹲/开镜方式、准星颜色及本地战绩持久化。</li>
+          <li><b>完整武器库与穿透：</b>战术匕首（背刺秒杀）、P226、M4A1 / AK-47、AX-50 重狙、手雷与烟雾弹；子弹可穿透木箱并引爆油桶。</li>
+          <li><b>立体战术 AI：</b>巡逻兵与屋顶狙击手支持沿斜坡登顶追击、投掷烟雾与手雷、躲避爆炸及空间化脚步/换弹音效。</li>
+          <li><b>经济与自定义：</b>击杀掉落现金/弹药/护甲，按 <kbd>B</kbd> 打开 3D 武器商店；支持双语切换、准星配色与本地战绩保存。</li>
         </ul>
         <div class="keys">
           <div class="keys-title" data-i18n="controls">核心操作</div>
-          <div data-i18n-html="cs.keys"><kbd>W A S D</kbd> 移动 · <kbd>左键</kbd> 开火 · <kbd>右键</kbd> 瞄准/开镜 · <kbd>1–6</kbd> / <kbd>Q</kbd> 切枪 · <kbd>G</kbd> 手雷 · <kbd>V</kbd> 烟雾 · <kbd>B</kbd> 购买 · <kbd>Tab</kbd> 帮助</div>
+          <div class="keys-list" data-i18n-html="cs.keys">
+            <span class="k-item"><kbd>WASD</kbd> 移动</span>
+            <span class="k-item"><kbd>左键</kbd> 开火</span>
+            <span class="k-item"><kbd>右键</kbd> 开镜</span>
+            <span class="k-item"><kbd>1–6</kbd><kbd>Q</kbd> 切枪</span>
+            <span class="k-item"><kbd>G</kbd> 手雷</span>
+            <span class="k-item"><kbd>V</kbd> 烟雾</span>
+            <span class="k-item"><kbd>B</kbd> 商店</span>
+            <span class="k-item"><kbd>Tab</kbd> 帮助</span>
+          </div>
         </div>
         <div class="actions">
           <a class="play primary" href="cs.html" data-i18n="play">开始游玩 →</a>
@@ -146,19 +164,23 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.0
           <span class="badge arcade" data-i18n="fb.badge">3D 街机飞行 · Arcade</span>
           <span class="tech">Three.js r186 · Web Audio</span>
         </div>
-        <h2>FLAPPY BIRD 3D</h2>
-        <p class="tagline" data-i18n="fb.tagline">经典玩法立体化 · 双视角自由切换</p>
+        <h2 data-i18n="fb.title">像素飞鸟 · FLAPPY BIRD 3D</h2>
+        <p class="tagline" data-i18n="fb.tagline">经典街机立体化重制 · 双视角无缝切换</p>
       </div>
       <div class="body">
-        <p class="desc" data-i18n="fb.desc">将经典的像素飞鸟重制为全 3D 立体世界，拥有动态天空、漂浮云朵与管道穿梭体验，同时兼容桌面键鼠与手机触控操作。</p>
+        <p class="desc" data-i18n="fb.desc">将经典飞鸟穿梭重制为全 3D 立体世界，拥有程序化动态天空、漂浮云朵与立体管道场景，同时兼容桌面键鼠与移动端触控操作。</p>
         <ul class="feats" data-i18n-html="fb.feats">
-          <li><b>双视角模式：</b>可在经典的<b>默认侧视视角</b>与极具代入感的<b>第一人称视角</b>之间无缝切换（第一人称下管道间距会自动适当放宽以平衡判断难度）。</li>
-          <li><b>3 只 3D 小鸟角色：</b>提供小蓝、小红、小黄三只程序化建模的小鸟，主菜单配有实时 3D 预览卡片。</li>
-          <li><b>零外部资源：</b>全部 3D 几何体、光影与合成音效均由浏览器端实时生成，并自动保存本地最高分纪录。</li>
+          <li><b>双视角无缝切换：</b>可在经典<b>侧视视角</b>与沉浸式<b>第一人称视角</b>间随时切换，第一人称下自动优化管道间距以平衡景深判断。</li>
+          <li><b>3 款 3D 小鸟角色：</b>提供小蓝、小红、小黄三只程序化建模的立体小鸟，主菜单配备实时 3D 旋转预览卡片。</li>
+          <li><b>零外部资源开销：</b>所有 3D 几何体、光影与 Web Audio 合成音效均由代码实时生成，并自动持久化本地最高分。</li>
         </ul>
         <div class="keys">
           <div class="keys-title" data-i18n="controls">核心操作</div>
-          <div data-i18n-html="fb.keys"><kbd>点击画面</kbd> / <kbd>空格</kbd> / <kbd>↑</kbd> 起飞 · <kbd>←</kbd> <kbd>→</kbd> 切换小鸟 · <kbd>V</kbd> 切换视角</div>
+          <div class="keys-list" data-i18n-html="fb.keys">
+            <span class="k-item"><kbd>点击</kbd><kbd>空格</kbd><kbd>↑</kbd> 拍翅起飞</span>
+            <span class="k-item"><kbd>←</kbd><kbd>→</kbd> 切换小鸟</span>
+            <span class="k-item"><kbd>V</kbd> 切换视角</span>
+          </div>
         </div>
         <div class="actions">
           <a class="play cool" href="flappy.html" data-i18n="play">开始游玩 →</a>
@@ -174,19 +196,25 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.0
           <span class="badge racing" data-i18n="kart.badge">3D 卡丁车竞速 · Racing</span>
           <span class="tech">Three.js r186 · Web Audio</span>
         </div>
-        <h2>TURBO KART 3D · 极速卡丁车</h2>
-        <p class="tagline" data-i18n="kart.tagline">PBR 写实赛车 · 6 大道具对抗 · 四阶漂移与跳台特技</p>
+        <h2 data-i18n="kart.title">极速卡丁车 · TURBO KART 3D</h2>
+        <p class="tagline" data-i18n="kart.tagline">PBR 清漆赛车 · 6 大道具对抗 · 四阶漂移特技</p>
       </div>
       <div class="body">
-        <p class="desc" data-i18n="kart.desc">对标主机级体验的 3D 卡丁车锦标赛：3 位高精度卡通车手与专属旗舰赛车、3 条多层立体奇观赛道、彩虹道具箱 6 大攻防道具与四阶漂移双喷系统。</p>
+        <p class="desc" data-i18n="kart.desc">主机级体验的 3D 卡丁车锦标赛：3 位鲜活卡通车手与专属旗舰赛车、3 条多层奇观赛道、彩虹道具箱 6 大攻防道具与四阶漂移双喷系统。</p>
         <ul class="feats" data-i18n-html="kart.feats">
-          <li><b>3 款 PBR 清漆赛车与鲜活角色：</b>赤焰 GT-K1（双叉臂悬挂+红尾巾皮蛋）、星澜 Aero-X（旋转涡扇+灵动长兔耳宝宝）、雷神 Titan-V8（外露震动 V8 引擎+双马尾黑妞）。</li>
-          <li><b>3 大多层奇观赛道与跳台：</b>阳光海滨（跨海斜拉桥+海底透明隧道）、森林峡谷（飞流瀑布+发光水晶神庙）、雪山冰道（GLSL 动态极光+登山缆车+冰晶隧道）。</li>
-          <li><b>道具对抗与四阶漂移特技：</b>追踪导弹、冰冻水泡、香蕉皮、电磁护盾、闪电磁铁与超级氮气；支持四阶漂移火花、断位双喷、尾流超车与跳台 360° 空中特技落地喷。</li>
+          <li><b>3 款 PBR 赛车与车手：</b>赤焰 GT-K1（红尾巾皮蛋）、星澜 Aero-X（涡扇长耳宝宝）、雷神 Titan-V8（外露 V8 引擎双马尾黑妞）。</li>
+          <li><b>3 大多层奇观赛道：</b>阳光海滨（跨海大桥与海底玻璃隧道）、森林峡谷（瀑布与水晶神庙）、雪山冰道（动态极光与冰晶隧道）。</li>
+          <li><b>道具对抗与漂移特技：</b>导弹、水泡、香蕉皮、护盾、磁铁与超级氮气；支持四阶漂移火花、断位双喷、尾流与跳台 360° 空翻。</li>
         </ul>
         <div class="keys">
           <div class="keys-title" data-i18n="controls">核心操作</div>
-          <div data-i18n-html="kart.keys"><kbd>W A S D</kbd> / <kbd>↑ ↓ ← →</kbd> 驾驶 · <kbd>Shift</kbd> 四阶漂移 · <kbd>空格</kbd> 氮气 · <kbd>E</kbd> / <kbd>右键</kbd> 道具 · <kbd>V</kbd> 视角</div>
+          <div class="keys-list" data-i18n-html="kart.keys">
+            <span class="k-item"><kbd>WASD</kbd><kbd>↑↓←→</kbd> 驾驶</span>
+            <span class="k-item"><kbd>Shift</kbd> 漂移</span>
+            <span class="k-item"><kbd>空格</kbd> 氮气</span>
+            <span class="k-item"><kbd>E</kbd><kbd>右键</kbd> 道具</span>
+            <span class="k-item"><kbd>V</kbd> 视角</span>
+          </div>
         </div>
         <div class="actions">
           <a class="play ok" href="kart.html" data-i18n="play">开始游玩 →</a>
@@ -197,7 +225,7 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.0
   </main>
 
   <footer>
-    <span data-i18n="footer.note">提示：两款游戏均通过 CDN 加载 Three.js，请联网并建议通过本地 HTTP 服务器或现代浏览器打开。</span>
+    <span data-i18n="footer.note">提示：所有游戏均通过 CDN 加载 Three.js，请联网并使用现代 WebGL 浏览器打开。</span>
     <span>3DGames · MIT License</span>
   </footer>
 </div>
@@ -211,21 +239,24 @@ const TEXT = {
     controls: '核心操作',
     play: '开始游玩 →',
     'cs.badge': '3D 战术射击 · FPS',
+    'cs.title': '午夜港口 · MIDNIGHT PORT',
     'cs.tagline': '7 号码头集装箱堆场 · 双阵营夜战',
-    'cs.desc': '扮演反恐精英（M4A1）或恐怖分子（AK-47），在雾气弥漫的午夜集装箱港口展开 5 关战役与无尽模式对抗。双方遵循对等规则：100 点自动回血生命、听声辨位、手雷与高处跌落伤害。',
-    'cs.feats': '<li><b>完整武器库与穿透：</b>战术匕首（背后真背刺秒杀）、P226 手枪、M4A1 / AK-47、AX-50 重型狙击枪、破片手雷与烟雾弹；子弹可穿透木箱，红色油桶击中会爆炸。</li><li><b>立体战术 AI：</b>巡逻兵（含突击手/重甲兵）与屋顶哨兵（含狙击手），支持沿斜坡爬上仓库屋顶追击、投掷烟雾弹与手雷、躲避爆炸及空间化换弹/脚步音效。</li><li><b>经济与自定义：</b>击杀掉落现金/弹药/护甲箱，随时按 B 打开 3D 预览购买菜单；支持中英双语、下蹲/开镜方式、准星颜色及本地战绩持久化。</li>',
-    'cs.keys': '<kbd>W A S D</kbd> 移动 · <kbd>左键</kbd> 开火 · <kbd>右键</kbd> 瞄准/开镜 · <kbd>1–6</kbd> / <kbd>Q</kbd> 切枪 · <kbd>G</kbd> 手雷 · <kbd>V</kbd> 烟雾 · <kbd>B</kbd> 购买 · <kbd>Tab</kbd> 帮助',
+    'cs.desc': '扮演反恐精英（M4A1）或恐怖分子（AK-47），在午夜集装箱港口展开 5 关战役与无尽模式对抗。双方遵循对等规则：100 点自动回血、听声辨位、手雷与跌落伤害。',
+    'cs.feats': '<li><b>完整武器库与穿透：</b>战术匕首（背刺秒杀）、P226、M4A1 / AK-47、AX-50 重狙、手雷与烟雾弹；子弹可穿透木箱并引爆油桶。</li><li><b>立体战术 AI：</b>巡逻兵与屋顶狙击手支持沿斜坡登顶追击、投掷烟雾与手雷、躲避爆炸及空间化脚步/换弹音效。</li><li><b>经济与自定义：</b>击杀掉落现金/弹药/护甲，按 <kbd>B</kbd> 打开 3D 武器商店；支持双语切换、准星配色与本地战绩保存。</li>',
+    'cs.keys': '<span class="k-item"><kbd>WASD</kbd> 移动</span><span class="k-item"><kbd>左键</kbd> 开火</span><span class="k-item"><kbd>右键</kbd> 开镜</span><span class="k-item"><kbd>1–6</kbd><kbd>Q</kbd> 切枪</span><span class="k-item"><kbd>G</kbd> 手雷</span><span class="k-item"><kbd>V</kbd> 烟雾</span><span class="k-item"><kbd>B</kbd> 商店</span><span class="k-item"><kbd>Tab</kbd> 帮助</span>',
     'fb.badge': '3D 街机飞行 · Arcade',
-    'fb.tagline': '经典玩法立体化 · 双视角自由切换',
-    'fb.desc': '将经典的飞鸟穿梭重制为全 3D 立体世界，拥有动态天空、云朵与管道场景，同时兼容桌面键鼠与手机触控操作。',
-    'fb.feats': '<li><b>双视角模式：</b>可在经典的<b>默认侧视视角</b>与极具代入感的<b>第一人称视角</b>之间无缝切换（第一人称下管道间距会自动适当放宽以平衡判断难度）。</li><li><b>3 只 3D 小鸟角色：</b>提供小蓝、小红、小黄三只程序化建模的小鸟，主菜单配有实时 3D 预览卡片。</li><li><b>零外部资源：</b>全部 3D 几何体、光影与合成音效均由浏览器端实时生成，并自动保存本地最高分纪录。</li>',
-    'fb.keys': '<kbd>点击画面</kbd> / <kbd>空格</kbd> / <kbd>↑</kbd> 起飞 · <kbd>←</kbd> <kbd>→</kbd> 切换小鸟 · <kbd>V</kbd> 切换视角',
+    'fb.title': '像素飞鸟 · FLAPPY BIRD 3D',
+    'fb.tagline': '经典街机立体化重制 · 双视角无缝切换',
+    'fb.desc': '将经典飞鸟穿梭重制为全 3D 立体世界，拥有程序化动态天空、漂浮云朵与立体管道场景，同时兼容桌面键鼠与移动端触控操作。',
+    'fb.feats': '<li><b>双视角无缝切换：</b>可在经典<b>侧视视角</b>与沉浸式<b>第一人称视角</b>间随时切换，第一人称下自动优化管道间距以平衡景深判断。</li><li><b>3 款 3D 小鸟角色：</b>提供小蓝、小红、小黄三只程序化建模的立体小鸟，主菜单配备实时 3D 旋转预览卡片。</li><li><b>零外部资源开销：</b>所有 3D 几何体、光影与 Web Audio 合成音效均由代码实时生成，并自动持久化本地最高分。</li>',
+    'fb.keys': '<span class="k-item"><kbd>点击</kbd><kbd>空格</kbd><kbd>↑</kbd> 拍翅起飞</span><span class="k-item"><kbd>←</kbd><kbd>→</kbd> 切换小鸟</span><span class="k-item"><kbd>V</kbd> 切换视角</span>',
     'kart.badge': '3D 卡丁车竞速 · Racing',
-    'kart.tagline': 'PBR 写实赛车 · 6 大道具对抗 · 四阶漂移与跳台特技',
-    'kart.desc': '对标主机级体验的 3D 卡丁车锦标赛：3 位高精度卡通车手与专属旗舰赛车、3 条多层立体奇观赛道、彩虹道具箱 6 大攻防道具与四阶漂移双喷系统。',
-    'kart.feats': '<li><b>3 款 PBR 清漆赛车与鲜活角色：</b>赤焰 GT-K1（双叉臂悬挂+红尾巾皮蛋）、星澜 Aero-X（旋转涡扇+灵动长兔耳宝宝）、雷神 Titan-V8（外露震动 V8 引擎+双马尾黑妞）。</li><li><b>3 大多层奇观赛道与跳台：</b>阳光海滨（跨海斜拉桥+海底透明隧道）、森林峡谷（飞流瀑布+发光水晶神庙）、雪山冰道（GLSL 动态极光+登山缆车+冰晶隧道）。</li><li><b>道具对抗与四阶漂移特技：</b>追踪导弹、冰冻水泡、香蕉皮、电磁护盾、闪电磁铁与超级氮气；支持四阶漂移火花、断位双喷、尾流超车与跳台 360° 空中特技落地喷。</li>',
-    'kart.keys': '<kbd>W A S D</kbd> / <kbd>↑ ↓ ← →</kbd> 驾驶 · <kbd>Shift</kbd> 四阶漂移 · <kbd>空格</kbd> 氮气 · <kbd>E</kbd> / <kbd>右键</kbd> 道具 · <kbd>V</kbd> 视角',
-    'footer.note': '提示：所有游戏均通过 CDN 加载 Three.js，请联网并建议通过本地 HTTP 服务器或现代浏览器打开。',
+    'kart.title': '极速卡丁车 · TURBO KART 3D',
+    'kart.tagline': 'PBR 清漆赛车 · 6 大道具对抗 · 四阶漂移特技',
+    'kart.desc': '主机级体验的 3D 卡丁车锦标赛：3 位鲜活卡通车手与专属旗舰赛车、3 条多层奇观赛道、彩虹道具箱 6 大攻防道具与四阶漂移双喷系统。',
+    'kart.feats': '<li><b>3 款 PBR 赛车与车手：</b>赤焰 GT-K1（红尾巾皮蛋）、星澜 Aero-X（涡扇长耳宝宝）、雷神 Titan-V8（外露 V8 引擎双马尾黑妞）。</li><li><b>3 大多层奇观赛道：</b>阳光海滨（跨海大桥与海底玻璃隧道）、森林峡谷（瀑布与水晶神庙）、雪山冰道（动态极光与冰晶隧道）。</li><li><b>道具对抗与漂移特技：</b>导弹、水泡、香蕉皮、护盾、磁铁与超级氮气；支持四阶漂移火花、断位双喷、尾流与跳台 360° 空翻。</li>',
+    'kart.keys': '<span class="k-item"><kbd>WASD</kbd><kbd>↑↓←→</kbd> 驾驶</span><span class="k-item"><kbd>Shift</kbd> 漂移</span><span class="k-item"><kbd>空格</kbd> 氮气</span><span class="k-item"><kbd>E</kbd><kbd>右键</kbd> 道具</span><span class="k-item"><kbd>V</kbd> 视角</span>',
+    'footer.note': '提示：所有游戏均通过 CDN 加载 Three.js，请联网并使用现代 WebGL 浏览器打开。',
   },
   en: {
     eyebrow: 'ZERO-ASSET WEBGL GAMES · PURE PROCEDURAL 3D',
@@ -234,20 +265,23 @@ const TEXT = {
     controls: 'Controls',
     play: 'Play Now →',
     'cs.badge': 'Tactical FPS · 3D',
+    'cs.title': 'MIDNIGHT PORT',
     'cs.tagline': 'Pier 7 Container Yard · CT vs T Night Raid',
-    'cs.desc': 'Play as Counter-Terrorist (M4A1) or Terrorist (AK-47) across a 5-mission campaign and endless mode. Both sides follow the same rules: 100 regenerating HP, sound propagation, grenades, and fall damage.',
-    'cs.feats': '<li><b>Full Arsenal & Penetration:</b> Combat knife (true backstab), P226 pistol, M4A1 / AK-47, AX-50 heavy sniper, frag & smoke grenades; bullets penetrate wood crates and fuel drums explode.</li><li><b>Vertical Tactical AI:</b> Patrols (rifle, rusher, heavy) and rooftop sentries (including snipers) that climb ramps, throw grenades & smoke, evade blasts, and emit spatial footsteps & reloads.</li><li><b>Buy Menu & Customization:</b> Loot drops, 3D weapon preview shop (<kbd>B</kbd>), EN/ZH language switch, crouch/ADS modes, crosshair colors, and persistent best records.</li>',
-    'cs.keys': '<kbd>W A S D</kbd> Move · <kbd>LMB</kbd> Fire · <kbd>RMB</kbd> ADS/Scope · <kbd>1–6</kbd> / <kbd>Q</kbd> Switch · <kbd>G</kbd> Frag · <kbd>V</kbd> Smoke · <kbd>B</kbd> Buy · <kbd>Tab</kbd> Help',
+    'cs.desc': 'Play as Counter-Terrorist (M4A1) or Terrorist (AK-47) across a 5-mission campaign and endless mode with 100 regenerating HP, sound propagation, grenades, and fall damage.',
+    'cs.feats': '<li><b>Full Arsenal & Penetration:</b> Combat knife (backstab), P226, M4A1 / AK-47, AX-50 sniper, frag & smoke grenades; bullets pierce wood crates and detonate fuel drums.</li><li><b>Vertical Tactical AI:</b> Patrols and rooftop sentries climb ramps, throw grenades & smoke, evade blasts, and emit spatial footsteps & reload audio.</li><li><b>Buy Menu & Customization:</b> Loot drops, 3D weapon shop (<kbd>B</kbd>), EN/ZH language toggle, crouch/ADS modes, crosshair colors, and saved best records.</li>',
+    'cs.keys': '<span class="k-item"><kbd>WASD</kbd> Move</span><span class="k-item"><kbd>LMB</kbd> Fire</span><span class="k-item"><kbd>RMB</kbd> Scope</span><span class="k-item"><kbd>1–6</kbd><kbd>Q</kbd> Swap</span><span class="k-item"><kbd>G</kbd> Frag</span><span class="k-item"><kbd>V</kbd> Smoke</span><span class="k-item"><kbd>B</kbd> Buy</span><span class="k-item"><kbd>Tab</kbd> Help</span>',
     'fb.badge': '3D Arcade Flyer',
+    'fb.title': 'FLAPPY BIRD 3D',
     'fb.tagline': 'Classic Arcade Reimagined · Dual Camera Views',
-    'fb.desc': 'A full 3D take on the classic pipe-dodging flyer with procedural skies, clouds, and models, supporting both desktop and mobile touch controls.',
-    'fb.feats': '<li><b>Dual Camera Views:</b> Switch seamlessly between the classic <b>Side View</b> and an immersive <b>First-Person View</b> (with adjusted pipe gaps for depth perception).</li><li><b>3 Playable 3D Birds:</b> Choose between Blue, Red, and Yellow birds with live 3D preview cards on the start menu.</li><li><b>Zero External Assets:</b> All geometry, lighting, and synthesized sound effects run locally in-browser with persistent high-score tracking.</li>',
-    'fb.keys': '<kbd>Click</kbd> / <kbd>Space</kbd> / <kbd>↑</kbd> Flap · <kbd>←</kbd> <kbd>→</kbd> Switch Bird · <kbd>V</kbd> Switch View',
+    'fb.desc': 'A full 3D take on the classic pipe-dodging flyer featuring procedural skies, drifting clouds, and 3D bird models with desktop and mobile touch controls.',
+    'fb.feats': '<li><b>Dual Camera Views:</b> Switch seamlessly between classic <b>Side View</b> and immersive <b>First-Person View</b> (with tuned pipe spacing for depth perception).</li><li><b>3 Playable 3D Birds:</b> Choose between Blue, Red, and Yellow procedural 3D birds with live interactive preview cards on the start menu.</li><li><b>Zero External Assets:</b> All 3D geometry, lighting, and Web Audio sound effects are synthesized in-browser with local high-score persistence.</li>',
+    'fb.keys': '<span class="k-item"><kbd>Click</kbd><kbd>Space</kbd><kbd>↑</kbd> Flap</span><span class="k-item"><kbd>←</kbd><kbd>→</kbd> Bird</span><span class="k-item"><kbd>V</kbd> Camera</span>',
     'kart.badge': '3D Kart Racing',
-    'kart.tagline': 'PBR Clearcoat Karts · 6 Combat Items · 4-Stage Drift & Tricks',
-    'kart.desc': 'Console-grade 3D kart racing: 3 expressive cartoon drivers with custom flagship karts, 3 multi-zone landmark tracks, rainbow item roulette, and 4-stage drift double-boosts.',
-    'kart.feats': '<li><b>3 PBR Karts & Expressive Drivers:</b> Blaze GT-K1 (Formula + Dao with flowing scarf), Frost Aero-X (Spinning turbines + Bazzi with floppy ears), and Volt Titan-V8 (Vibrating V8 supercharger + Dizni with twin tails).</li><li><b>3 Multi-Zone Landmark Tracks:</b> Sunny Coast (cable bridge & underwater glass tunnel), Emerald Canyon (waterfall & glowing crystal temple), and Aurora Alpine (GLSL Aurora Borealis, cable cars & ice tunnel).</li><li><b>Item Combat & Aerial Tricks:</b> Homing missiles, water bombs, banana peels, energy shields, magnet pull, 4-stage drift sparks, slipstream drafting, and 360° jump ramp tricks.</li>',
-    'kart.keys': '<kbd>W A S D</kbd> / <kbd>↑ ↓ ← →</kbd> Drive · <kbd>Shift</kbd> Drift · <kbd>Space</kbd> N2O · <kbd>E</kbd> / <kbd>RMB</kbd> Item · <kbd>V</kbd> Cam',
+    'kart.title': 'TURBO KART 3D',
+    'kart.tagline': 'PBR Clearcoat Karts · 6 Combat Items · 4-Stage Drift',
+    'kart.desc': 'Console-grade 3D kart racing featuring 3 expressive cartoon drivers with custom karts, 3 multi-route landmark tracks, item roulette, and 4-stage drift boosts.',
+    'kart.feats': '<li><b>3 PBR Karts & Drivers:</b> Blaze GT-K1 (Formula + Dao), Frost Aero-X (twin-turbine + Bazzi), and Volt Titan-V8 (supercharged V8 + Dizni).</li><li><b>3 Landmark Tracks:</b> Sunny Coast (cable bridge & glass sea tunnel), Emerald Canyon (waterfall & crystal temple), and Aurora Alpine (GLSL aurora & ice cave).</li><li><b>Item Combat & Stunts:</b> Homing missiles, water bombs, bananas, shields, magnets, 4-stage drift sparks, slipstream drafting, and 360° jump tricks.</li>',
+    'kart.keys': '<span class="k-item"><kbd>WASD</kbd><kbd>↑↓←→</kbd> Drive</span><span class="k-item"><kbd>Shift</kbd> Drift</span><span class="k-item"><kbd>Space</kbd> N2O</span><span class="k-item"><kbd>E</kbd><kbd>RMB</kbd> Item</span><span class="k-item"><kbd>V</kbd> Camera</span>',
     'footer.note': 'Note: All games load Three.js from a CDN; an internet connection and modern WebGL browser are required.',
   }
 };

@@ -2461,18 +2461,49 @@ class ModelKit {
     const eoHood = new THREE.ExtrudeGeometry(eoSh, { depth: 0.058, bevelEnabled: true, bevelThickness: 0.002, bevelSize: 0.002, bevelOffset: -0.002, bevelSegments: 1, steps: 1 });
     eoHood.translate(0, 0, -0.034);
     S.add(eoHood, A.optic);
-    // AN/PEQ-15 Tactical Laser Box (contoured body, emitter bezels, mode dial, pressure switch + cable)
-    P.add(GK.profile([[0.292, 0.042], [0.368, 0.042], [0.368, 0.059], [0.354, 0.063], [0.306, 0.063], [0.292, 0.058]], 0.038, 0.0025), A.tan);
-    P.add(GK.box(0.042, 0.008, 0.026), A.recv2, 0, 0.045, -0.326);
-    P.add(GK.cylY(0.007, 0.007, 0.008, 10), A.poly, 0.009, 0.066, -0.312);
-    P.add(GK.box(0.012, 0.003, 0.018), 0x2b6cb0, -0.009, 0.0635, -0.326);
-    P.add(GK.cyl(0.0068, 0.0068, 0.008, 10), A.recv2, -0.01, 0.052, -0.37);
-    P.add(GK.cyl(0.0042, 0.0042, 0.009, 10), 0x6a1518, -0.01, 0.052, -0.371);
-    P.add(GK.cyl(0.0058, 0.0058, 0.008, 10), A.recv2, 0.01, 0.052, -0.37);
-    P.add(GK.cyl(0.0035, 0.0035, 0.009, 10), A.port, 0.01, 0.052, -0.371);
-    P.add(GK.cyl(0.0035, 0.0035, 0.006, 8), A.bolt, 0, 0.053, -0.34);
-    P.add(GK.box(0.024, 0.005, 0.056), A.rubber, 0, 0.045, -0.22);
-    P.add(GK.cyl(0.0018, 0.0018, 0.052, 6), A.rubber, 0.013, 0.044, -0.268, 0, 0.14, 0);
+    // AN/PEQ-15 ATPIAL Tactical Laser Box (twin-pod stepped housing, turrets, dial, lens caps, clamp bolts & routed cable)
+    // Center-left main laser pod + stepped right illuminator pod + saddle bridge
+    P.add(GK.profile([[0.292, 0.044], [0.368, 0.044], [0.368, 0.056], [0.354, 0.06], [0.304, 0.06], [0.292, 0.055]], 0.04, 0.002), A.tan);
+    P.add(GK.profile([[0.296, 0.056], [0.369, 0.056], [0.369, 0.063], [0.358, 0.065], [0.302, 0.065], [0.296, 0.062]], 0.02, 0.0018), A.tan, -0.009, 0, 0);
+    P.add(GK.profile([[0.298, 0.056], [0.367, 0.056], [0.367, 0.061], [0.306, 0.061], [0.298, 0.058]], 0.015, 0.0015), A.tan, 0.011, 0, 0);
+    // Side reinforcement ribs + top caution/spec plate
+    for (const sx of [-1, 1]) {
+      for (let rz = -0.312; rz >= -0.354; rz -= 0.014) P.add(GK.box(0.002, 0.008, 0.005), A.recv2, sx * 0.0205, 0.052, rz);
+    }
+    P.add(GK.box(0.014, 0.0018, 0.018), A.recv2, -0.009, 0.0652, -0.35);
+    P.add(GK.box(0.01, 0.002, 0.005), 0xe5a922, -0.009, 0.0655, -0.355);
+    // Rail grabber mount & cross-clamp bolts
+    S.add(GK.box(0.042, 0.008, 0.032), A.recv2, 0, 0.043, -0.328);
+    for (const bz of [-0.318, -0.338]) {
+      S.add(GK.cylX(0.0026, 0.046, 8), A.bolt, 0, 0.043, bz);
+      S.add(GK.cylX(0.0042, 0.005, 8), A.recv, -0.022, 0.043, bz);
+    }
+    // Mode selector dial with stepped collar & index pointer
+    P.add(GK.cylY(0.0082, 0.0088, 0.003, 12), A.recv2, 0.01, 0.0625, -0.312);
+    P.add(GK.cylY(0.0068, 0.0068, 0.007, 10), A.poly, 0.01, 0.0665, -0.312);
+    P.add(GK.box(0.002, 0.002, 0.009), 0xe2e6e9, 0.01, 0.0702, -0.312, 0, 0.45, 0);
+    // Recessed rubber surround + blue fire button + lockout block
+    P.add(GK.box(0.015, 0.0025, 0.021), A.rubber, -0.009, 0.0655, -0.328);
+    P.add(GK.box(0.0105, 0.0035, 0.014), 0x2b6cb0, -0.009, 0.0668, -0.328);
+    P.add(GK.box(0.005, 0.002, 0.006), 0x1a365d, -0.009, 0.0672, -0.317);
+    // Windage & elevation adjustment turrets
+    S.add(GK.cylY(0.0036, 0.0036, 0.004, 8), A.bolt, 0.011, 0.063, -0.336);
+    S.add(GK.cylX(0.0036, 0.004, 8), A.bolt, -0.021, 0.056, -0.342);
+    // Front laser & illuminator bezels + coated lenses + flipped dust cap
+    S.add(GK.cyl(0.0068, 0.0068, 0.008, 12), A.recv2, -0.0095, 0.054, -0.371);
+    S.add(GK.cyl(0.0044, 0.0044, 0.009, 12), 0x7a181c, -0.0095, 0.054, -0.372);
+    P.add(GK.cyl(0.0056, 0.0056, 0.004, 10), A.rubber, -0.019, 0.062, -0.369, 0, 0.35, 0);
+    S.add(GK.cyl(0.0062, 0.0062, 0.009, 12), A.recv2, 0.011, 0.053, -0.37);
+    S.add(GK.cyl(0.0038, 0.0038, 0.01, 12), 0x16283d, 0.011, 0.053, -0.371);
+    // Remote dual-button pressure switch + rear plug + 3-segment contoured cable
+    P.add(GK.box(0.025, 0.0045, 0.058), A.rubber, 0, 0.0445, -0.22);
+    for (const pz of [-0.205, -0.235]) P.add(GK.box(0.019, 0.003, 0.018), A.poly, 0, 0.0475, pz);
+    S.add(GK.box(0.027, 0.0055, 0.006), A.recv2, 0, 0.0445, -0.194);
+    S.add(GK.box(0.027, 0.0055, 0.006), A.recv2, 0, 0.0445, -0.246);
+    P.add(GK.cyl(0.0032, 0.0032, 0.009, 8), A.recv2, 0.011, 0.051, -0.292);
+    P.push(GK.limb([0.011, 0.051, -0.288], [0.017, 0.045, -0.268], 0.0018, 0.0018, A.rubber, 6));
+    P.push(GK.limb([0.017, 0.045, -0.268], [0.015, 0.0445, -0.248], 0.0018, 0.0018, A.rubber, 6));
+    P.push(GK.limb([0.015, 0.0445, -0.248], [0.008, 0.045, -0.238], 0.0018, 0.0018, A.rubber, 6));
     G.add(new THREE.PlaneGeometry(0.046, 0.038), 0xffffff, 0, 0.082, 0.021);
     G.add(new THREE.PlaneGeometry(0.046, 0.038), 0xffffff, 0, 0.082, -0.031);
     // PMAG magazine with cartridge window (brass rounds visible) & ranger pull-tab

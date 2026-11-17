@@ -1436,6 +1436,7 @@ const I18N = {
     'msg.ownTab': 'Open this file in its own browser tab for full mouse capture',
     'msg.lockBlocked': 'Mouse capture was blocked — click Resume again',
     'msg.released': 'Mouse released',
+    'msg.graphicsLost': 'Graphics interrupted — waiting for WebGL to recover',
     'loot.cash': '+{v} cash', 'loot.ammo': 'Reserve ammo {v}', 'loot.ammoSold': 'Ammo full — sold for {v}', 'loot.armor': 'Armor plates +{v} AP',
     'shop.eyebrow': 'Supply cache · the fight is paused',
     'shop.title': 'Tactical Buy Menu', 'shop.balance': 'Balance',
@@ -1553,6 +1554,7 @@ const I18N = {
     'msg.ownTab': '请在独立的浏览器标签页中打开本文件，以便锁定鼠标',
     'msg.lockBlocked': '鼠标锁定被阻止 —— 请再次点击“继续游戏”',
     'msg.released': '鼠标已释放',
+    'msg.graphicsLost': '图形渲染已中断 —— 等待 WebGL 恢复',
     'loot.cash': '资金 +{v}', 'loot.ammo': '备用弹药 {v}', 'loot.ammoSold': '弹药已满 —— 折现 {v}', 'loot.armor': '护甲板 +{v}',
     'shop.eyebrow': '补给点 · 战斗已暂停',
     'shop.title': '战术购买菜单', 'shop.balance': '资金',
@@ -4006,6 +4008,7 @@ class MapBuilder {
     im.instanceMatrix.needsUpdate = true; bm.instanceMatrix.needsUpdate = true;
     if (im.instanceColor) im.instanceColor.needsUpdate = true;
     if (bm.instanceColor) bm.instanceColor.needsUpdate = true;
+    this.game.renderer.shadowMap.needsUpdate = true;
   }
 
   hitDrum(d, dmg, foe) {
@@ -6748,7 +6751,8 @@ function buildEnvMap(renderer) {
     panel(0x7aa8d8, 3.2, 0, 12, 0, 18, 0.4, 18);
     panel(0xffb86c, 5.5, 9, 2.5, 4, 0.4, 2.2, 5.5);
     panel(0x1e2631, 1.2, 0, -4, 0, 34, 0.5, 34);
-    const tex = pm.fromScene(env, 0.035, 0.1, 100).texture;
+    const target = pm.fromScene(env, 0.035, 0.1, 100), tex = target.texture;
+    tex.userData.target = target;
     box.dispose(); for (const m of mats) m.dispose(); pm.dispose(); return tex;
   } catch (err) {
     try { if (pm) pm.dispose(); } catch (e2) { /* nothing to release */ }
@@ -6795,6 +6799,22 @@ class Game {
     this.vmScene.environment = this.envTex;
     this.warmUp(); this.ui.refreshMission(); this.ui.syncSettings(); this.ui.showcase.thumbs();
 
+    this.contextLost = false;
+    this.canvas.addEventListener('webglcontextlost', (event) => {
+      event.preventDefault(); this.contextLost = true; this.pendingPlay = false;
+      this.input.release(); this.pause(tr('msg.graphicsLost'));
+      if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+      document.getElementById('btn-deploy').disabled = true;
+      document.getElementById('boot-status').textContent = tr('msg.graphicsLost');
+    });
+    this.canvas.addEventListener('webglcontextrestored', () => {
+      // Render targets lose their pixels even though ordinary canvas textures recover.
+      if (this.envTex) this.envTex.userData.target.dispose();
+      this.envTex = null; this.contextLost = false; this.last = -1;
+      this.setQuality(Quality.pref); this.warmUp(); this.dirty = true;
+      document.getElementById('btn-deploy').disabled = false;
+      document.getElementById('boot-status').textContent = tr('boot.ready');
+    });
     this.perfT = 0; this.perfN = 0; this.perfCool = 3;
     window.addEventListener('resize', () => this.resize());
     this._frame = (now) => this.frame(now); requestAnimationFrame(this._frame);
@@ -6855,7 +6875,7 @@ class Game {
     this.ui.show('start'); this.ui.refreshStart(); this.ui.refreshMission(); this.dirty = true;
   }
 
-  enterPlay() { if (this.input.fallback) { this.beginPlay(); return; } this.pendingPlay = true; this.lock(); }
+  enterPlay() { if (this.contextLost) return; if (this.input.fallback) { this.beginPlay(); return; } this.pendingPlay = true; this.lock(); }
   beginPlay() {
     this.pendingPlay = false; this.state = 'playing'; this.input.release(); this.ui.hideOverlays(); this.sound.resume();
     if (this.bannerDue) { this.bannerDue = false; this.ui.banner(); this.sound.ui(1); }
@@ -6986,6 +7006,7 @@ class Game {
 
   frame(now) {
     requestAnimationFrame(this._frame);
+    if (this.contextLost) return;
     const cap = Quality.cfg().fpsCap;
     if (cap > 0 && this.last >= 0 && (now - this.last) < (1000 / cap) - 1) return;
     if (this.last < 0) this.last = now;
@@ -7004,7 +7025,9 @@ class Game {
   }
 
   render() {
-    const r = this.renderer; r.clear(); r.render(this.scene, this.camera);
+    const r = this.renderer;
+    if (r.getContext().isContextLost()) return;
+    r.clear(); r.render(this.scene, this.camera);
     if (this.state !== 'menu' && this.player.alive) { r.clearDepth(); r.render(this.vmScene, this.vmCamera); }
   }
 

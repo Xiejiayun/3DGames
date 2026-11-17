@@ -45,3 +45,14 @@ test('a step clearance query cannot discard a later wall collision', () => {
   assert.equal(body.hitX, true);
   assert.ok(body.pos.x <= -0.26);
 });
+
+test('barrel changes invalidate static shadows on destruction and reset', () => {
+  const start = html.indexOf('  paintDrums() {');
+  const end = html.indexOf('  hitDrum(', start);
+  const method = html.slice(start, end);
+  // Exercise the real method with an empty instance list and renderer adapter.
+  const paint = vm.runInNewContext('({' + method + '})', { THREE: { Object3D: class {}, Color: class {} } }).paintDrums;
+  const shadowMap = { needsUpdate: false };
+  paint.call({ drumMesh: { instanceMatrix: {} }, bandMesh: { instanceMatrix: {} }, barrels: [], drums: [], game: { renderer: { shadowMap } } });
+  assert.equal(shadowMap.needsUpdate, true);
+});

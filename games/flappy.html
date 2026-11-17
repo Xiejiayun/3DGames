@@ -1758,11 +1758,24 @@ for (let i = 0; i < 18; i++) {
   const w = 28 + Math.random() * 34; s.scale.set(w, w * 0.22, 1);
   scene.add(s); lakeMist.push(s);
 }
-const flock = new THREE.Group(), flockMat = new THREE.MeshBasicMaterial({ color: 0x1e2b38, side: THREE.DoubleSide });
-const wingGeo = new THREE.BufferGeometry();
-wingGeo.setAttribute('position', new THREE.Float32BufferAttribute([-0.7, 0.18, 0, 0, 0, 0.25, 0, 0, -0.25, 0, 0, 0.25, 0.7, 0.18, 0, 0, 0, -0.25], 3));
+const flock = new THREE.Group(), flockMat = new THREE.MeshStandardMaterial({ color: 0x364554, roughness: 0.85 });
+const flockBodyGeo = new THREE.SphereGeometry(1, 10, 6);
+const flockWingGeo = new THREE.SphereGeometry(1, 10, 6).scale(0.32, 0.055, 0.62).translate(-0.08, 0, 0.55);
 for (let i = 0; i < 7; i++) {
-  const b = new THREE.Mesh(wingGeo, flockMat);
+  const b = new THREE.Group();
+  const torso = new THREE.Mesh(flockBodyGeo, flockMat);
+  torso.scale.set(0.5, 0.16, 0.18);
+  const head = new THREE.Mesh(flockBodyGeo, flockMat);
+  head.scale.set(0.17, 0.15, 0.14); head.position.set(0.4, 0.07, 0);
+  b.add(torso, head);
+  b.userData.wings = [];
+  for (const side of [-1, 1]) {
+    const pivot = new THREE.Group();
+    const wing = new THREE.Mesh(flockWingGeo, flockMat);
+    if (side < 0) wing.rotation.y = Math.PI;
+    pivot.position.set(0, 0.02, side * 0.1); pivot.userData.side = side;
+    pivot.add(wing); b.add(pivot); b.userData.wings.push(pivot);
+  }
   b.position.set(-i * 3.2, Math.abs(i - 3) * 0.4, (i - 3) * 2.4);
   b.userData.phase = i * 0.9;
   flock.add(b);
@@ -1911,12 +1924,13 @@ const bird = (() => {
     const eye = add(sph(0.145, 24, 18), mats.eye, dir.x * 0.545, dir.y * 0.545, dir.z * 0.545, 1, 1.15, 0.65);
     eye.quaternion.setFromUnitVectors(Z, dir);
     eyes.push(eye);
-    // two highlights make the eye sparkle
-    const apex = dir.clone().multiplyScalar(0.545 + 0.145 * 0.65 * 0.84);
-    const g1 = add(sph(0.046, 12, 8), mats.glint, apex.x + 0.012, apex.y + 0.058, apex.z + 0.03 * s, 1, 1, 0.3);
-    const g2 = add(sph(0.022, 10, 6), mats.glint, apex.x - 0.004, apex.y - 0.048, apex.z - 0.03 * s, 1, 1, 0.3);
-    g1.quaternion.copy(eye.quaternion); g2.quaternion.copy(eye.quaternion);
-    glints.push(g1, g2);
+    // Highlights live on the eye's ellipsoid in its local frame, including during blinks.
+    for (const [ex, ey, radius] of [[0.28, 0.32, 0.042], [-0.24, -0.30, 0.019]]) {
+      const ez = Math.sqrt(1 - ex * ex - ey * ey);
+      const glint = add(sph(radius, 12, 8), mats.glint,
+        ex * 0.145, ey * 0.145, ez * 0.145 + 0.002, 1, 1, 0.14, eye);
+      glints.push(glint);
+    }
     // rosy cheek
     const cd = new THREE.Vector3(0.62, -0.24, 0.75 * s).normalize();
     const cheek = add(sph(0.1, 18, 12), mats.cheek, cd.x * 0.54, cd.y * 0.54, cd.z * 0.54, 1, 0.78, 0.42);
@@ -2189,6 +2203,7 @@ function resetGame() {
   pausePanel.classList.remove('show');
   setScore(0);
   birdY = CFG.START_Y; vy = 0; pitch = 0; bobT = 0; landed = false; flapBoost = 0;
+  for (const f of feathers) { f.life = 0; f.m.visible = false; }
   resetPipes();
   scoreEl.style.display = 'none';
   pauseBtn.style.display = 'none';
@@ -2478,8 +2493,8 @@ function animateVisuals(dt) {
     flock.position.x -= dt * (4.5 + sp * 0.25);
     if (flock.position.x < -220) flock.position.x = 240;
     for (const b of flock.children) {
-      const fl = Math.sin(showT * 7 + b.userData.phase) * 0.16;
-      b.scale.y = fl >= 0 ? 1 + fl * 3 : 1 + fl * 3;
+      const fl = Math.sin(showT * 7 + b.userData.phase) * 0.55;
+      for (const w of b.userData.wings) w.rotation.x = w.userData.side * fl;
     }
   }
 

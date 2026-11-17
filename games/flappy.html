@@ -271,7 +271,8 @@ const TEXT = {
     paused: '已暂停', resume: '继续游戏', restart: '重新开始',
     medal: '奖牌', medalNone: '暂无', medalBronze: '🥉 铜牌', medalSilver: '🥈 银牌', medalGold: '🥇 金牌', medalPlat: '💎 白金',
     errCdn: '3D 引擎（Three.js）加载失败。请检查网络连接后刷新页面。',
-    errGl: '当前浏览器无法启用 WebGL，3D 游戏无法运行。'
+    errGl: '当前浏览器无法启用 WebGL，3D 游戏无法运行。',
+    contextLost: '图形连接中断，正在恢复场景…'
   },
   en: {
     loading: 'Building the scene…', slow: 'This is taking a while. If it stays here, check your connection and reload.',
@@ -283,7 +284,8 @@ const TEXT = {
     paused: 'PAUSED', resume: 'Resume', restart: 'Restart',
     medal: 'MEDAL', medalNone: 'NONE', medalBronze: '🥉 BRONZE', medalSilver: '🥈 SILVER', medalGold: '🥇 GOLD', medalPlat: '💎 PLATINUM',
     errCdn: 'Could not load the 3D engine (Three.js). Check your connection and reload the page.',
-    errGl: 'WebGL is not available in this browser, so the 3D game cannot start.'
+    errGl: 'WebGL is not available in this browser, so the 3D game cannot start.',
+    contextLost: 'Graphics connection lost. Restoring the scene…'
   }
 }[LANG];
 document.documentElement.lang = LANG === 'zh' ? 'zh-CN' : 'en';
@@ -955,7 +957,7 @@ function makeSkyMat(mode) {
       void main() {
         vec3 d = normalize(vDir);
         vec3 col = skyLook(d);
-        if (uMode > 0.5) col = mix(col, uGround, smoothstep(0.0, -0.08, d.y));
+        if (uMode > 0.5) col = mix(col, uGround, (1.0 - smoothstep(-0.08, 0.0, d.y)));
         else if (d.y > 0.005) {
           vec2 p = d.xz / (d.y + 0.05) * 1.6 + uCirrusOff;
           float patchy = smoothstep(0.38, 0.72, vn(p * 0.09 + 5.3));
@@ -1256,8 +1258,8 @@ function makeCloudNoise(N) {
 }
 const TILE = { W: 512, H: 256, COLS: 2, ROWS: 4 };
 const cloudAtlas = new THREE.WebGLRenderTarget(TILE.W * TILE.COLS, TILE.H * TILE.ROWS, {
-  type: THREE.UnsignedByteType, format: THREE.RGBAFormat, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter,
-  depthBuffer: false, generateMipmaps: true
+  type: THREE.UnsignedByteType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+  depthBuffer: false, generateMipmaps: false
 });
 const MAX_BLOBS = 18;
 const cloudBakeMat = new THREE.ShaderMaterial({
@@ -1347,6 +1349,7 @@ function cloudBlobs(kind, rng) {
 }
 const CLOUD_KINDS = ['cumulus', 'cumulus', 'cumulus', 'cumulus', 'humilis', 'humilis', 'congestus', 'strato'];
 async function bakeClouds(onProgress) {
+  if (cloudBakeMat.uniforms.uNoise.value) cloudBakeMat.uniforms.uNoise.value.dispose();
   cloudBakeMat.uniforms.uNoise.value = makeCloudNoise(qCfg.simpleSky ? 32 : COARSE ? 40 : 48);
   const rng = mulberry32(WORLD_SEED * 11 + 5);
   for (let i = 0; i < CLOUD_KINDS.length; i++) {
@@ -1369,7 +1372,7 @@ function buildCloudField() {
   for (let iz = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++) {
     const cx = (ix + rng()) * cell, z = (iz + rng()) * cell - CS.HZ, u = Math.abs(z);
     if (u < 900) continue;
-    const cover = (0.26 + 0.64 * vnoise(cx, z, 11000, 701, 0)) * QUALITY.clouds;
+    const cover = (0.26 + 0.64 * vnoise(cx, z, 11000, 701, 0));
     if (rng() > cover) continue;
     let kind;
     const r = rng(), mtn = sstep(3000, 7000, u);
@@ -1382,7 +1385,7 @@ function buildCloudField() {
     let base = R2(rng, 1250, 1700) + (kind === 7 ? 500 : 0), top = 0;
     for (let k = 0; k <= 6; k++) top = Math.max(top, bgHeightJS(cx - 1400 + k * (w + 1400) / 6, z, 5));
     base = Math.max(base, top + 280);
-    cloudField.push({ cx, z, y: base, w, h: w * 0.5 * R2(rng, 0.88, 1.12), tile: kind, tint: R2(rng, 0.93, 1.04), d: 0 });
+    cloudField.push({ cx, z, y: base, w, h: w * 0.5 * R2(rng, 0.88, 1.12), tile: kind, tint: R2(rng, 0.93, 1.04), detail: hash2(ix, iz, WORLD_SEED + 741), d: 0 });
   }
   const cloudShadowCanvas = makeCanvas(1024, 1024);
   const g = cloudShadowCanvas.getContext('2d'), W = cloudShadowCanvas.width, Hh = cloudShadowCanvas.height;
@@ -1424,7 +1427,10 @@ function buildCloudField() {
         vec3 toCam = cameraPosition - iPos.xyz; toCam.y = 0.0;
         vec3 f = normalize(toCam), right = vec3(f.z, 0.0, -f.x);
         vec3 wp = iPos.xyz + right * position.x * iPos.w + vec3(0.0, position.y * iInfo.x, 0.0);
-        vUv = (iInfo.yz + vec2(position.x + 0.5, position.y)) * vec2(${(1 / TILE.COLS).toFixed(4)}, ${(1 / TILE.ROWS).toFixed(4)});
+        // Stay inside each atlas tile; mipmaps would blend unrelated cloud silhouettes.
+        vec2 tileSize = vec2(${TILE.W.toFixed(1)}, ${TILE.H.toFixed(1)});
+        vec2 tileUv = (vec2(position.x + 0.5, position.y) * (tileSize - 1.0) + 0.5) / tileSize;
+        vUv = (iInfo.yz + tileUv) * vec2(${(1 / TILE.COLS).toFixed(4)}, ${(1 / TILE.ROWS).toFixed(4)});
         vRel = wp - cameraPosition; vTint = iInfo.w;
         gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
       }`,
@@ -1455,6 +1461,7 @@ function updateClouds(camPos, viewMix) {
   const off = scroll + windDrift, P = CS.PX, pos = cloudMesh.geometry.attributes.iPos, info = cloudMesh.geometry.attributes.iInfo;
   _cloudOrder.length = 0;
   for (const c of cloudField) {
+    if (c.detail > QUALITY.clouds) continue;
     let x = c.cx - off - camPos.x;
     x -= Math.floor(x / P + 0.5) * P;
     c.x = x + camPos.x;
@@ -1466,6 +1473,7 @@ function updateClouds(camPos, viewMix) {
     pos.setXYZW(i, c.x, c.y, c.z, c.w);
     info.setXYZW(i, c.h, c.tile % TILE.COLS, Math.floor(c.tile / TILE.COLS), c.tint);
   });
+  cloudMesh.geometry.instanceCount = _cloudOrder.length;
   pos.needsUpdate = true; info.needsUpdate = true;
   cloudMesh.material.uniforms.uViewMix.value = viewMix;
 }
@@ -2326,12 +2334,23 @@ function lookFrom(ex, ey, ez, tx, ty, tz) {
 }
 function updateCamera(dt) {
   camLookY = damp(camLookY, CFG.START_Y + (birdY - CFG.START_Y) * 0.3, 3, dt);
-  lookFrom(sideCam.x, camLookY, sideCam.dist, sideCam.lookX, camLookY, 0);
-  camGoal.fov = 50;
+  if (state === 'start') {
+    // Centre the hero in the space actually left between the title and menu.
+    const tanHalf = Math.tan(36 * Math.PI / 360);
+    const bandH = Math.max(0.12, showBand.bottom - showBand.top);
+    const visibleH = Math.max(1.7 / (bandH * 0.75), 2.5 / camera.aspect);
+    const dist = visibleH / (2 * tanHalf), ndcY = 1 - showBand.top - showBand.bottom;
+    lookFrom(0.77 * dist, birdY + 0.1 * dist, 0.63 * dist, 0, birdY, 0);
+    camGoal.pos.addScaledVector(_tgt.set(0, 1, 0).applyQuaternion(camGoal.quat), -ndcY * tanHalf * dist);
+    camGoal.fov = 36;
+  } else {
+    lookFrom(sideCam.x, camLookY, sideCam.dist, sideCam.lookX, camLookY, 0);
+    camGoal.fov = 50;
+  }
   camera.position.copy(camGoal.pos);
   camera.quaternion.copy(camGoal.quat);
   camera.fov = camGoal.fov;
-  if (shakeT > 0) {                                        // brief shake on impact
+  if (shakeT > 0 && !paused) {                                        // brief shake on impact
     shakeT = Math.max(0, shakeT - dt);
     const m = 0.5 * (shakeT / CFG.SHAKE_DUR);
     camera.position.x += (Math.random() * 2 - 1) * m;
@@ -2429,6 +2448,7 @@ function update(h) {
 const _fwd = new THREE.Vector3();
 let viewMix = 0;
 function animateVisuals(dt) {
+  dt = paused ? 0 : dt; // One visual clock freezes particles, clouds, blinking and pipe reveals too.
   const alive = state === 'start' || state === 'play';
   if (!paused) showT += dt;
 
@@ -2577,7 +2597,19 @@ function setQuality(pref) {
   QUALITY.maxPixelRatio = qCfg.maxPixelRatio;
   QUALITY.shadowSize = qCfg.shadowSize;
   QUALITY.grass = qCfg.grass;
+  QUALITY.clouds = qCfg.clouds;
+  if (QUALITY.farStep !== qCfg.farStep) {
+    QUALITY.farStep = qCfg.farStep;
+    for (const mesh of farMeshes) { bgScene.remove(mesh); mesh.geometry.dispose(); }
+    farMeshes.length = 0;
+    buildFarBands();
+  }
   renderer.shadowMap.enabled = qCfg.shadows;
+  if (sun.shadow.mapSize.x !== qCfg.shadowSize) {
+    sun.shadow.mapSize.set(qCfg.shadowSize, qCfg.shadowSize);
+    if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+    sun.shadow.needsUpdate = true;
+  }
   renderer.toneMapping = qCfg.simpleSky ? THREE.NoToneMapping : THREE.NeutralToneMapping;
   if (qCfg.env && cachedEnvTex) {
     scene.environment = cachedEnvTex;
@@ -2633,6 +2665,28 @@ function tick(now) {
   }
   requestAnimationFrame(tick);
 }
+
+renderer.domElement.addEventListener('webglcontextlost', event => {
+  event.preventDefault();
+  running = false;
+  window.__fb3dReady = false;
+  if (state === 'play') togglePause(true);
+  $('loadingText').textContent = TEXT.contextLost;
+  $('loading').classList.remove('hide');
+});
+renderer.domElement.addEventListener('webglcontextrestored', async () => {
+  try {
+    // All baked render targets lose their contents along with the WebGL context.
+    if (cachedEnvTex) cachedEnvTex.dispose();
+    cachedEnvTex = null;
+    await bakeSky();
+    await bakeFarTerrain(scroll, nextFrame);
+    await bakeClouds(nextFrame);
+    renderer.shadowMap.needsUpdate = true;
+    booted = false; acc = 0; last = performance.now(); running = true;
+    requestAnimationFrame(tick);
+  } catch (err) { showError(TEXT.errGl); console.error('Scene restoration failed', err); }
+});
 
 setBird(birdSkin);
 squash = 0;

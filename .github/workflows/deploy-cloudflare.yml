@@ -47,6 +47,19 @@ jobs:
           name: kart-3d-screenshots
           path: ${{ runner.temp }}/kart-screenshots
           retention-days: 7
+      - name: Check Flappy Bird 3D scenes
+        run: npm run test:flappy
+        env:
+          FLAPPY_SCREENSHOTS: ${{ runner.temp }}/flappy-screenshots
+
+      - name: Save Flappy Bird screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flappy-3d-screenshots
+          path: ${{ runner.temp }}/flappy-screenshots
+          retention-days: 7
+
       - name: Test CS scene regressions
         run: npm test
 

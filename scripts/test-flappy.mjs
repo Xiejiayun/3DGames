@@ -7,12 +7,13 @@ import { chromium } from 'playwright';
 const root = new URL('../', import.meta.url);
 const html = await readFile(new URL('games/flappy.html', root), 'utf8');
 const bridge = `window.qa = {
-  THREE, scene, camera, renderer, bird, pipes, chunks, terrainH, lumpy, flock, pipeGeo, pipeGeoLow, pipeExtGeo, feathers,
+  THREE, scene, camera, renderer, bird, pipes, chunks, terrainH, lumpy, flock, feathers, cloudMesh, cloudField, farMeshes, lakeMist, sun, waterMat, skyUniforms, cloudAtlas, bgHeightRT, skyRT, pipeGeo, pipeGeoLow, pipeExtGeo,
   setBird, setQuality, resetGame, startGame, flap, update, animateVisuals,
   updateCamera, togglePause, CFG,
   get state() { return state; }, get birdY() { return birdY; },
   set birdY(v) { birdY = v; }, set scroll(v) { scroll = v; },
-  set score(v) { score = v; }, set tod(v) { tod = v; },
+  get paused() { return paused; },
+  set score(v) { score = v; },
   stop() { running = false; adaptive.enabled = false; },
   render(dt = 0) { renderFrame(dt); }
 };`;
@@ -37,7 +38,7 @@ async function screenshot(name) {
 }
 try {
   await page.goto(`http://127.0.0.1:${server.address().port}/games/flappy.html`);
-  await page.waitForFunction(() => window.__fb3dReady, null, { timeout: 60000 });
+  await page.waitForFunction(() => window.__fb3dReady && window.qa, null, { timeout: 60000 });
   await page.evaluate(() => qa.stop());
   const landscape = await page.evaluate(() => {
     qa.setQuality('low'); qa.render();
@@ -111,6 +112,87 @@ try {
     await screenshot('bird-' + skin);
   }
   console.log('PASS Flappy birds:', birds);
+  await page.evaluate(() => { qa.resetGame(); qa.render(); });
+  for (const [width, height] of [[1440, 900], [390, 844], [844, 390]]) {
+    await page.setViewportSize({ width, height });
+    const framing = await page.evaluate(() => {
+      window.dispatchEvent(new Event('resize')); qa.render();
+      const p = qa.bird.root.position.clone().project(qa.camera);
+      const title = document.querySelector('.title').getBoundingClientRect();
+      const menu = document.querySelector('#menu').getBoundingClientRect();
+      return { x: (1 + p.x) * innerWidth / 2, y: (1 - p.y) * innerHeight / 2,
+        title: title.bottom, menu: menu.top, width: innerWidth };
+    });
+    assert(framing.y > framing.title && framing.y < framing.menu, 'menu preview must remain in free space');
+    assert(Math.abs(framing.x - framing.width / 2) < 2, 'menu preview must remain centred');
+    await screenshot('menu-' + width + 'x' + height);
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.locator('#startBtn').click();
+  assert.equal(await page.evaluate(() => qa.state), 'play', 'start button begins gameplay');
+  const pause = await page.evaluate(() => {
+    qa.flap(); qa.render(0.05); qa.pipes[4].appear = 0.1; qa.pipes[4].pose(); qa.togglePause(true);
+    const snapshot = () => JSON.stringify({
+      birdY: qa.birdY, camera: qa.camera.position.toArray(),
+      objects: [...qa.lakeMist, qa.flock].map(o => o.position.toArray()),
+      bird: qa.bird.body.scale.toArray(), eyes: qa.bird.eyes.map(o => o.scale.toArray()),
+      feathers: qa.feathers.map(f => [f.life, ...f.m.position.toArray()]),
+      pipes: qa.pipes.map(p => [p.x, p.appear, p.top.position.y]),
+      cirrus: qa.skyUniforms.uCirrusOff.value.toArray(),
+      clouds: Array.from(qa.cloudMesh.geometry.attributes.iPos.array),
+    });
+    const before = snapshot();
+    for (let i = 0; i < 10; i++) { qa.update(0.1); qa.render(0.1); }
+    return before === snapshot();
+  });
+  assert(pause, 'pause must freeze all scene transforms, particles and timers');
+  await page.keyboard.press('KeyP');
+  assert.equal(await page.evaluate(() => qa.paused), false, 'keyboard resumes gameplay');
+  const sceneryQuality = await page.evaluate(() => {
+    const sample = mode => {
+      qa.setQuality(mode); qa.render();
+      return { clouds: qa.cloudMesh.geometry.instanceCount,
+        triangles: qa.farMeshes.reduce((n, m) => n + m.geometry.index.count / 3, 0),
+        geometries: qa.renderer.info.memory.geometries };
+    };
+    const low = sample('low'), high = sample('high'), med = sample('med'), again = sample('high');
+    return { low, high, med, again, sunAbove: qa.sun.position.y > qa.sun.target.position.y };
+  });
+  assert(sceneryQuality.high.clouds > sceneryQuality.med.clouds && sceneryQuality.med.clouds > sceneryQuality.low.clouds, 'cloud coverage must follow quality changes');
+  assert(sceneryQuality.high.triangles > sceneryQuality.med.triangles && sceneryQuality.med.triangles > sceneryQuality.low.triangles, 'far terrain must follow quality changes');
+  assert.equal(sceneryQuality.high.triangles, sceneryQuality.again.triangles, 'quality cycling must preserve terrain layout');
+  assert.equal(sceneryQuality.high.geometries, sceneryQuality.again.geometries, 'quality cycling must release replaced terrain geometry');
+  assert(sceneryQuality.sunAbove, 'physical sky light must come from above');
+  await screenshot('physical-sky-mountains-clouds');
+  const shadows = await page.evaluate(() => {
+    qa.setQuality('med'); qa.render(); const med = qa.sun.shadow.map.width;
+    qa.setQuality('high'); qa.render(); return { med, high: qa.sun.shadow.map.width };
+  });
+  assert.deepEqual(shadows, { med: 1024, high: 2048 }, 'quality changes must resize shadow render targets');
+  await page.evaluate(() => {
+    qa.loss = qa.renderer.getContext().getExtension('WEBGL_lose_context');
+    if (!qa.loss) throw new Error('WEBGL_lose_context unavailable');
+    qa.loss.loseContext();
+  });
+  await page.waitForFunction(() => window.__fb3dReady === false && !document.querySelector('#loading').classList.contains('hide'));
+  await page.evaluate(() => qa.loss.restoreContext());
+  await page.waitForFunction(() => window.__fb3dReady, null, { timeout: 60000 });
+  await page.evaluate(() => qa.stop());
+  assert.equal(await page.evaluate(() => qa.paused), true, 'restored gameplay waits for the player to resume');
+  const restoredTextures = await page.evaluate(() => {
+    const cloud = new Uint8Array(1024 * 1024 * 4);
+    qa.renderer.readRenderTargetPixels(qa.cloudAtlas, 0, 0, 1024, 1024, cloud);
+    let opaque = 0;
+    for (let i = 3; i < cloud.length; i += 4) if (cloud[i] > 128) opaque++;
+    const terrain = new Uint8Array(4), sky = new Uint16Array(4);
+    qa.renderer.readRenderTargetPixels(qa.bgHeightRT, 0, 0, 1, 1, terrain);
+    qa.renderer.readRenderTargetPixels(qa.skyRT, 256, 96, 1, 1, sky);
+    return { cloudPixels: opaque, terrainAO: terrain[3], sky: Array.from(sky.slice(0, 3)) };
+  });
+  assert(restoredTextures.cloudPixels > 1000 && restoredTextures.terrainAO > 0 && restoredTextures.sky.some(v => v > 0), 'restored GPU targets must contain sky, mountain and cloud data');
+  await screenshot('context-restored');
+  console.log('Restored GPU targets:', restoredTextures);
+  console.log('PASS Flappy camera, scenery quality, pause, shadows and context recovery', sceneryQuality);
   assert.deepEqual(errors, [], 'browser and shader errors');
   console.log('PASS Flappy landscape:', landscape);
 } finally {

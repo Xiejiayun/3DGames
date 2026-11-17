@@ -47,6 +47,22 @@ try {
       if (!road || road.geometry.attributes.normal.getY(0) < .9) failures.push('road must face up');
       if (!qa.world.getObjectByName('road-foundation')) failures.push('missing deck');
       if (!qa.world.getObjectByName('deck-pier')) failures.push('missing piers');
+      if (id === 0) {
+        const shell = qa.world.getObjectByName('sea-tunnel-shell');
+        if (!shell) failures.push('missing continuous sea tunnel');
+        const fish = qa.props.filter(p => p.type === 'fish');
+        if (fish.length < 10 || !qa.world.getObjectByName('seagull')) failures.push('missing coast animals');
+        for (const p of fish) {
+          if (qa.samples.some(s => Math.hypot(s.pos.x-p.center.x,s.pos.z-p.center.z)<10)) failures.push('fish enters road');
+        }
+        qa.world.updateMatrixWorld(true);
+        const ocean = qa.world.getObjectByName('ocean');
+        for (const s of qa.samples) {
+          if (s.pos.y < -2.6 || s.pos.y > -.6) continue;
+          const ray = new qa.THREE.Raycaster(s.pos.clone().add(new qa.THREE.Vector3(0,2,0)),new qa.THREE.Vector3(0,-1,0),0,1.95);
+          if (ray.intersectObject(ocean).length) failures.push('sea slices driving clearance');
+        }
+      }
       if (qa.ramps.some(r => !r.halfWidth || !r.tangent)) failures.push('ramp trigger has no frame');
       const wedge = qa.world.getObjectByName('jump-ramp');
       wedge.geometry.computeBoundingBox();

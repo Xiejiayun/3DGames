@@ -653,7 +653,7 @@ const TRACKS = [
     groundColor: 0xeac987, roadColor: '#333b48', kerbA: '#ef233c', kerbB: '#ffffff',
     points: [
       [0, 0, 0], [60, 0.8, 0], [118, 6.2, 22], [148, 6.5, 76],
-      [122, -2.2, 130], [64, -2.5, 146], [12, 0.5, 108], [-34, 4.2, 136],
+      [122, -14, 130], [64, -14, 146], [12, -9, 108], [-34, 4.2, 136],
       [-94, 5.0, 122], [-132, 2.2, 68], [-110, 0.2, 14], [-58, 0, -10]
     ]
   },
@@ -1689,6 +1689,32 @@ function beamBetween(a, b, radius, material) {
   return mesh;
 }
 
+// Continuous arch skin: each ring uses the same road sample as its rib.
+function buildVault(start, end, radius, material, name) {
+  const positions = [], indices = [], segments = 20;
+  for (let i = start; i <= end; i++) {
+    const s = trackSamples[i];
+    const up = new THREE.Vector3().crossVectors(s.right, s.tangent).normalize();
+    for (let j = 0; j <= segments; j++) {
+      const a = j / segments * Math.PI;
+      const p = s.pos.clone().addScaledVector(s.right, Math.cos(a) * radius)
+        .addScaledVector(up, Math.sin(a) * radius);
+      positions.push(p.x, p.y, p.z);
+      if (i < end && j < segments) {
+        const b = (i - start) * (segments + 1) + j;
+        indices.push(b,b+1,b+segments+1, b+1,b+segments+2,b+segments+1);
+      }
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setIndex(indices); geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.name = name;
+  worldGroup.add(mesh);
+  return mesh;
+}
+
 function buildTrackAndWorld(trackCfg) {
   let seed = { coast: 1024, forest: 2048, alpine: 4096 }[trackCfg.id];
   const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
@@ -1709,6 +1735,11 @@ function buildTrackAndWorld(trackCfg) {
   snowPoints = null;
 
   scene.fog = new THREE.FogExp2(trackCfg.fogColor, trackCfg.fogDensity);
+  scene.onBeforeRender = (_renderer, _scene, activeCamera) => {
+    const underwater = trackCfg.id === 'coast' && activeCamera.position.y < -0.6;
+    scene.fog.color.setHex(underwater ? 0x16748b : trackCfg.fogColor);
+    scene.fog.density = underwater ? 0.026 : trackCfg.fogDensity;
+  };
 
   // GLSL Sky Dome
   const skyDome = new THREE.Mesh(new THREE.SphereGeometry(620, 36, 20), skyMat);
@@ -1978,13 +2009,24 @@ function buildTrackAndWorld(trackCfg) {
      Track-Specific Landmarks & Set-Pieces
      ------------------------------------------------------------------- */
   if (trackCfg.id === 'coast') {
-    // Ocean Water Plane
-    const water = new THREE.Mesh(
-      new THREE.PlaneGeometry(1000, 1000).rotateX(-Math.PI / 2),
-      new THREE.MeshPhysicalMaterial({ color: 0x0096c7, roughness: 0.12, clearcoat: 0.9, transparent: true, opacity: 0.86 })
-    );
-    water.position.y = -0.6;
-    worldGroup.add(water);
+    // Leave portal openings where the ocean meets the sloping road; the deep
+    // central tunnel remains below an uninterrupted water surface.
+    const seaLevel = -0.6, waterPos = [], waterIdx = [], grid = 100, step = 10;
+    for (let z = 0; z <= grid; z++) for (let x = 0; x <= grid; x++) waterPos.push(x*step-500,seaLevel,z*step-500);
+    for (let z = 0; z < grid; z++) for (let x = 0; x < grid; x++) {
+      const cx=x*step-495, cz=z*step-495;
+      const portal = trackSamples.some((s,i) => i%3===0 && s.pos.y < seaLevel+0.4 && s.pos.y+10 > seaLevel &&
+        Math.hypot(cx-s.pos.x,cz-s.pos.z)<WALL_HALF_W+8);
+      if (portal) continue;
+      const b=z*(grid+1)+x;
+      waterIdx.push(b,b+grid+1,b+1,b+1,b+grid+1,b+grid+2);
+    }
+    const waterGeo = new THREE.BufferGeometry();
+    waterGeo.setAttribute('position',new THREE.Float32BufferAttribute(waterPos,3));
+    waterGeo.setIndex(waterIdx);waterGeo.computeVertexNormals();
+    const water = new THREE.Mesh(waterGeo,new THREE.MeshPhysicalMaterial({color:0x007fa8,roughness:0.23,
+      clearcoat:0.8,transparent:true,opacity:0.58,side:THREE.DoubleSide,depthWrite:false}));
+    water.name='ocean';worldGroup.add(water);
 
     // Landmark 1: Golden Cable-Stayed Bridge Pylons over Section t = 0.16..0.26
     const pylonMat = new THREE.MeshStandardMaterial({ color: 0xff9f1c, roughness: 0.35, metalness: 0.4 });
@@ -1993,17 +2035,19 @@ function buildTrackAndWorld(trackCfg) {
       const s = trackSamples[Math.floor(tVal * SAMPLES)];
       const br = new THREE.Group();
       br.position.copy(s.pos);
-      br.lookAt(s.pos.clone().add(s.tangent));
+      br.rotation.y = Math.atan2(s.tangent.x, s.tangent.z);
       for (const side of [-1, 1]) {
         const tower = new THREE.Mesh(new THREE.BoxGeometry(1.4, 28, 1.4), pylonMat);
         tower.position.set(side * (ROAD_HALF_W + 1.6), 12, 0);
         br.add(tower);
         for (const zOff of [-14, -7, 7, 14]) {
-          const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 24, 6), cableMat);
-          cable.position.set(side * (ROAD_HALF_W + 1.5), 11, zOff * 0.5);
-          cable.rotation.x = (zOff > 0 ? 1 : -1) * 0.55;
+          const cable = beamBetween(new THREE.Vector3(side * 9, 24, 0), new THREE.Vector3(side * 9, 0.2, zOff), 0.055, cableMat);
           br.add(cable);
         }
+        const foot = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 3), pylonMat);
+        foot.position.set(side * 9, -1.5, 0); br.add(foot);
+        const foundation = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.8, s.pos.y + 17.2, 10), pylonMat);
+        foundation.position.set(side * 9, -(s.pos.y + 21.2) / 2, 0); br.add(foundation);
       }
       const crossBeam = new THREE.Mesh(new THREE.BoxGeometry(ROAD_HALF_W * 2 + 4.5, 1.4, 1.4), pylonMat);
       crossBeam.position.set(0, 22, 0);
@@ -2013,26 +2057,25 @@ function buildTrackAndWorld(trackCfg) {
 
     // Landmark 2: Underwater Glass Tunnel + Swimming Fish School (t = 0.34..0.48)
     const glassMat = new THREE.MeshPhysicalMaterial({
-      color: 0x48cae4, roughness: 0.1, transmission: 0.7, transparent: true, opacity: 0.48, side: THREE.DoubleSide
+      color: 0x70d6e8, roughness: 0.1, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide
     });
     const ribMat = new THREE.MeshStandardMaterial({ color: 0x00b4d8, metalness: 0.6, roughness: 0.3 });
+    buildVault(204, 288, ROAD_HALF_W + 2.2, glassMat, 'sea-tunnel-shell');
     for (let i = Math.floor(0.34 * SAMPLES); i <= Math.floor(0.48 * SAMPLES); i += 7) {
       const s = trackSamples[i];
       const arch = new THREE.Group();
       arch.position.copy(s.pos);
       arch.lookAt(s.pos.clone().add(s.tangent));
-      const rib = new THREE.Mesh(new THREE.TorusGeometry(ROAD_HALF_W + 1.2, 0.28, 10, 24, Math.PI), ribMat);
+      const rib = new THREE.Mesh(new THREE.TorusGeometry(ROAD_HALF_W + 2.2, 0.18, 8, 24, Math.PI), ribMat);
       arch.add(rib);
-      const glass = new THREE.Mesh(new THREE.CylinderGeometry(ROAD_HALF_W + 1.0, ROAD_HALF_W + 1.0, 4.2, 20, 1, true, 0, Math.PI), glassMat);
-      glass.rotation.z = Math.PI / 2;
-      glass.rotation.y = Math.PI / 2;
-      arch.add(glass);
       worldGroup.add(arch);
     }
 
     // Lighthouse & Circling Seagulls + Hot Air Balloons
     const lh = new THREE.Group();
-    lh.position.set(170, -0.5, 58);
+    lh.position.set(180, -0.5, 58);
+    const island = new THREE.Mesh(new THREE.CylinderGeometry(11, 14, 20, 16), new THREE.MeshStandardMaterial({ color: 0xc9ac75, roughness: 1 }));
+    island.position.y = -9; lh.add(island);
     const lhTower = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 4.8, 28, 16), new THREE.MeshStandardMaterial({ color: 0xffffff }));
     lhTower.position.y = 14;
     const lhStripe = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 4.2, 8, 16), new THREE.MeshStandardMaterial({ color: 0xe62e2d }));
@@ -2040,6 +2083,16 @@ function buildTrackAndWorld(trackCfg) {
     const lhLamp = new THREE.Mesh(new THREE.SphereGeometry(2.4, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffe66d }));
     lhLamp.position.y = 29;
     lh.add(lhTower, lhStripe, lhLamp);
+    const lanternMat = new THREE.MeshStandardMaterial({ color: 0x25394b, roughness: 0.5 });
+    const balcony = new THREE.Mesh(new THREE.CylinderGeometry(4.3,4.3,0.5,20),lanternMat);
+    balcony.position.y=27.8; lh.add(balcony);
+    for (let n=0;n<8;n++) {
+      const a=n/8*TAU;
+      const frame=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,3,6),lanternMat);
+      frame.position.set(Math.cos(a)*2.8,29.3,Math.sin(a)*2.8);lh.add(frame);
+    }
+    const roof=new THREE.Mesh(new THREE.ConeGeometry(4,2.4,16),lanternMat);
+    roof.position.y=32;lh.add(roof);
     worldGroup.add(lh);
 
     // Hot Air Balloons
@@ -2051,29 +2104,57 @@ function buildTrackAndWorld(trackCfg) {
       const basket = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.2, 2.6), new THREE.MeshStandardMaterial({ color: 0x8d5524 }));
       basket.position.y = -13;
       bal.add(env, basket);
+      const ropeMat=new THREE.MeshStandardMaterial({color:0xd9bf84});
+      for (const sx of [-1,1]) for (const sz of [-1,1]) bal.add(beamBetween(
+        new THREE.Vector3(sx*1.1,-12,sz*1.1),new THREE.Vector3(sx*2.7,-9,sz*2.7),0.065,ropeMat));
       worldGroup.add(bal);
       animatedProps.push({ mesh: bal, type: 'bob', baseY: by, phase: bi * 1.7 });
     });
 
-    // Palm Trees
+    // Animals have complete silhouettes and stay outside the driving envelope.
+    const fishMat = new THREE.MeshStandardMaterial({color:0xffbc42,roughness:0.45});
+    const fishEyeMat = new THREE.MeshBasicMaterial({color:0x10283d});
+    for (let n=0;n<18;n++) {
+      const s=trackSamples[218+(n*3)%60], side=n%2?-1:1;
+      const fish=new THREE.Group(); fish.name='reef-fish';
+      const body=new THREE.Mesh(new THREE.SphereGeometry(0.55,10,8),fishMat);body.scale.set(0.48,0.65,1.3);fish.add(body);
+      const tail=new THREE.Mesh(new THREE.ConeGeometry(0.4,0.5,3),fishMat);
+      tail.rotation.x=-Math.PI/2;tail.scale.x=0.25;tail.position.z=-0.85;fish.add(tail);
+      for (const sign of [-1,1]) {const eye=new THREE.Mesh(new THREE.SphereGeometry(0.055,6,6),fishEyeMat);eye.position.set(sign*0.23,0.12,0.35);fish.add(eye)}
+      const center=s.pos.clone().addScaledVector(s.right,side*(13+n%3)).add(new THREE.Vector3(0,3+n%4,0));
+      fish.position.copy(center);worldGroup.add(fish);
+      animatedProps.push({mesh:fish,type:'fish',center,phase:n*1.7});
+    }
+    const birdMat=new THREE.MeshStandardMaterial({color:0xf9fcff,roughness:0.8,side:THREE.DoubleSide});
+    const beakMat=new THREE.MeshStandardMaterial({color:0xffa629});
+    for (let n=0;n<7;n++) {
+      const gull=new THREE.Group();gull.name='seagull';
+      const body=new THREE.Mesh(new THREE.SphereGeometry(0.4,10,8),birdMat);body.scale.set(0.7,0.8,1.8);gull.add(body);
+      const beak=new THREE.Mesh(new THREE.ConeGeometry(0.13,0.5,6).rotateX(Math.PI/2),beakMat);beak.position.z=0.8;gull.add(beak);
+      const wings=[];
+      for (const side of [-1,1]) {
+        const pivot=new THREE.Group();pivot.position.x=side*0.18;
+        const wing=new THREE.Mesh(new THREE.SphereGeometry(1,8,6),birdMat);
+        wing.scale.set(1.35,0.07,0.38);wing.position.x=side*1.05;pivot.add(wing);gull.add(pivot);wings.push({pivot,side});
+      }
+      worldGroup.add(gull);animatedProps.push({mesh:gull,type:'gull',phase:n/7*TAU,wings});
+    }
+
+    // Sandy islets support each palm, with curved fronds radiating from its crown.
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x7c5333, roughness: 0.9 });
     const leafMat = new THREE.MeshStandardMaterial({ color: 0x2b9348, roughness: 0.7, side: THREE.DoubleSide });
+    const sandMat=new THREE.MeshStandardMaterial({color:0xeac987,roughness:1});
+    const leafPos=[], leafIdx=[];
+    for(let j=0;j<=6;j++) {const t=j/6,w=Math.sin(t*Math.PI)*0.55;leafPos.push(-w,Math.sin(t*Math.PI)*0.8-t*1.5,t*4,w,Math.sin(t*Math.PI)*0.8-t*1.5,t*4);if(j<6){const b=j*2;leafIdx.push(b,b+1,b+2,b+1,b+3,b+2)}}
+    const leafGeo=new THREE.BufferGeometry();leafGeo.setAttribute('position',new THREE.Float32BufferAttribute(leafPos,3));leafGeo.setIndex(leafIdx);leafGeo.computeVertexNormals();
     for (let i = 0; i < 60; i++) {
       const x = (random() - 0.5) * 380, z = (random() - 0.3) * 360;
-      if (!isClearOfTrack(x, z, 16)) continue;
-      const palm = new THREE.Group();
-      palm.position.set(x, -0.5, z);
+      if (!isClearOfTrack(x, z, 23)) continue;
+      const palm = new THREE.Group();palm.name='palm';palm.position.set(x,0.4,z);
+      const islet=new THREE.Mesh(new THREE.CylinderGeometry(4.5,7,20,10),sandMat);islet.position.y=-10;palm.add(islet);
       const h = 7 + random() * 4;
-      const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.45, h, 8), trunkMat);
-      tr.position.y = h / 2;
-      palm.add(tr);
-      for (let f = 0; f < 6; f++) {
-        const frond = new THREE.Mesh(new THREE.ConeGeometry(0.95, 3.8, 5), leafMat);
-        frond.position.set(0, h, 0);
-        frond.rotation.z = Math.PI / 2.4;
-        frond.rotation.y = (f / 6) * TAU;
-        palm.add(frond);
-      }
+      const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.45, h, 8), trunkMat);tr.position.y=h/2;palm.add(tr);
+      for (let f = 0; f < 7; f++) {const frond=new THREE.Mesh(leafGeo,leafMat);frond.position.y=h;frond.rotation.y=f/7*TAU;palm.add(frond)}
       worldGroup.add(palm);
     }
   } else if (trackCfg.id === 'forest') {
@@ -3230,24 +3311,6 @@ function animate(now) {
 
   skyMat.uniforms.uTime.value = nowSec;
 
-  if (gameState === 'menu') {
-    previewRenderers.forEach((p, idx) => {
-      p.kart.root.rotation.y += dt * (idx === selectedChar ? 1.35 : 0.45);
-      p.kart.fanBlades.forEach(fb => { fb.rotation.z += dt * 10; });
-      p.kart.physParts.forEach(pp => {
-        pp.pivot.rotation.x = 0.25 + Math.sin(nowSec * 6) * 0.15;
-      });
-      p.renderer.render(p.scene, p.camera);
-    });
-    if (trackSamples.length > 0) {
-      const ang = now * 0.00016;
-      camera.position.set(Math.cos(ang) * 168, 60, Math.sin(ang) * 168 + 55);
-      camera.lookAt(0, 4, 55);
-    }
-    renderer.render(scene, camera);
-    return;
-  }
-
   // Update Item Boxes & Animated Environment Landmarks
   itemBoxes.forEach(ib => {
     if (ib.cooldown > 0) {
@@ -3269,6 +3332,15 @@ function animate(now) {
     } else if (ap.type === 'gondola') {
       ap.mesh.position.x = Math.sin(nowSec * 0.35 + ap.phase) * 145;
       ap.mesh.position.y = 38 + Math.cos(nowSec * 0.35 + ap.phase) * 8;
+    } else if (ap.type === 'fish') {
+      const a=nowSec*0.65+ap.phase;
+      ap.mesh.position.copy(ap.center).add(new THREE.Vector3(Math.cos(a)*1.2,Math.sin(a*1.3)*0.4,Math.sin(a)*1.2));
+      ap.mesh.rotation.y=-a;
+    } else if (ap.type === 'gull') {
+      const a=nowSec*0.18+ap.phase;
+      ap.mesh.position.set(180+Math.cos(a)*22,38+Math.sin(a*2)*2,58+Math.sin(a)*22);
+      ap.mesh.rotation.y=-a;
+      ap.wings.forEach(w=>{w.pivot.rotation.z=w.side*Math.sin(nowSec*4+ap.phase)*0.35});
     }
   });
   if (snowPoints) {
@@ -3278,6 +3350,25 @@ function animate(now) {
       if (arr[i] < 0) arr[i] = 52;
     }
     snowPoints.geometry.attributes.position.needsUpdate = true;
+  }
+
+
+  if (gameState === 'menu') {
+    previewRenderers.forEach((p, idx) => {
+      p.kart.root.rotation.y += dt * (idx === selectedChar ? 1.35 : 0.45);
+      p.kart.fanBlades.forEach(fb => { fb.rotation.z += dt * 10; });
+      p.kart.physParts.forEach(pp => {
+        pp.pivot.rotation.x = 0.25 + Math.sin(nowSec * 6) * 0.15;
+      });
+      p.renderer.render(p.scene, p.camera);
+    });
+    if (trackSamples.length > 0) {
+      const ang = now * 0.00016;
+      camera.position.set(Math.cos(ang) * 168, 60, Math.sin(ang) * 168 + 55);
+      camera.lookAt(0, 4, 55);
+    }
+    renderer.render(scene, camera);
+    return;
   }
 
   const player = racers[0];

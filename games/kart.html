@@ -1423,9 +1423,9 @@ function buildKartMesh(charCfg) {
   }
   const lapBelt = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.04, 0.06), accentMat);
   lapBelt.position.set(0, 0.07, 0.06);
-  const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.06, 0.04), chromeMat);
-  buckle.position.set(0, 0.08, 0.09);
-  seatGroup.add(lapBelt, buckle);
+  const harnessBuckle = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.06, 0.04), chromeMat);
+  harnessBuckle.position.set(0, 0.08, 0.09);
+  seatGroup.add(lapBelt, harnessBuckle);
   bodyGroup.add(seatGroup);
 
   const steerCol = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.58, 10), carbonMat);
@@ -2439,7 +2439,8 @@ function makeGantrySignTexture(track) {
   g.font = 'bold 34px system-ui, sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillText(`${track.name.toUpperCase()}  •  GRAND PRIX`, 256, 49);
+  const label = typeof track.name === 'string' ? track.name : (track.name?.en || track.name?.zh || track.id || 'CIRCUIT');
+  g.fillText(`${label.toUpperCase()}  •  GRAND PRIX`, 256, 49);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -4405,11 +4406,12 @@ const camPosSmooth = new THREE.Vector3();
 const camLookSmooth = new THREE.Vector3();
 
 function updateSunShadow() {
-  if (!sunLight || !player) return;
+  const p = racers[0];
+  if (!sunLight || !p) return;
   const texel = 110 / 2048;
-  const tx = Math.round(player.pos.x / texel) * texel;
-  const ty = Math.round(player.pos.y / texel) * texel;
-  const tz = Math.round(player.pos.z / texel) * texel;
+  const tx = Math.round(p.pos.x / texel) * texel;
+  const ty = Math.round(p.pos.y / texel) * texel;
+  const tz = Math.round(p.pos.z / texel) * texel;
   sunLight.target.position.set(tx, ty, tz);
   sunLight.position.set(tx + 110, ty + 170, tz + 80);
   sunLight.target.updateMatrixWorld();

@@ -15,6 +15,7 @@
     "build": "node scripts/build-site.mjs && cf build --mode production",
     "deploy": "npm run build && cf deploy --prebuilt --mode production",
     "test": "node --test scripts/test-cs.mjs",
-    "test:cs:browser": "node scripts/check-cs-browser.mjs"
+    "test:cs:browser": "node scripts/check-cs-browser.mjs",
+    "test:flappy": "node scripts/test-flappy.mjs"
   }
 }

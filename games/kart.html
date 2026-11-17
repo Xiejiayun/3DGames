@@ -906,6 +906,7 @@ const skyMat = new THREE.ShaderMaterial({
     uHorizon: { value: new THREE.Color(0.68, 0.88, 0.98) },
     uSunCol: { value: new THREE.Color(1.0, 0.92, 0.72) },
     uAurora: { value: 0.0 },
+    uUnderwater: { value: 0.0 },
     uTime: { value: 0.0 }
   },
   vertexShader: /* glsl */`
@@ -922,6 +923,7 @@ const skyMat = new THREE.ShaderMaterial({
     uniform vec3 uHorizon;
     uniform vec3 uSunCol;
     uniform float uAurora;
+    uniform float uUnderwater;
     uniform float uTime;
     varying vec3 vDir;
     float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
@@ -955,6 +957,7 @@ const skyMat = new THREE.ShaderMaterial({
         vec3 acol = mix(vec3(0.1, 0.95, 0.58), vec3(0.45, 0.35, 1.0), clamp(d.x * 0.5 + 0.5, 0.0, 1.0));
         col += acol * band * uAurora * 0.75;
       }
+      col = mix(col, vec3(0.06, 0.23, 0.30), uUnderwater);
       gl_FragColor = vec4(col, 1.0);
     }
   `
@@ -962,6 +965,8 @@ const skyMat = new THREE.ShaderMaterial({
 
 let environmentTarget = null;
 function buildEnvMapForTrack(trackCfg) {
+  // Capture the above-water sky, independent of the previous camera position.
+  skyMat.uniforms.uUnderwater.value = 0;
   skyMat.uniforms.uZenith.value.setRGB(...trackCfg.zenith);
   skyMat.uniforms.uMid.value.setRGB(...trackCfg.mid);
   skyMat.uniforms.uHorizon.value.setRGB(...trackCfg.horizon);
@@ -999,6 +1004,7 @@ function makeTireTreadTex() {
     g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 8, 32); g.lineTo(x, 64); g.stroke();
   }
   const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   return t;
 }
@@ -1613,6 +1619,7 @@ function makeRoadTexture(track) {
   g.fillRect(125, 36, 6, 180);
   g.fillRect(125, 292, 6, 180);
   const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.anisotropy = 4;
   return tex;
@@ -1625,6 +1632,7 @@ function makeKerbTexture(track) {
   g.fillStyle = track.kerbA; g.fillRect(0, 0, 64, 64);
   g.fillStyle = track.kerbB; g.fillRect(0, 64, 64, 64);
   const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   return tex;
 }
@@ -1640,7 +1648,9 @@ function makeCheckerTexture() {
       g.fillRect(x, y, sq, sq);
     }
   }
-  return new THREE.CanvasTexture(c);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }
 
 const SAMPLES = 600;
@@ -1735,10 +1745,12 @@ function buildTrackAndWorld(trackCfg) {
   snowPoints = null;
 
   scene.fog = new THREE.FogExp2(trackCfg.fogColor, trackCfg.fogDensity);
+  const dryFog = new THREE.Color(trackCfg.fogColor), wetFog = new THREE.Color(0x16748b);
   scene.onBeforeRender = (_renderer, _scene, activeCamera) => {
-    const underwater = trackCfg.id === 'coast' && activeCamera.position.y < -0.6;
-    scene.fog.color.setHex(underwater ? 0x16748b : trackCfg.fogColor);
-    scene.fog.density = underwater ? 0.026 : trackCfg.fogDensity;
+    const depth = trackCfg.id === 'coast' ? clamp((-0.6-activeCamera.position.y)/1.2,0,1) : 0;
+    scene.fog.color.copy(dryFog).lerp(wetFog,depth);
+    scene.fog.density = lerp(trackCfg.fogDensity,0.026,depth);
+    skyMat.uniforms.uUnderwater.value = depth;
   };
 
   // GLSL Sky Dome

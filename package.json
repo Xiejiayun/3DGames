@@ -1,0 +1,16 @@
+{
+  "name": "3d-games",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "devDependencies": {
+    "cf": "1.0.0-beta.28",
+    "wrangler": "4.159.0"
+  },
+  "scripts": {
+    "build": "node scripts/build-site.mjs && cf build --mode production",
+    "deploy": "npm run build && cf deploy --prebuilt --mode production"
+  }
+}

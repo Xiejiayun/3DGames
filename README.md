@@ -1,1 +1,43 @@
 # 3DGames
+
+浏览器 3D 游戏合集，打开 `index.html` 进入游戏列表。
+
+## 自动部署到 Cloudflare
+
+本仓库通过 GitHub Actions 部署到 **Cloudflare Workers Static Assets**，Worker 名称为 `game`，站点地址为 **https://game.jeremyxie.com/**。账户与自定义域名由 `cloudflare.config.ts` 管理。
+
+### 首次配置
+
+1. 在 [Cloudflare 控制台](https://dash.cloudflare.com/) 选择目标账户，复制 **Account ID**。首次使用 Workers 时，先在 **Workers & Pages** 中完成账户的 `workers.dev` 子域名设置。
+2. 在 Cloudflare 账户的 **Manage account → Account API tokens** 创建部署 Token：将 **Specified Workers → game** 的权限设为 **Individual Workers Editor**，并对 **Specified Domains → jeremyxie.com** 授予 **Workers Routes → Edit** 和 **Zone → Read**。限定 Worker 和域名资源，勿使用 Global API Key。当前部署 Token 到期日为 **2027-11-17**，到期前需更新 GitHub Secret。
+3. 打开 GitHub 仓库的 **Settings → Secrets and variables → Actions → New repository secret**，添加：
+
+   | Secret | 内容 |
+   | --- | --- |
+   | `CLOUDFLARE_API_TOKEN` | 上一步创建的 API Token |
+   | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Account ID |
+
+4. 将部署配置推送到 `main`，或者在 **Actions → Deploy HTML to Cloudflare → Run workflow** 中选择 `main` 手动运行。
+5. 在成功运行的 **Deploy to Cloudflare** 步骤日志中查看站点地址。
+
+### 部署规则
+
+- 每次推送到 `main` 自动校验并部署；Pull Request 只构建和校验，不读取部署凭据。
+- 构建脚本将所有已加入 Git 的 HTML 复制到 `dist/`，保留文件名及子目录结构；只部署该目录。新增 HTML 无需修改工作流；当前页面的脚本和样式均内嵌或引用 CDN。如果以后增加独立 CSS、JS、图片等资源，需要同步调整 `scripts/build-site.mjs` 的收集规则。
+- `index.html` 为首页，游戏页面可通过 `/cs.html`、`/flappy.html` 访问。不存在的路径返回 404。
+- 同一分支同一时间只运行一个工作流，避免并行发布。手动运行非 `main` 分支只校验，不更新线上站点。
+- 若账户中已存在同名 Worker，部署会更新该 Worker；需要另一个站点时，先修改 `cloudflare.config.ts` 中的 `worker.name`。
+
+### 本地校验
+
+需要 Node.js 24（最低支持 22.18）：
+
+```sh
+npm ci
+npm run build
+npx cf deploy --prebuilt --mode production --dry-run
+```
+
+以上命令无需 Cloudflare 凭据，也不会上传文件。依赖版本由 `package-lock.json` 固定。
+
+如需回滚，在 Cloudflare 控制台打开该 Worker 的 **Deployments**，选择上一版本回滚；同时回退 GitHub 上对应变更，避免下一次推送再次发布问题版本。

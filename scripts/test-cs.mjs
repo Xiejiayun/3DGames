@@ -35,7 +35,7 @@ test('navigation rejects unsupported gaps, walls, and low headroom', () => {
   assert.equal(world.walkableLink({ x: -1, y: 0, z: 0 }, { x: 4, y: 0, z: 0 }), false);
 });
 
-test('a step clearance query cannot discard a later wall collision', () => {
+test('step clearance does not allow walking through a taller wall', () => {
   const world = new PhysicsWorld();
   world.addBox(-10, -1, -10, 10, 0, 10, { ground: true });
   world.addBox(0, 0, -1, 1, 0.3, 1);
@@ -64,4 +64,20 @@ test('narrow viewmodel FOV preserves horizontal framing', () => {
   const radians = Math.PI / 180;
   const horizontal = aspect => Math.tan(fov(aspect) * radians / 2) * aspect;
   assert.ok(Math.abs(horizontal(0.5) - horizontal(4 / 3)) < 1e-10);
+});
+
+test('preview framing contains a rotating model for wide and square thumbnails', () => {
+  const code = html.slice(html.indexOf('function previewDistance('), html.indexOf('class Showcase {'));
+  const distance = vm.runInNewContext(code + '; previewDistance;', { DEG: Math.PI / 180 });
+  const aspect = 16 / 9, angle = Math.atan(0.17), sn = Math.sin(angle), cs = Math.cos(angle), tan = Math.tan(14 * Math.PI / 180);
+  for (const [radius, halfY] of [[0.7, 0.18], [0.2, 0.25], [0.04, 0.08]]) {
+    for (const crop of [1, aspect, 3]) {
+      const d = distance(radius, halfY, aspect, crop);
+      for (let i = 0; i < 72; i++) for (const y of [-halfY, halfY]) {
+        const x = radius * Math.cos(i * Math.PI / 36), z = radius * Math.sin(i * Math.PI / 36), depth = d - y * sn - z * cs;
+        assert.ok(Math.abs(x / depth / (tan * Math.min(aspect, crop))) < 1);
+        assert.ok(Math.abs((y * cs - z * sn) / depth / (tan * Math.min(1, aspect / crop))) < 1);
+      }
+    }
+  }
 });

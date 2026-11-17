@@ -191,11 +191,9 @@ html:lang(zh-CN) #center-msg,html:lang(zh-CN) .bn-sub,html:lang(zh-CN) #weapon-n
 
 /* ───────────── overlays ───────────── */
 .overlay{position:fixed;left:0;top:0;right:0;bottom:0;z-index:20;display:flex;align-items:center;justify-content:center;
-  background:var(--c-overlay);-webkit-backdrop-filter:blur(9px) saturate(1.25);backdrop-filter:blur(9px) saturate(1.25);
-  direction:ltr;padding:20px}
-.glass{background:linear-gradient(140deg,var(--c-glass-a),var(--c-glass-b));border:1px solid var(--c-glass-line);
-  border-radius:16px;box-shadow:0 34px 90px var(--c-shadow), inset 0 1px 0 var(--c-glass-hi);
-  -webkit-backdrop-filter:blur(22px) saturate(1.4);backdrop-filter:blur(22px) saturate(1.4)}
+  background:var(--c-overlay);direction:ltr;padding:20px}
+.glass{background:linear-gradient(140deg,rgba(12,18,28,.92),rgba(8,12,20,.94));border:1px solid var(--c-glass-line);
+  border-radius:16px;box-shadow:0 34px 90px var(--c-shadow), inset 0 1px 0 var(--c-glass-hi)}
 .eyebrow{font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:var(--c-cool)}
 h1,h2{margin:0;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
 .btn{pointer-events:auto;cursor:pointer;padding:13px 34px;font-size:14px;font-weight:800;letter-spacing:.3em;
@@ -641,13 +639,13 @@ const CFG = {
   yard: { minX: -58, maxX: 58, minZ: -42, maxZ: 42 },
   waterY: -2.6,
   gravity: 23,
-  fov: 74,
-  vmFov: 54,
+  fov: 84,
+  vmFov: 58,
   sens: 0.0022,
   fogDensity: 0.0145,
   player: {
     radius: 0.36, standH: 1.8, crouchH: 1.15, eyeStand: 1.64, eyeCrouch: 1.0,
-    walk: 5.0, sprint: 7.9, crouch: 2.5, jumpV: 8.4, step: 0.55, airStep: 0.34, snap: 0.42,
+    walk: 6.2, sprint: 9.0, crouch: 3.2, jumpV: 8.4, step: 0.55, airStep: 0.34, snap: 0.42,
     maxHp: 100, maxAp: 100, startCash: 1000, armorAbsorb: 0.7, regenRate: 14,
   },
   fall: { safe: 3.5, perM: 17, hard: 2.1 },
@@ -719,8 +717,8 @@ const Quality = {
     } catch { return false; }
   })(),
   presets: {
-    high: { pr: 1.5, antialias: true, shadows: true, env: true, aniso: 8, tone: true, fpsCap: 0 },
-    med:  { pr: 1.0, antialias: false, shadows: true, env: true, aniso: 2, tone: true, fpsCap: 0 },
+    high: { pr: 1.25, antialias: true, shadows: true, env: true, aniso: 4, tone: true, fpsCap: 0 },
+    med:  { pr: 0.95, antialias: false, shadows: true, env: true, aniso: 2, tone: true, fpsCap: 0 },
     low:  { pr: 0.65, antialias: false, shadows: false, env: false, aniso: 1, tone: false, fpsCap: 30 },
   },
   pref: 'auto',
@@ -3546,25 +3544,28 @@ class MapBuilder {
 
   lighting() {
     const s = this.scene, M = this.M;
-    this.hemi = new THREE.HemisphereLight(0x6f8fc4, 0x1c1e24, 1.9); s.add(this.hemi);
-    const masts = [[-47.5, -28, -43, -25, true], [46.5, -28, 42, -25, true], [46.5, 31, 42, 27, true], [-48.5, 20, -44, 23, true], [5.5, -31.5, 2, -27, false], [-1, 31, -1, 27, false]];
+    this.hemi = new THREE.HemisphereLight(0x7c9ed4, 0x20242c, 2.35); s.add(this.hemi);
+    const key = new THREE.DirectionalLight(0xffdfb8, 1.55);
+    key.position.set(-38, 46, -24); key.castShadow = true;
+    key.shadow.mapSize.set(1024, 1024);
+    key.shadow.camera.left = -64; key.shadow.camera.right = 64; key.shadow.camera.top = 52; key.shadow.camera.bottom = -52;
+    key.shadow.camera.near = 6; key.shadow.camera.far = 140; key.shadow.bias = -0.0005; key.shadow.normalBias = 0.04;
+    s.add(key);
+    const masts = [[-47.5, -28, -43, -25, true], [46.5, -28, 42, -25, false], [46.5, 31, 42, 27, true], [-48.5, 20, -44, 23, false], [5.5, -31.5, 2, -27, false], [-1, 31, -1, 27, false]];
     const poleGeo = new THREE.CylinderGeometry(0.13, 0.2, 16, 10); this.floods = [];
-    for (const [x, z, ax, az, shadow] of masts) {
-      const pole = new THREE.Mesh(poleGeo, M.steel); pole.position.set(x, 8, z); pole.castShadow = true; s.add(pole);
+    for (const [x, z, ax, az, hasSpot] of masts) {
+      const pole = new THREE.Mesh(poleGeo, M.steel); pole.position.set(x, 8, z); pole.castShadow = false; s.add(pole);
       this.world.addBox(x - 0.22, 0, z - 0.22, x + 0.22, 16, z + 0.22, { mapColor: '#ffe2b0' });
       this.box(0.6, 0.5, 0.6, x, 0.25, z, M.concrete, { cast: false }); this.box(2.4, 0.16, 0.3, x, 15.9, z, M.steel, { cast: false });
       for (const o of [-0.8, 0.8]) { this.box(0.9, 0.3, 0.55, x + o, 15.62, z, M.darkSteel, { cast: false }); this.box(0.78, 0.05, 0.44, x + o, 15.45, z, M.lampWarm, { cast: false, recv: false }); }
       this.glowSprite(x, 15.4, z, 0xffd9a0, 10, 0.62);
-      for (const [h, size, op] of [[12.6, 9, 0.1], [9.4, 13, 0.075], [6.0, 17, 0.055], [2.8, 21, 0.04]]) {
-        this.glowSprite(x + (ax - x) * (1 - h / 15.4) * 0.7, h, z + (az - z) * (1 - h / 15.4) * 0.7, 0xffdcae, size, op, true);
+      if (hasSpot) {
+        const spot = new THREE.SpotLight(0xffddb0, 1300, 74, 1.08, 0.65, 1.7);
+        spot.position.set(x, 15.3, z); spot.target.position.set(ax, 0, az); s.add(spot); s.add(spot.target);
+        this.floods.push(spot);
       }
-      const spot = new THREE.SpotLight(0xffddb0, 1450, 72, 1.04, 0.62, 1.7);
-      spot.position.set(x, 15.3, z); spot.target.position.set(ax, 0, az); s.add(spot); s.add(spot.target);
-      if (shadow) { spot.castShadow = true; spot.shadow.mapSize.set(1024, 1024); spot.shadow.camera.near = 3; spot.shadow.camera.far = 70; spot.shadow.bias = -0.0006; spot.shadow.normalBias = 0.05; }
-      this.floods.push(spot);
     }
     const cool = (x, y, z, color, intensity, dist) => { const p = new THREE.PointLight(color, intensity, dist, 1.8); p.position.set(x, y, z); s.add(p); return p; };
-    cool(-6.6, 5.0, 0, 0x8fdcff, 100, 30); cool(20.7, 4.6, 2.0, 0x9cc4ff, 110, 26); cool(-53.8, 3.0, -34.6, 0x5f9dff, 90, 24);
     this.beacon = cool(25.6, 3.9, 29.5, 0xffa51f, 60, 20);
     this.blinkers.push((t) => { const k = 0.2 + 0.8 * Math.pow(Math.max(0, Math.sin(t * 4.2)), 2); this.beacon.intensity = 85 * k; this.beaconSprite.material.opacity = 0.25 + 0.7 * k; });
     this.box(0.14, 0.14, 2.4, 20.7, 5.0, 2.0, M.lampCool, { cast: false, recv: false });
@@ -4066,7 +4067,7 @@ class Player {
     }
 
     this.eyeH = damp(this.eyeH, this.crouching ? P.eyeCrouch : P.eyeStand, 12, dt);
-    this.tilt = damp(this.tilt, -s * 0.012 * (b.onGround ? 1 : 0.3) + this.tiltKick, 8, dt);
+    this.tilt = damp(this.tilt, this.tiltKick * 0.35, 10, dt);
     this.recHold -= dt;
     if (this.recHold <= 0) { this.recTP = damp(this.recTP, 0, 5.5, dt); this.recTY = damp(this.recTY, 0, 5.5, dt); }
     this.recP = damp(this.recP, this.recTP, 26, dt); this.recY = damp(this.recY, this.recTY, 26, dt);
@@ -4083,11 +4084,11 @@ class Player {
 
   applyCamera() {
     const g = this.game, cam = g.camera, b = this.body, t = g.clock, sh = this.shake * this.shake;
-    const sx = (Math.sin(t * 71.3) + Math.sin(t * 43.7 + 1.3)) * 0.5 * sh * 0.055;
-    const sy = (Math.sin(t * 63.1 + 2.1) + Math.sin(t * 39.9)) * 0.5 * sh * 0.055;
-    const sz = Math.sin(t * 57.7 + 0.7) * sh * 0.04;
-    const ads = g.weapons ? g.weapons.ads : 0, bobK = this.bobAmp * (1 - ads * 0.8);
-    const bobY = Math.abs(Math.sin(this.bob)) * 0.045 * bobK - 0.02 * bobK, bobX = Math.cos(this.bob) * 0.02 * bobK;
+    const sx = (Math.sin(t * 71.3) + Math.sin(t * 43.7 + 1.3)) * 0.5 * sh * 0.025;
+    const sy = (Math.sin(t * 63.1 + 2.1) + Math.sin(t * 39.9)) * 0.5 * sh * 0.025;
+    const sz = Math.sin(t * 57.7 + 0.7) * sh * 0.015;
+    const ads = g.weapons ? g.weapons.ads : 0, bobK = this.bobAmp * (1 - ads * 0.85);
+    const bobY = Math.abs(Math.sin(this.bob)) * 0.014 * bobK - 0.006 * bobK, bobX = Math.cos(this.bob) * 0.006 * bobK;
     const cs = Math.cos(this.yaw), sn = Math.sin(this.yaw);
     cam.position.set(b.pos.x + cs * bobX, b.pos.y + this.eyeH + this.stepOff - this.landDip + bobY, b.pos.z - sn * bobX);
     cam.rotation.set(clamp(this.pitch + this.recP, -1.55, 1.55) + sx, this.yaw + this.recY + sy, this.tilt + sz);

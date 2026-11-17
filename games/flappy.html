@@ -882,6 +882,7 @@ function lumpy(detail, k, amount) {                         // irregular blob ba
     const d = 1 + amount * (Math.sin(x * 4.1 + k) * Math.sin(y * 3.7 + k * 2) + 0.75 * Math.sin(z * 5.3 + y * 2.1 + k));
     p.setXYZ(i, x * d, y * d, z * d);
   }
+  s.computeVertexNormals();
   return s;
 }
 const rockGeo = paint(lumpy(1, 3.3, 0.14), (o, x, y) => { const b = 0.75 + 0.25 * y; o[0] = 0.42 * b; o[1] = 0.41 * b; o[2] = 0.39 * b; });
@@ -902,6 +903,7 @@ const coniferGeo = (() => {                                 // unit height 1; sc
       const x = p.getX(i), y = p.getY(i), z = p.getZ(i), r = Math.hypot(x, z);
       if (r > 1e-4) { const a = Math.atan2(z, x), j = 1 + 0.16 * Math.sin(a * 5 + k * 1.7) + 0.08 * Math.sin(a * 9 + k); p.setXYZ(i, x * j, y - r * 0.28, z * j); }
     }
+    cone.computeVertexNormals();
     parts.push(paint(cone, (o, x, y, z) => { const b = 0.5 + 0.5 * Math.hypot(x, z) / rad + 0.25 * t; o[0] = 0.075 * b; o[1] = 0.2 * b; o[2] = 0.09 * b; }));
   }
   return mergeGeos(parts);
@@ -945,22 +947,23 @@ function buildChunk(ci) {
   fairway.receiveShadow = true;
   group.add(terrain, fairway);
 
+  // Stable full instance pools let quality change draw counts, including low -> high.
   // --- grass ---
   const grass = [], tuft = (lx, z, s, hs, r, g, b) => grass.push([lx, H(lx, z), z, rng() * TAU, s, s * hs, s, r, g, b]);
-  for (let n = Math.round(850 * QUALITY.grass); n-- > 0;) {             // short lawn grass under the flight path
+  for (let n = 850; n-- > 0;) {             // short lawn grass under the flight path
     const v = R(0.85, 1.15); tuft(R(0, CHUNK_L), R(-9, 9), R(0.24, 0.36), R(0.8, 1.2), 0.24 * v, 0.46 * v, 0.09 * v);
   }
-  for (let n = Math.round(1250 * QUALITY.grass); n-- > 0;) {            // taller meadow grass in front
+  for (let n = 1250; n-- > 0;) {            // taller meadow grass in front
     const v = R(0.8, 1.2), y = rng(); tuft(R(0, CHUNK_L), R(9, 46), R(0.5, 1.0), R(0.8, 1.3), lerp(0.22, 0.36, y) * v, lerp(0.40, 0.46, y) * v, lerp(0.08, 0.12, y) * v);
   }
-  for (let n = Math.round(200 * QUALITY.grass); n-- > 0;) {             // big clumps further out
+  for (let n = 200; n-- > 0;) {             // big clumps further out
     const v = R(0.8, 1.15); tuft(R(0, CHUNK_L), R(46, 110), R(1.0, 1.7), R(0.8, 1.2), 0.25 * v, 0.40 * v, 0.09 * v);
   }
-  for (let n = Math.round(300 * QUALITY.grass); n-- > 0;) {             // strip between lawn and lake
+  for (let n = 300; n-- > 0;) {             // strip between lawn and lake
     const lx = R(0, CHUNK_L), z = -R(9, shoreNear(x0 + lx) - 0.4), v = R(0.8, 1.2);
     tuft(lx, z, R(0.45, 0.95), R(0.8, 1.3), 0.26 * v, 0.42 * v, 0.09 * v);
   }
-  for (let n = Math.round(130 * QUALITY.grass); n-- > 0;) {             // reeds along the waterline
+  for (let n = 130; n-- > 0;) {             // reeds along the waterline
     const lx = R(0, CHUNK_L), z = -(shoreNear(x0 + lx) + R(-1.3, 1.2)), v = R(0.8, 1.15);
     if (H(lx, z) > WATER_Y - 0.45) grass.push([lx, H(lx, z), z, rng() * TAU, R(0.7, 1.1), R(1.5, 2.6), R(0.7, 1.1), 0.44 * v, 0.46 * v, 0.14 * v]);
   }
@@ -970,11 +973,11 @@ function buildChunk(ci) {
 
   // --- flowers ---
   const flowers = [];
-  for (let n = Math.round(250 * QUALITY.grass); n-- > 0;) {
+  for (let n = 250; n-- > 0;) {
     const lx = R(0, CHUNK_L), front = rng() < 0.72, z = front ? R(9.3, 42) : -R(9.3, shoreNear(x0 + lx) - 0.8), s = R(0.42, 0.78), c = FLOWER_COLORS[Math.floor(rng() * FLOWER_COLORS.length)];
     flowers.push([lx, H(lx, z), z, rng() * TAU, s, s * R(0.8, 1.25), s, c[0], c[1], c[2]]);
   }
-  for (let n = Math.round(26 * QUALITY.grass); n-- > 0;) { const s = R(0.2, 0.3); flowers.push([R(0, CHUNK_L), 0, R(-8.6, 8.6), rng() * TAU, s, s, s, 1, 1, 1]); }   // daisies on the lawn
+  for (let n = 26; n-- > 0;) { const s = R(0.2, 0.3); flowers.push([R(0, CHUNK_L), 0, R(-8.6, 8.6), rng() * TAU, s, s, s, 1, 1, 1]); }   // daisies on the lawn
   const flowerMesh = instanced(flowerGeo, flowerMat, flowers, false);
   if (flowerMesh) group.add(flowerMesh);
 

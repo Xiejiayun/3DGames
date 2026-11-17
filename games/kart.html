@@ -1829,7 +1829,9 @@ function buildTrackAndWorld(trackCfg) {
 
     if (i < SAMPLES) {
       const rB = i * 2;
-      roadIdx.push(rB, rB + 1, rB + 2, rB + 1, rB + 3, rB + 2);
+      if (!(trackCfg.id === 'forest' && i >= 126 && i < 180)) {
+        roadIdx.push(rB, rB + 1, rB + 2, rB + 1, rB + 3, rB + 2);
+      }
       const kB = i * 4;
       kerbIdx.push(kB, kB + 1, kB + 4, kB + 1, kB + 5, kB + 4, kB + 2, kB + 3, kB + 6, kB + 3, kB + 7, kB + 6);
       const wB = i * 4;
@@ -2156,22 +2158,61 @@ function buildTrackAndWorld(trackCfg) {
       worldGroup.add(palm);
     }
   } else if (trackCfg.id === 'forest') {
-    // Landmark 1: Roaring Canyon Waterfall next to Bridge (t = 0.22..0.30)
-    const wfGroup = new THREE.Group();
-    wfGroup.position.set(164, 0, 58);
-    const cliff = new THREE.Mesh(new THREE.BoxGeometry(28, 56, 44), new THREE.MeshStandardMaterial({ color: 0x4a5240, roughness: 0.95 }));
-    cliff.position.y = 24;
-    const waterSheet = new THREE.Mesh(
-      new THREE.PlaneGeometry(18, 54).rotateY(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: 0x90e0ef, transparent: true, opacity: 0.82 })
-    );
-    waterSheet.position.set(-14.2, 24, 0);
-    wfGroup.add(cliff, waterSheet);
-    worldGroup.add(wfGroup);
+    // Place the cliff beyond the outer guardrail, following the local road frame.
+    const fallSample=trackSamples[148];
+    const wfGroup=trackFrame(fallSample);wfGroup.name='waterfall';
+    wfGroup.position.addScaledVector(fallSample.right,-44);
+    wfGroup.position.y=0;wfGroup.rotation.set(0,Math.atan2(fallSample.tangent.x,fallSample.tangent.z),0);worldGroup.add(wfGroup);
+    const rockMat=new THREE.MeshStandardMaterial({color:0x5d6650,roughness:1});
+    const darkRockMat=new THREE.MeshStandardMaterial({color:0x424e42,roughness:1});
+    for(let n=0;n<12;n++) {
+      const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(1,0),n%2?rockMat:darkRockMat);
+      rock.position.set(13+random()*8,n*3.4-3,random()*12-6);
+      rock.scale.set(9+random()*3,5,14+random()*3);rock.rotation.y=n*0.7;wfGroup.add(rock);
+    }
+    const fallMat=new THREE.MeshStandardMaterial({color:0x83dcdf,roughness:0.23,transparent:true,opacity:0.78,side:THREE.DoubleSide});
+    for(let n=0;n<7;n++) {
+      const ribbon=new THREE.Mesh(new THREE.PlaneGeometry(1.3,36),fallMat);
+      ribbon.rotation.y=-Math.PI/2;ribbon.position.set(2.4+n%2*0.25,15,-5+n*1.7);wfGroup.add(ribbon);
+      animatedProps.push({mesh:ribbon,type:'waterfall',baseY:15,phase:n});
+    }
+    const pool=new THREE.Mesh(new THREE.CylinderGeometry(11,12,0.5,32),fallMat);
+    pool.name='waterfall-pool';pool.position.set(-4,-3,0);wfGroup.add(pool);
+    const foamMat=new THREE.MeshBasicMaterial({color:0xe6ffff,transparent:true,opacity:0.7,depthWrite:false});
+    for(let n=0;n<12;n++) {
+      const foam=new THREE.Mesh(new THREE.SphereGeometry(0.7,8,6),foamMat);
+      foam.scale.set(1.8,0.18,1);foam.position.set(-1-random()*5,-2.7,random()*11-5.5);wfGroup.add(foam);
+      animatedProps.push({mesh:foam,type:'foam',baseY:-2.7,phase:n});
+    }
+    // Planks span the road at each sample; the suspension ropes meet real posts.
+    const timberMat=new THREE.MeshStandardMaterial({color:0x916540,roughness:0.95});
+    const ropeMat=new THREE.MeshStandardMaterial({color:0xd9c298,roughness:1});
+    const bridge=new THREE.Group();bridge.name='forest-suspension-bridge';worldGroup.add(bridge);
+    for(let i=126;i<180;i++) {
+      const s=trackSamples[i],plank=trackFrame(s);
+      const length=s.pos.distanceTo(trackSamples[i+1].pos);
+      const board=new THREE.Mesh(new THREE.BoxGeometry(ROAD_HALF_W*2,0.2,length+0.02),timberMat);
+      board.position.set(0,-0.05,length/2);plank.add(board);bridge.add(plank);
+      if(i%9===0) for(const side of [-1,1]) {
+        const post=new THREE.Mesh(new THREE.BoxGeometry(0.3,2.4,0.3),timberMat);
+        post.position.set(side*(WALL_HALF_W+0.5),1.2,0);plank.add(post);
+      }
+      if(i<180) for(const side of [-1,1]) {
+        const next=trackSamples[i+1];
+        const ropeHeight=2.4-Math.sin((i-126)/54*Math.PI)*0.75;
+        const nextHeight=2.4-Math.sin((i+1-126)/54*Math.PI)*0.75;
+        const a=s.pos.clone().addScaledVector(s.right,side*(WALL_HALF_W+0.5)).add(new THREE.Vector3(0,ropeHeight,0));
+        const b=next.pos.clone().addScaledVector(next.right,side*(WALL_HALF_W+0.5)).add(new THREE.Vector3(0,nextHeight,0));
+        bridge.add(beamBetween(a,b,0.07,ropeMat));
+        if(i%9===0) bridge.add(beamBetween(a,s.pos.clone().addScaledVector(s.right,side*(WALL_HALF_W+0.5)).add(new THREE.Vector3(0,0.15,0)),0.045,ropeMat));
+      }
+    }
 
     // Landmark 2: Glowing Crystal Cavern Temple Arches (t = 0.58..0.72)
     const stoneMat = new THREE.MeshStandardMaterial({ color: 0x4f5d54, roughness: 0.88 });
     const crystalMat = new THREE.MeshStandardMaterial({ color: 0x00f5d4, emissive: 0x00bbf9, emissiveIntensity: 0.85, roughness: 0.2 });
+    const caveMat=new THREE.MeshStandardMaterial({color:0x37493f,roughness:1,side:THREE.DoubleSide});
+    buildVault(348,432,12.4,caveMat,'forest-cave-shell');
     for (let i = Math.floor(0.58 * SAMPLES); i <= Math.floor(0.72 * SAMPLES); i += 8) {
       const s = trackSamples[i];
       const temple = new THREE.Group();
@@ -2179,15 +2220,24 @@ function buildTrackAndWorld(trackCfg) {
       temple.lookAt(s.pos.clone().add(s.tangent));
       for (const side of [-1, 1]) {
         const col = new THREE.Mesh(new THREE.BoxGeometry(1.6, 8.5, 1.6), stoneMat);
-        col.position.set(side * (ROAD_HALF_W + 1.3), 4.2, 0);
-        const crys = new THREE.Mesh(new THREE.ConeGeometry(0.65, 2.6, 6), crystalMat);
-        crys.position.set(side * (ROAD_HALF_W + 0.3), 2.2, 0);
-        crys.rotation.z = -side * 0.45;
-        temple.add(col, crys);
+        col.position.set(side * (WALL_HALF_W + 1.7), 4.2, 0);
+        temple.add(col);
+        for(const y of [0.35,2.2,5.7,7.9]) {
+          const band=new THREE.Mesh(new THREE.BoxGeometry(2.15,0.32,2.15),stoneMat);
+          band.position.set(side*(WALL_HALF_W+1.7),y,0);temple.add(band);
+        }
+        for(let c=0;c<3;c++) {
+          const crys = new THREE.Mesh(new THREE.ConeGeometry(0.35+c*0.09, 1.6+c*0.6, 6), crystalMat);
+          crys.position.set(side * (WALL_HALF_W + 0.9+c*0.5), 1.0+c*0.3, 1.7+c*0.6);
+          crys.rotation.z = -side * (0.12+c*0.12);temple.add(crys);
+        }
       }
-      const lintel = new THREE.Mesh(new THREE.BoxGeometry(ROAD_HALF_W * 2 + 4.8, 1.8, 2.0), stoneMat);
+      const lintel = new THREE.Mesh(new THREE.BoxGeometry(WALL_HALF_W * 2 + 5.2, 1.8, 2.0), stoneMat);
       lintel.position.set(0, 8.6, 0);
       temple.add(lintel);
+      if(i%32===28) {
+        const glow=new THREE.PointLight(0x35dcca,16,19,2);glow.position.set(0,5,0);temple.add(glow);
+      }
       worldGroup.add(temple);
     }
 
@@ -2196,17 +2246,29 @@ function buildTrackAndWorld(trackCfg) {
     const pineMat = new THREE.MeshStandardMaterial({ color: 0x1b4332, roughness: 0.85 });
     for (let i = 0; i < 95; i++) {
       const x = (random() - 0.5) * 400, z = (random() - 0.3) * 380;
-      if (!isClearOfTrack(x, z, 16)) continue;
+      if (!isClearOfTrack(x, z, 24)) continue;
       const tree = new THREE.Group();
-      tree.position.set(x, -1.0, z);
-      const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.55, 4.2, 7), trunkMat);
-      tr.position.y = 2.1;
-      const c1 = new THREE.Mesh(new THREE.ConeGeometry(2.8, 6.2, 7), pineMat);
-      c1.position.y = 5.4; c1.castShadow = true;
-      const c2 = new THREE.Mesh(new THREE.ConeGeometry(2.1, 4.8, 7), pineMat);
-      c2.position.y = 8.4; c2.castShadow = true;
-      tree.add(tr, c1, c2);
+      tree.name='redwood';tree.position.set(x, -3.2, z);
+      const h=17+random()*12;
+      const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 1.4, h, 10), trunkMat);
+      tr.position.y = h/2;tr.castShadow=true;tree.add(tr);
+      for(let root=0;root<5;root++) {
+        const a=root/5*TAU;
+        tree.add(beamBetween(new THREE.Vector3(0,2,0),new THREE.Vector3(Math.cos(a)*2.6,0.15,Math.sin(a)*2.6),0.3,trunkMat));
+      }
+      for(let layer=0;layer<4;layer++) {
+        const crown=new THREE.Mesh(new THREE.ConeGeometry(4.5-layer*0.8,7.5-layer*0.7,9),pineMat);
+        crown.position.y=h-8+layer*3;crown.castShadow=true;tree.add(crown);
+      }
+      if(i%8===0) {
+        const shaft=new THREE.Mesh(new THREE.ConeGeometry(1.4,18,8),new THREE.MeshBasicMaterial({color:0xffe6a3,transparent:true,opacity:0.045,depthWrite:false,side:THREE.DoubleSide}));
+        shaft.position.set(4,9,0);shaft.rotation.z=0.15;tree.add(shaft);
+      }
       worldGroup.add(tree);
+      if(i%3===0) {
+        const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(1.6,0),rockMat);
+        rock.name='forest-boulder';rock.position.set(x+4,-2.6,z);rock.scale.set(1.5,0.7,1);worldGroup.add(rock);
+      }
     }
   } else {
     // Alpine Frost: Ice Crystal Tunnel Arches (t = 0.38..0.52) & Moving Cable Cars
@@ -2270,9 +2332,9 @@ function buildTrackAndWorld(trackCfg) {
 
     // A lake with its own shoreline, away from the driving ribbon.
     const lake=new THREE.Group();lake.name='frozen-lake';lake.position.set(0,-2.8,55);
-    const shore=new THREE.Mesh(new THREE.CylinderGeometry(25,27,0.5,48),new THREE.MeshStandardMaterial({color:0xe8f5ff,roughness:0.8}));
+    const shore=new THREE.Mesh(new THREE.CylinderGeometry(23.5,25,0.5,48),new THREE.MeshStandardMaterial({color:0xe8f5ff,roughness:0.8}));
     lake.add(shore);
-    const ice=new THREE.Mesh(new THREE.CylinderGeometry(23.5,23.5,0.2,48),new THREE.MeshPhysicalMaterial({color:0x52a9c5,roughness:0.16,metalness:0.22,clearcoat:1}));ice.position.y=0.28;lake.add(ice);
+    const ice=new THREE.Mesh(new THREE.CylinderGeometry(22,22,0.2,48),new THREE.MeshPhysicalMaterial({color:0x52a9c5,roughness:0.16,metalness:0.22,clearcoat:1}));ice.position.y=0.28;lake.add(ice);
     const crackMat=new THREE.LineBasicMaterial({color:0xc2f8ff,transparent:true,opacity:0.65});
     for(let c=0;c<7;c++) {
       const a=c/7*TAU,points=[];
@@ -3319,6 +3381,12 @@ function animate(now) {
   animatedProps.forEach(ap => {
     if (ap.type === 'bob') {
       ap.mesh.position.y = ap.baseY + Math.sin(nowSec * 1.5 + ap.phase) * 3.2;
+    } else if (ap.type === 'waterfall') {
+      ap.mesh.scale.y=1+Math.sin(nowSec*5+ap.phase)*0.018;
+      ap.mesh.position.y=ap.baseY+Math.sin(nowSec*7+ap.phase)*0.14;
+    } else if (ap.type === 'foam') {
+      ap.mesh.position.y=ap.baseY+Math.sin(nowSec*3+ap.phase)*0.08;
+      ap.mesh.scale.x=1.6+Math.sin(nowSec*2+ap.phase)*0.3;
     } else if (ap.type === 'gondola') {
       const u=(nowSec*0.025+ap.phase)%1;
       ap.mesh.position.copy(ap.path.getPointAt(u));

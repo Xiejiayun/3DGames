@@ -1090,9 +1090,7 @@ for (let i = 0; i < 7; i++) {
   for (const side of [-1, 1]) {
     const pivot = new THREE.Group();
     const wing = new THREE.Mesh(flockWingGeo, flockMat);
-    wing.scale.z = side;
-    // Mirror geometry without negative mesh scale (which reverses triangle winding).
-    if (side < 0) { wing.scale.z = 1; wing.rotation.y = Math.PI; }
+    if (side < 0) wing.rotation.y = Math.PI;
     pivot.position.set(0, 0.02, side * 0.1); pivot.userData.side = side;
     pivot.add(wing); b.add(pivot); b.userData.wings.push(pivot);
   }

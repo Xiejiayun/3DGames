@@ -996,19 +996,180 @@ function buildEnvMapForTrack(trackCfg) {
    --------------------------------------------------------------------- */
 function makeTireTreadTex() {
   const c = document.createElement('canvas');
-  c.width = 128; c.height = 64;
+  c.width = 256; c.height = 128;
   const g = c.getContext('2d');
-  g.fillStyle = '#14171d'; g.fillRect(0, 0, 128, 64);
-  g.strokeStyle = '#242a35'; g.lineWidth = 3;
-  for (let x = 0; x < 128; x += 16) {
-    g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 8, 32); g.lineTo(x, 64); g.stroke();
+  g.fillStyle = '#14171d';
+  g.fillRect(0, 0, 256, 128);
+
+  // Subtle deterministic rubber grain
+  for (let i = 0; i < 900; i++) {
+    const gx = (i * 73) % 256;
+    const gy = (i * 137) % 128;
+    g.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.14)';
+    g.fillRect(gx, gy, 2, 2);
   }
+
+  // Sidewall shoulder shading (top & bottom edges of lathe UV)
+  const topSh = g.createLinearGradient(0, 0, 0, 26);
+  topSh.addColorStop(0, '#0b0d11');
+  topSh.addColorStop(0.65, '#1d222b');
+  topSh.addColorStop(1, 'rgba(20,23,29,0)');
+  g.fillStyle = topSh;
+  g.fillRect(0, 0, 256, 26);
+
+  const botSh = g.createLinearGradient(0, 128, 0, 102);
+  botSh.addColorStop(0, '#0b0d11');
+  botSh.addColorStop(0.65, '#1d222b');
+  botSh.addColorStop(1, 'rgba(20,23,29,0)');
+  g.fillStyle = botSh;
+  g.fillRect(0, 102, 256, 26);
+
+  // Center circumferential rib grooves
+  g.fillStyle = '#0c0e13';
+  g.fillRect(0, 58, 256, 3);
+  g.fillRect(0, 67, 256, 3);
+
+  // Directional V-tread & shoulder sipes
+  g.strokeStyle = '#252c38';
+  g.lineWidth = 4;
+  g.lineCap = 'round';
+  for (let x = 0; x < 256; x += 24) {
+    g.beginPath();
+    g.moveTo(x, 22);
+    g.lineTo(x + 12, 56);
+    g.moveTo(x, 106);
+    g.lineTo(x + 12, 72);
+    g.stroke();
+
+    g.strokeStyle = '#0d1015';
+    g.lineWidth = 2.5;
+    g.beginPath();
+    g.moveTo(x + 4, 22);
+    g.lineTo(x + 14, 55);
+    g.moveTo(x + 4, 106);
+    g.lineTo(x + 14, 73);
+    g.stroke();
+    g.strokeStyle = '#252c38';
+    g.lineWidth = 4;
+  }
+
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   return t;
 }
+
+function makeCarbonTex() {
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 64;
+  const g = c.getContext('2d');
+  g.fillStyle = '#171b22';
+  g.fillRect(0, 0, 64, 64);
+
+  // 2x2 diagonal twill carbon-fiber weave
+  const cell = 8;
+  for (let y = 0; y < 64; y += cell) {
+    for (let x = 0; x < 64; x += cell) {
+      const phase = ((x / cell) + (y / cell)) % 4;
+      if (phase < 2) {
+        g.fillStyle = '#262d38';
+        g.fillRect(x, y, cell - 1, cell - 1);
+        g.fillStyle = '#343d4c';
+        g.fillRect(x, y, cell - 2, 2);
+      } else {
+        g.fillStyle = '#1b2028';
+        g.fillRect(x, y, cell - 1, cell - 1);
+        g.fillStyle = '#2b323f';
+        g.fillRect(x, y, 2, cell - 2);
+      }
+    }
+  }
+
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(5, 5);
+  return t;
+}
+
+function makeBrakeDiscTex() {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 128;
+  const g = c.getContext('2d');
+  const cx = 64, cy = 64;
+
+  g.fillStyle = '#8b95a3';
+  g.fillRect(0, 0, 128, 128);
+
+  // Brushed metallic rotor surface & concentric lathe grooves
+  const grad = g.createRadialGradient(cx, cy, 18, cx, cy, 62);
+  grad.addColorStop(0, '#363d48');
+  grad.addColorStop(0.36, '#3b434f');
+  grad.addColorStop(0.39, '#b8c2cf');
+  grad.addColorStop(0.7, '#d8e0ea');
+  grad.addColorStop(0.96, '#9aa5b4');
+  grad.addColorStop(1, '#58616e');
+  g.fillStyle = grad;
+  g.beginPath();
+  g.arc(cx, cy, 62, 0, Math.PI * 2);
+  g.fill();
+
+  g.strokeStyle = 'rgba(255,255,255,0.16)';
+  g.lineWidth = 1;
+  for (let r = 28; r <= 58; r += 4) {
+    g.beginPath();
+    g.arc(cx, cy, r, 0, Math.PI * 2);
+    g.stroke();
+  }
+
+  // Curved cooling slots & cross-drilled holes
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    g.strokeStyle = '#1f252e';
+    g.lineWidth = 2.2;
+    g.beginPath();
+    g.moveTo(cx + Math.cos(a) * 28, cy + Math.sin(a) * 28);
+    g.lineTo(cx + Math.cos(a + 0.28) * 57, cy + Math.sin(a + 0.28) * 57);
+    g.stroke();
+
+    for (let k = 0; k < 3; k++) {
+      const hr = 32 + k * 11;
+      const ha = a + 0.22 + k * 0.08;
+      g.fillStyle = '#161a21';
+      g.beginPath();
+      g.arc(cx + Math.cos(ha) * hr, cy + Math.sin(ha) * hr, 2.2, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function makeContactShadowTex() {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 128;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(64, 64, 12, 64, 64, 62);
+  grad.addColorStop(0, 'rgba(6, 10, 18, 0.62)');
+  grad.addColorStop(0.52, 'rgba(6, 10, 18, 0.34)');
+  grad.addColorStop(0.82, 'rgba(6, 10, 18, 0.10)');
+  grad.addColorStop(1, 'rgba(6, 10, 18, 0.0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 128, 128);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 const sharedTireTex = makeTireTreadTex();
+const sharedCarbonTex = makeCarbonTex();
+const sharedBrakeDiscTex = makeBrakeDiscTex();
+const sharedContactShadowTex = makeContactShadowTex();
+const sharedTextures = new Set([
+  sharedTireTex, sharedCarbonTex, sharedBrakeDiscTex, sharedContactShadowTex
+]);
 
 function buildKartMesh(charCfg) {
   const root = new THREE.Group();
@@ -1027,11 +1188,41 @@ function buildKartMesh(charCfg) {
   const accentMat = new THREE.MeshPhysicalMaterial({
     color: charCfg.accentColor, roughness: 0.25, metalness: 0.4, clearcoat: 0.9
   });
-  const carbonMat = new THREE.MeshStandardMaterial({ color: 0x161920, roughness: 0.45, metalness: 0.35 });
+  const carbonMat = new THREE.MeshStandardMaterial({
+    color: 0xe2e8f0, map: sharedCarbonTex, bumpMap: sharedCarbonTex, bumpScale: 0.012, roughness: 0.42, metalness: 0.35
+  });
   const chromeMat = new THREE.MeshStandardMaterial({ color: 0xe6edf5, roughness: 0.14, metalness: 0.92 });
+  const heatBlueMat = new THREE.MeshStandardMaterial({ color: 0x4f7cac, roughness: 0.2, metalness: 0.88 });
   const tireMat = new THREE.MeshStandardMaterial({ map: sharedTireTex, roughness: 0.82, metalness: 0.05 });
+  const brakeDiscMat = new THREE.MeshStandardMaterial({ map: sharedBrakeDiscTex, roughness: 0.28, metalness: 0.86 });
   const caliperMat = new THREE.MeshStandardMaterial({ color: charCfg.caliperColor, roughness: 0.3, metalness: 0.4 });
   const brakeLightMat = new THREE.MeshBasicMaterial({ color: 0xff1e1e });
+  const telemetryMat = new THREE.MeshBasicMaterial({ color: 0x00f5d4 });
+
+  // Soft-edged Contact Shadow Quad (Fake AO under chassisFrame)
+  const contactShadowMat = new THREE.MeshBasicMaterial({
+    map: sharedContactShadowTex, transparent: true, depthWrite: false, opacity: 0.85
+  });
+  const contactShadow = new THREE.Mesh(new THREE.PlaneGeometry(2.25, 3.1), contactShadowMat);
+  contactShadow.rotation.x = -Math.PI / 2;
+  contactShadow.position.set(0, 0.03, 0);
+  chassisFrame.add(contactShadow);
+
+  // Helper: cambered airfoil ExtrudeGeometry centered on X/Z
+  function makeAirfoilGeo(span, chord, thickness) {
+    const hc = chord * 0.5, ht = thickness * 0.5;
+    const shape = new THREE.Shape();
+    shape.moveTo(hc, 0);
+    shape.quadraticCurveTo(hc * 0.2, ht * 1.4, -hc, ht * 0.25);
+    shape.lineTo(-hc, -ht * 0.2);
+    shape.quadraticCurveTo(hc * 0.2, -ht * 0.5, hc, 0);
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      depth: span, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.012, bevelThickness: 0.012
+    });
+    geo.translate(0, 0, -span * 0.5);
+    geo.rotateY(-Math.PI / 2);
+    return geo;
+  }
 
   // 1. Sculpted Aerodynamic Floorpan & Nosecone (ExtrudeGeometry with Bevel)
   const noseShape = new THREE.Shape();
@@ -1052,10 +1243,28 @@ function buildKartMesh(charCfg) {
   chassisMesh.castShadow = true;
   bodyGroup.add(chassisMesh);
 
-  // Front Carbon Aero Splitter & Nose Wing
-  const splitter = new THREE.Mesh(new THREE.BoxGeometry(1.48, 0.05, 0.46), carbonMat);
-  splitter.position.set(0, 0.25, 1.46);
-  bodyGroup.add(splitter);
+  // Front Carbon Aero Wing, Endplates & Diveplanes
+  const frontWingMain = new THREE.Mesh(makeAirfoilGeo(1.54, 0.42, 0.055), carbonMat);
+  frontWingMain.position.set(0, 0.24, 1.48);
+  frontWingMain.rotation.x = 0.08;
+  frontWingMain.castShadow = true;
+  bodyGroup.add(frontWingMain);
+
+  const frontWingFlap = new THREE.Mesh(makeAirfoilGeo(1.42, 0.20, 0.04), trimMat);
+  frontWingFlap.position.set(0, 0.30, 1.38);
+  frontWingFlap.rotation.x = 0.22;
+  bodyGroup.add(frontWingFlap);
+
+  for (const s of [-1, 1]) {
+    const fEndplate = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.22, 0.48), paintMat);
+    fEndplate.position.set(s * 0.78, 0.30, 1.46);
+    bodyGroup.add(fEndplate);
+
+    const diveplane = new THREE.Mesh(makeAirfoilGeo(0.18, 0.24, 0.025), carbonMat);
+    diveplane.position.set(s * 0.56, 0.38, 1.24);
+    diveplane.rotation.set(0.24, 0, -s * 0.18);
+    bodyGroup.add(diveplane);
+  }
 
   const noseFairing = new THREE.Mesh(new THREE.ConeGeometry(0.44, 0.95, 16), trimMat);
   noseFairing.rotation.x = Math.PI / 2 + 0.18;
@@ -1064,27 +1273,81 @@ function buildKartMesh(charCfg) {
   noseFairing.castShadow = true;
   bodyGroup.add(noseFairing);
 
-  // Sculpted Side Pods & Air Intakes
+  // Sculpted Side Pods (Beveled ExtrudeGeometry) + Air Intakes + Radiator Louver Grilles
+  const podProfile = new THREE.Shape();
+  podProfile.moveTo(-0.68, -0.14);
+  podProfile.lineTo(0.66, -0.14);
+  podProfile.lineTo(0.70, 0.10);
+  podProfile.quadraticCurveTo(0.32, 0.18, -0.25, 0.14);
+  podProfile.lineTo(-0.68, 0.04);
+  podProfile.closePath();
+  const podGeo = new THREE.ExtrudeGeometry(podProfile, {
+    depth: 0.32, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.04, bevelThickness: 0.04
+  });
+  podGeo.translate(0, 0, -0.16);
+  podGeo.rotateY(-Math.PI / 2);
+
   for (const s of [-1, 1]) {
-    const pod = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.30, 1.38), paintMat);
-    pod.position.set(s * 0.78, 0.42, -0.02);
+    const pod = new THREE.Mesh(podGeo, paintMat);
+    pod.position.set(s * 0.78, 0.40, -0.02);
     pod.castShadow = true;
     bodyGroup.add(pod);
 
-    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.08, 1.22), trimMat);
-    stripe.position.set(s * 0.78, 0.46, 0.02);
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.06, 1.18), trimMat);
+    stripe.position.set(s * 0.79, 0.44, 0.02);
     bodyGroup.add(stripe);
 
-    const intake = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.20, 0.12), carbonMat);
-    intake.position.set(s * 0.78, 0.42, 0.66);
+    const intake = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.20, 0.10), carbonMat);
+    intake.position.set(s * 0.78, 0.41, 0.67);
     bodyGroup.add(intake);
+
+    // Side-pod radiator louver grilles
+    for (let l = 0; l < 4; l++) {
+      const louver = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.018, 0.06), carbonMat);
+      louver.position.set(s * 0.78, 0.56 - l * 0.012, -0.18 - l * 0.11);
+      louver.rotation.x = -0.32;
+      bodyGroup.add(louver);
+    }
   }
 
-  // Cockpit Racing Bucket Seat & Steering Column
-  const seatBack = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.58, 0.14), carbonMat);
-  seatBack.position.set(0, 0.72, -0.44);
-  seatBack.rotation.x = -0.22;
-  bodyGroup.add(seatBack);
+  // Multi-Fin Carbon Rear Diffuser
+  const diffuserBase = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.035, 0.42), carbonMat);
+  diffuserBase.position.set(0, 0.20, -1.16);
+  diffuserBase.rotation.x = -0.22;
+  bodyGroup.add(diffuserBase);
+  for (const fx of [-0.42, -0.14, 0.14, 0.42]) {
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.14, 0.38), carbonMat);
+    fin.position.set(fx, 0.18, -1.18);
+    bodyGroup.add(fin);
+  }
+
+  // Cockpit Sculpted Bucket Seat, 4-Point Harness & Flat-Bottom D-Shaped Steering Wheel
+  const seatGroup = new THREE.Group();
+  seatGroup.position.set(0, 0.50, -0.34);
+  const seatPan = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.08, 0.44), carbonMat);
+  seatPan.position.set(0, 0.02, 0.12);
+  const seatBack = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.56, 0.10), carbonMat);
+  seatBack.position.set(0, 0.24, -0.10);
+  seatBack.rotation.x = -0.24;
+  const headPad = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.16, 0.11), trimMat);
+  headPad.position.set(0, 0.50, -0.16);
+  headPad.rotation.x = -0.18;
+  seatGroup.add(seatPan, seatBack, headPad);
+  for (const s of [-1, 1]) {
+    const bolster = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.46, 0.22), trimMat);
+    bolster.position.set(s * 0.26, 0.22, -0.02);
+    bolster.rotation.set(-0.24, 0, s * 0.18);
+    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.44, 0.025), accentMat);
+    strap.position.set(s * 0.13, 0.26, -0.04);
+    strap.rotation.x = -0.24;
+    seatGroup.add(bolster, strap);
+  }
+  const lapBelt = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.04, 0.06), accentMat);
+  lapBelt.position.set(0, 0.07, 0.06);
+  const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.06, 0.04), chromeMat);
+  buckle.position.set(0, 0.08, 0.09);
+  seatGroup.add(lapBelt, buckle);
+  bodyGroup.add(seatGroup);
 
   const steerCol = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.58, 10), carbonMat);
   steerCol.position.set(0, 0.66, 0.48);
@@ -1094,12 +1357,22 @@ function buildKartMesh(charCfg) {
   const steerWheelGroup = new THREE.Group();
   steerWheelGroup.position.set(0, 0.82, 0.36);
   steerWheelGroup.rotation.x = 0.55;
-  const wheelRim = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.028, 10, 20), carbonMat);
-  const wheelHub = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.07, 0.04), accentMat);
-  steerWheelGroup.add(wheelRim, wheelHub);
+  const wheelArc = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.026, 10, 22, Math.PI * 1.42), carbonMat);
+  wheelArc.rotation.z = -Math.PI * 0.21;
+  const wheelFlatBot = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.036, 0.04), carbonMat);
+  wheelFlatBot.position.set(0, -0.145, 0);
+  const wheelHub = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.08, 0.045), accentMat);
+  const dashScreen = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.05, 0.015), telemetryMat);
+  dashScreen.position.set(0, 0.01, -0.026);
+  steerWheelGroup.add(wheelArc, wheelFlatBot, wheelHub, dashScreen);
+  for (const s of [-1, 1]) {
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.029, 0.029, 0.13, 8), trimMat);
+    grip.position.set(s * 0.168, 0.0, 0);
+    steerWheelGroup.add(grip);
+  }
   bodyGroup.add(steerWheelGroup);
 
-  // Double-Wishbone Suspension Arms & Shock Absorbers
+  // Double-Wishbone Suspension Arms & Coilover Shock Absorbers
   for (const s of [-1, 1]) {
     for (const zOff of [0.88, -0.86]) {
       const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.48, 8), carbonMat);
@@ -1107,10 +1380,18 @@ function buildKartMesh(charCfg) {
       arm.position.set(s * 0.68, 0.34, zOff);
       bodyGroup.add(arm);
 
-      const shock = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.36, 8), accentMat);
-      shock.rotation.z = s * 0.48;
-      shock.position.set(s * 0.64, 0.46, zOff);
-      bodyGroup.add(shock);
+      const shockGroup = new THREE.Group();
+      shockGroup.position.set(s * 0.64, 0.46, zOff);
+      shockGroup.rotation.z = s * 0.48;
+      const shock = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.36, 8), chromeMat);
+      shockGroup.add(shock);
+      for (let c = 0; c < 4; c++) {
+        const coil = new THREE.Mesh(new THREE.TorusGeometry(0.046, 0.011, 6, 14), accentMat);
+        coil.rotation.x = Math.PI / 2 + 0.12;
+        coil.position.y = -0.09 + c * 0.06;
+        shockGroup.add(coil);
+      }
+      bodyGroup.add(shockGroup);
     }
   }
 
@@ -1125,11 +1406,11 @@ function buildKartMesh(charCfg) {
   bodyGroup.add(engineGroup);
 
   if (charCfg.kartStyle === 'formula') {
-    // Dual-plane Carbon GT Wing + Endplates
-    const wingMain = new THREE.Mesh(new THREE.BoxGeometry(1.64, 0.06, 0.34), carbonMat);
+    // Dual-plane Carbon GT Airfoil Wing + Sculpted Endplates
+    const wingMain = new THREE.Mesh(makeAirfoilGeo(1.64, 0.34, 0.055), carbonMat);
     wingMain.position.set(0, 1.04, -1.12);
     wingMain.rotation.x = -0.16;
-    const wingUpper = new THREE.Mesh(new THREE.BoxGeometry(1.58, 0.05, 0.22), trimMat);
+    const wingUpper = new THREE.Mesh(makeAirfoilGeo(1.58, 0.22, 0.045), trimMat);
     wingUpper.position.set(0, 1.14, -1.18);
     wingUpper.rotation.x = -0.24;
     bodyGroup.add(wingMain, wingUpper);
@@ -1164,7 +1445,7 @@ function buildKartMesh(charCfg) {
       neon.position.set(s * 0.92, 0.24, 0.0);
       bodyGroup.add(neon);
     }
-    const aeroWing = new THREE.Mesh(new THREE.BoxGeometry(1.56, 0.06, 0.36), accentMat);
+    const aeroWing = new THREE.Mesh(makeAirfoilGeo(1.56, 0.36, 0.055), accentMat);
     aeroWing.position.set(0, 0.96, -1.08);
     aeroWing.rotation.x = -0.18;
     bodyGroup.add(aeroWing);
@@ -1194,13 +1475,13 @@ function buildKartMesh(charCfg) {
     }
     bodyGroup.add(beamBetween(new THREE.Vector3(-0.38,1.28,-0.6),new THREE.Vector3(0.38,1.28,-0.6),0.035,trimMat));
     for (const side of [-1,1]) bodyGroup.add(beamBetween(new THREE.Vector3(side*0.38,1.28,-0.6),new THREE.Vector3(side*0.65,0.5,-1.02),0.035,trimMat));
-    const muscleWing = new THREE.Mesh(new THREE.BoxGeometry(1.68, 0.07, 0.38), trimMat);
+    const muscleWing = new THREE.Mesh(makeAirfoilGeo(1.68, 0.38, 0.06), trimMat);
     muscleWing.position.set(0, 1.12, -1.14);
     muscleWing.rotation.x = -0.2;
     bodyGroup.add(muscleWing);
   }
 
-  // Twin/Quad Exhaust Nozzles + Multi-Stage Flame Cones + Sonic Shockwave Ring
+  // Twin/Quad Exhaust Nozzles + Heat-Blued Inner Tips + Multi-Stage Flame Cones
   const flames = [];
   const flameOuterMat = new THREE.MeshBasicMaterial({ color: 0x38b6ff, transparent: true, opacity: 0.88 });
   const flameCoreMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 });
@@ -1210,6 +1491,15 @@ function buildKartMesh(charCfg) {
     nozzle.rotation.x = Math.PI / 2;
     nozzle.position.set(xOff, 0.48, -1.24);
     bodyGroup.add(nozzle);
+
+    const bluedTip = new THREE.Mesh(new THREE.TorusGeometry(0.088, 0.018, 8, 16), heatBlueMat);
+    bluedTip.position.set(xOff, 0.48, -1.45);
+    bodyGroup.add(bluedTip);
+
+    const innerBore = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.06, 12), carbonMat);
+    innerBore.rotation.x = Math.PI / 2;
+    innerBore.position.set(xOff, 0.48, -1.44);
+    bodyGroup.add(innerBore);
 
     const flameGroup = new THREE.Group();
     flameGroup.position.set(xOff, 0.48, -1.46);
@@ -1450,34 +1740,48 @@ function buildKartMesh(charCfg) {
     pivot.name='wheel-pivot';
     pivot.position.set(wx, wy, wz);
 
-    // Non-rotating Brake Disc & Painted Caliper
+    // Non-rotating Cross-Drilled Brake Disc & Painted Caliper
     const disc = new THREE.Mesh(
-      new THREE.CylinderGeometry(r * 0.62, r * 0.62, 0.04, 16).rotateZ(Math.PI / 2),
-      chromeMat
+      new THREE.CylinderGeometry(r * 0.62, r * 0.62, 0.04, 20).rotateZ(Math.PI / 2),
+      [chromeMat, brakeDiscMat, brakeDiscMat]
     );
     disc.position.x = -sideSign * 0.08;
     const caliper = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.16, 0.14), caliperMat);
     caliper.position.set(-sideSign * 0.08, 0.06, -r * 0.42);
     pivot.add(disc, caliper);
 
-    // Rotating Tire + 5-Spoke Rim
+    // Rotating Tire + Sculpted 5-Spoke Split Alloy Rim + Center-Lock Nut
     const spinGroup = new THREE.Group();
     const tireProfile=[[r*0.65,-w/2],[r*0.9,-w/2],[r,-w*0.35],[r,w*0.35],[r*0.9,w/2],[r*0.65,w/2]];
     const tire = new THREE.Mesh(new THREE.LatheGeometry(tireProfile.map(p=>new THREE.Vector2(...p)),20).rotateZ(Math.PI/2), tireMat);
     tire.castShadow = true;
     spinGroup.add(tire);
+    const barrel = new THREE.Mesh(
+      new THREE.CylinderGeometry(r * 0.64, r * 0.64, w * 0.94, 20, 1, true).rotateZ(Math.PI / 2),
+      carbonMat
+    );
+    spinGroup.add(barrel);
     for(const side of [-1,1]) {
       const rimRing = new THREE.Mesh(new THREE.TorusGeometry(r*0.64,0.025,8,20).rotateY(Math.PI/2),chromeMat);
       rimRing.position.x=side*(w/2+0.01);spinGroup.add(rimRing);
     }
-    const hub=new THREE.Mesh(new THREE.CylinderGeometry(r*0.18,r*0.18,w+0.03,10).rotateZ(Math.PI/2),chromeMat);
+    const hub=new THREE.Mesh(new THREE.CylinderGeometry(r*0.20,r*0.20,w+0.03,12).rotateZ(Math.PI/2),chromeMat);
     spinGroup.add(hub);
+    const centerLockNut = new THREE.Mesh(
+      new THREE.CylinderGeometry(r * 0.10, r * 0.13, 0.045, 6).rotateZ(Math.PI / 2),
+      caliperMat
+    );
+    centerLockNut.position.x = sideSign * (w / 2 + 0.028);
+    spinGroup.add(centerLockNut);
     for (let sp = 0; sp < 5; sp++) {
-      const spoke = new THREE.Mesh(new THREE.BoxGeometry(w + 0.02, r * 0.56, 0.045), accentMat);
-      const angle=sp/5*TAU;
-      spoke.position.set(0,Math.cos(angle)*r*0.34,Math.sin(angle)*r*0.34);
-      spoke.rotation.x=angle;
-      spinGroup.add(spoke);
+      const baseAngle = sp / 5 * TAU;
+      for (const split of [-0.14, 0.14]) {
+        const a = baseAngle + split;
+        const spoke = new THREE.Mesh(new THREE.BoxGeometry(w * 0.84, r * 0.46, 0.026), accentMat);
+        spoke.position.set(sideSign * 0.015, Math.cos(a) * r * 0.37, Math.sin(a) * r * 0.37);
+        spoke.rotation.x = a - split * 0.45;
+        spinGroup.add(spoke);
+      }
     }
     pivot.add(spinGroup);
     chassisFrame.add(pivot);
@@ -1712,7 +2016,7 @@ let itemBoxes = [];
 let animatedProps = [];
 let snowPoints = null;
 
-// Rebuilt worlds own their generated textures; the sky and tire texture are shared.
+// Rebuilt worlds own their generated textures; the sky and shared vehicle textures are retained.
 function disposeObject(root) {
   const geometries = new Set(), materials = new Set(), textures = new Set();
   root.traverse(o => {
@@ -1721,7 +2025,7 @@ function disposeObject(root) {
       if (!m || m === skyMat) continue;
       materials.add(m);
       for (const value of Object.values(m)) {
-        if (value?.isTexture && value !== sharedTireTex) textures.add(value);
+        if (value?.isTexture && !sharedTextures.has(value)) textures.add(value);
       }
     }
     if (o.shadow) o.shadow.dispose();

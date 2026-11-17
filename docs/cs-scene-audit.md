@@ -31,6 +31,6 @@
 
 ### 重跑浏览器检查
 
-可选安装 `npm install --no-save --package-lock=false playwright`，然后 `npx playwright install chromium`，执行 `node scripts/check-cs-browser.mjs`。默认截图和 JSON 报告写入已忽略的 `.cs-qa/`。
+执行 `npm ci`、`npx playwright install chromium`，然后 `npm run test:cs:browser`。默认截图和 JSON 报告写入已忽略的 `.cs-qa/`；PR CI 同样运行该检查，并保存截图和报告 7 天。
 
 已安装 Chrome 时可用 `CS_CHROME` 指定可执行文件；`CS_QA_OUTPUT` 指定截图和报告目录；`PLAYWRIGHT_MODULE` 可复用外部已安装的 Playwright 包。浏览器测试仍从页面真实的 Three.js CDN 加载，不替换引擎。

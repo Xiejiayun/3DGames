@@ -1,6 +1,30 @@
 # 3DGames
 
-浏览器 3D 游戏合集，打开 `index.html` 进入游戏列表。
+基于 Three.js 构建的零外部资源网页 3D 游戏合集（所有几何体、材质与合成音效均由代码实时生成）。在线访问：**https://game.jeremyxie.com/**。
+
+## 游戏列表
+
+| 游戏 | 类型 | 入口 |
+| --- | --- | --- |
+| **Midnight Port · 午夜港口** | 3D 战术射击 (FPS) | [`games/cs.html`](games/cs.html) |
+| **Flappy Bird 3D** | 3D 街机飞行 | [`games/flappy.html`](games/flappy.html) |
+| **Turbo Kart 3D · 极速卡丁车** | 3D 卡丁车竞速 | [`games/kart.html`](games/kart.html) |
+
+## 目录结构
+
+```text
+.
+├── .github/workflows/   # Cloudflare 自动部署工作流
+├── games/               # 单文件 3D 游戏页面
+│   ├── cs.html
+│   ├── flappy.html
+│   └── kart.html
+├── scripts/             # 静态站点构建脚本
+├── index.html           # 游戏合集首页
+├── cloudflare.config.ts # Cloudflare Workers 配置
+├── wrangler.config.ts   # Wrangler 静态资源配置
+└── package.json
+```
 
 ## 自动部署到 Cloudflare
 
@@ -24,7 +48,7 @@
 
 - 每次推送到 `main` 自动校验并部署；Pull Request 只构建和校验，不读取部署凭据。
 - 构建脚本将所有已加入 Git 的 HTML 复制到 `dist/`，保留文件名及子目录结构；只部署该目录。新增 HTML 无需修改工作流；当前页面的脚本和样式均内嵌或引用 CDN。如果以后增加独立 CSS、JS、图片等资源，需要同步调整 `scripts/build-site.mjs` 的收集规则。
-- `index.html` 为首页，游戏页面可通过 `/cs.html`、`/flappy.html` 访问。不存在的路径返回 404。
+- `index.html` 为首页，游戏页面可通过 `/games/cs.html`、`/games/flappy.html`、`/games/kart.html` 访问。不存在的路径返回 404。
 - 同一分支同一时间只运行一个工作流，避免并行发布。手动运行非 `main` 分支只校验，不更新线上站点。
 - 若账户中已存在同名 Worker，部署会更新该 Worker；需要另一个站点时，先修改 `cloudflare.config.ts` 中的 `worker.name`。
 

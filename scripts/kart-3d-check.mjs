@@ -63,6 +63,22 @@ try {
           if (ray.intersectObject(ocean).length) failures.push('sea slices driving clearance');
         }
       }
+      if (id === 2) {
+        for (const name of ['alpine-ice-shell','gondola-cable','gondola-station','frozen-lake']) {
+          if (!qa.world.getObjectByName(name)) failures.push(`missing ${name}`);
+        }
+        const gondolas=qa.props.filter(p=>p.type==='gondola');
+        if(gondolas.length!==3) failures.push('gondola count');
+        qa.animate(1200);
+        for(const ap of gondolas) {
+          const expected=ap.path.getPointAt((1.2*.025+ap.phase)%1);
+          if(ap.mesh.position.distanceTo(expected)>.001) failures.push('gondola detached from cable');
+          if(ap.mesh.position.y-7.8<15) failures.push('gondola enters driving clearance');
+        }
+        qa.world.traverse(o=>{if(o.name==='frosted-pine'&&o.position.y!==-3.2) failures.push('floating pine')});
+        const lake=qa.world.getObjectByName('frozen-lake');
+        if(qa.samples.some(s=>Math.hypot(s.pos.x-lake.position.x,s.pos.z-lake.position.z)<lake.children[0].geometry.parameters.radiusBottom+9.7)) failures.push('lake shore overlaps track');
+      }
       if (id === 1) {
         for (const name of ['forest-cave-shell','forest-suspension-bridge','waterfall-pool','forest-boulder']) {
           if (!qa.world.getObjectByName(name)) failures.push(`missing ${name}`);

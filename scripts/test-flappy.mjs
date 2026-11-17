@@ -7,14 +7,14 @@ import { chromium } from 'playwright';
 const root = new URL('../', import.meta.url);
 const html = await readFile(new URL('games/flappy.html', root), 'utf8');
 const bridge = `window.qa = {
-  THREE, scene, camera, renderer, bird, pipes, chunks, terrainH, lumpy, flock,
+  THREE, scene, camera, renderer, bird, pipes, chunks, terrainH, lumpy, flock, feathers,
   setBird, setQuality, resetGame, startGame, flap, update, animateVisuals,
-  updateCamera, togglePause, CFG, skyMat,
+  updateCamera, togglePause, CFG,
   get state() { return state; }, get birdY() { return birdY; },
   set birdY(v) { birdY = v; }, set scroll(v) { scroll = v; },
   set score(v) { score = v; }, set tod(v) { tod = v; },
   stop() { running = false; adaptive.enabled = false; },
-  render(dt = 0) { animateVisuals(dt); renderer.render(scene, camera); }
+  render(dt = 0) { renderFrame(dt); }
 };`;
 const server = createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -58,6 +58,34 @@ try {
   assert(landscape.seam < 1e-8, 'terrain loop must join continuously');
   assert(landscape.normalError < 1e-6, 'deformed rocks and crowns need updated normals');
   await screenshot('landscape-desktop');
+  const birds = await page.evaluate(() => {
+    const highlightsAttached = qa.bird.glints.every(g => qa.bird.eyes.includes(g.parent) &&
+      Math.abs(g.position.length() - 0.145) < 0.004);
+    const skins = ['blue', 'red', 'yellow'].map(name => {
+      qa.setBird(name); return qa.bird.mats.body.color.getHex();
+    });
+    qa.flap();
+    const particles = qa.feathers.filter(f => f.m.visible).length;
+    qa.resetGame();
+    const cleared = qa.feathers.every(f => f.life === 0 && !f.m.visible);
+    const bodyScales = qa.flock.children.map(b => b.children[0].scale.toArray());
+    qa.render(0.15);
+    const articulated = qa.flock.children.every(b => b.userData.wings.length === 2 &&
+      Math.abs(b.userData.wings[0].rotation.x + b.userData.wings[1].rotation.x) < 1e-10);
+    const stableBodies = qa.flock.children.every((b, i) => b.children[0].scale.toArray().every((v, j) => v === bodyScales[i][j]));
+    return { highlightsAttached, skins, particles, cleared, articulated, stableBodies };
+  });
+  assert(birds.highlightsAttached, 'eye highlights must stay on the eye surface');
+  assert.equal(new Set(birds.skins).size, 3, 'all three skins must remain distinct');
+  assert(birds.particles > 0 && birds.cleared, 'restart must clear previous feather particles');
+  assert(birds.articulated && birds.stableBodies, 'flock wings flap without squashing bodies');
+  for (const skin of ['blue', 'red', 'yellow']) {
+    await page.evaluate(name => {
+      qa.setBird(name); qa.render();
+    }, skin);
+    await screenshot('bird-' + skin);
+  }
+  console.log('PASS Flappy birds:', birds);
   assert.deepEqual(errors, [], 'browser and shader errors');
   console.log('PASS Flappy landscape:', landscape);
 } finally {

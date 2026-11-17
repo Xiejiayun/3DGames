@@ -380,7 +380,7 @@ h3{margin:0 0 10px;font-size:13px;font-weight:800;letter-spacing:.26em;text-tran
 }
 @media (max-width:600px){
   #radar-wrap{left:12px;top:12px;width:104px;height:104px}
-  #zone{left:12px;top:122px;width:104px;font-size:9px}
+  #zone{left:12px;top:122px;width:104px;font-size:9px;line-height:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #objective{top:146px;left:12px;right:12px;transform:none;min-width:0;max-width:none}
   #topright{top:12px;right:12px;max-width:60vw}
   #vitals{left:12px;bottom:18px;width:42vw}
@@ -3156,7 +3156,7 @@ class PhysicsWorld {
   }
 
   _axis(b, axis, sign) {
-    const p = b.pos, r = b.radius, cols = this._query(p.x - r, p.z - r, p.x + r, p.z + r).slice(), E = this.EPS;
+    const p = b.pos, r = b.radius, cols = this._query(p.x - r, p.z - r, p.x + r, p.z + r), E = this.EPS;
     const allow = b.onGround ? b.step : b.airStep;
     for (let i = 0; i < cols.length; i++) {
       const c = cols[i];
@@ -6301,14 +6301,19 @@ class LootSystem {
 
 /* ──────────────────────────────── Showcase ────────────────────────────────── */
 const SHOW_VIEW = {
-  m4: { c: [0, -0.048, -0.105], hx: 0.49, hy: 0.175, gun: true }, ak: { c: [0, -0.07, -0.05], hx: 0.47, hy: 0.165, gun: true },
-  sniper: { c: [0, -0.012, -0.225], hx: 0.68, hy: 0.16, gun: true }, pistol: { c: [0, -0.04, -0.04], hx: 0.16, hy: 0.12, gun: true },
-  vest: { c: [0, 0, 0], hx: 0.21, hy: 0.25, a0: Math.PI - 0.5 }, frag: { c: [0, 0.012, 0], hx: 0.045, hy: 0.062, a0: 0.55 }, smoke: { c: [0, 0.012, 0], hx: 0.045, hy: 0.078, a0: 0.55 },
+  m4: { gun: true }, ak: { gun: true }, sniper: { gun: true }, pistol: { gun: true },
+  vest: { a0: Math.PI - 0.5 }, frag: { a0: 0.55 }, smoke: { a0: 0.55 },
 };
+function previewDistance(radius, halfY, aspect, crop = aspect) {
+  const angle = Math.atan(0.17), sn = Math.sin(angle), cs = Math.cos(angle), tan = Math.tan(14 * DEG);
+  const tx = tan * Math.min(aspect, crop), ty = tan * Math.min(1, aspect / crop);
+  return (radius * cs + halfY * sn + Math.max(radius / tx, (halfY * cs + radius * sn) / ty)) * 1.06;
+}
+
 class Showcase {
   constructor(game) {
     this.game = game; this.ok = false; this.time = 0; this.current = null; this.models = {};
-    this.canvas = document.getElementById('shop-canvas'); this.aspect = 16 / 9; this.tan = Math.tan(14 * DEG);
+    this.canvas = document.getElementById('shop-canvas'); this.aspect = 16 / 9;
     try {
       const q = Quality.cfg();
       const r = (this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: q.antialias, alpha: true, preserveDrawingBuffer: true }));
@@ -6317,30 +6322,49 @@ class Showcase {
       this.scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x4a4038, 2.3));
       const key = new THREE.DirectionalLight(0xfff0dc, 4.4); key.position.set(1.4, 2.2, 1.8); this.scene.add(key);
       const rim = new THREE.DirectionalLight(0x9fc4ff, 2.0); rim.position.set(-1.6, 0.7, -1.4); this.scene.add(rim);
-      this.pivot = new THREE.Group(); this.scene.add(this.pivot); if (q.env) this.scene.environment = buildEnvMap(r); this.ok = true;
+      this.pivot = new THREE.Group(); this.scene.add(this.pivot);
+      this.envTex = q.env ? buildEnvMap(r) : null; this.scene.environment = this.envTex; this.ok = true;
+      this.canvas.addEventListener('webglcontextlost', (event) => { event.preventDefault(); this.ok = false; });
+      this.canvas.addEventListener('webglcontextrestored', () => {
+        if (this.envTex) this.envTex.userData.target.dispose();
+        this.envTex = null; this.ok = true; this.setQuality(); this.thumbs();
+      });
     } catch (err) { this.ok = false; this.canvas.classList.add('hidden'); }
   }
   model(id) {
-    if (!this.models[id]) { const m = this.game.kit.displayModel(id), c = SHOW_VIEW[id].c; m.position.set(-c[0], -c[1], -c[2]); m.visible = false; this.pivot.add(m); this.models[id] = m; }
+    if (!this.models[id]) {
+      const m = this.game.kit.displayModel(id), box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3());
+      m.position.sub(box.getCenter(new THREE.Vector3()));
+      m.userData.previewBounds = { radius: Math.hypot(size.x, size.z) / 2, halfY: size.y / 2 };
+      m.visible = false; this.pivot.add(m); this.models[id] = m;
+    }
     return this.models[id];
   }
   show(id, crop) {
     if (!this.ok || !SHOW_VIEW[id]) return;
-    const v = SHOW_VIEW[id];
     for (const k of Object.keys(this.models)) this.models[k].visible = false;
     this.model(id).visible = true; if (this.current !== id) this.time = 0; this.current = id;
-    const tv = this.tan * Math.min(1, this.aspect / (crop || this.aspect)), dist = Math.max(v.hx / (this.tan * this.aspect), v.hy / tv) * 1.14;
-    this.camera.position.set(0, dist * 0.17, dist); this.camera.lookAt(0, 0, 0);
+    const b = this.model(id).userData.previewBounds, dist = previewDistance(b.radius, b.halfY, this.aspect, crop || this.aspect), angle = Math.atan(0.17);
+    this.camera.position.set(0, dist * Math.sin(angle), dist * Math.cos(angle)); this.camera.lookAt(0, 0, 0);
   }
-  render(angle) { if (!this.ok) return; this.pivot.rotation.y = angle; this.renderer.render(this.scene, this.camera); }
+  setQuality() {
+    if (!this.ok) return;
+    const q = Quality.cfg();
+    this.renderer.toneMapping = q.tone ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+    if (q.env && !this.envTex) this.envTex = buildEnvMap(this.renderer);
+    this.scene.environment = q.env ? this.envTex : null;
+    if (this.current) this.render(this.pivot.rotation.y);
+  }
+  render(angle) { if (!this.ok || this.renderer.getContext().isContextLost()) return; this.pivot.rotation.y = angle; this.renderer.render(this.scene, this.camera); }
   update(dt) { if (!this.ok || !this.current) return; this.time += dt; const v = SHOW_VIEW[this.current]; this.render(v.gun ? -Math.PI / 2 + Math.sin(this.time * 0.75) * 0.8 : v.a0 + this.time * 0.9); }
   snapshot(id, target) {
     if (!this.ok || !target || !target.getContext) return; const ctx = target.getContext('2d'); if (!ctx) return;
-    const w = target.width, h = target.height, crop = w / h, keep = this.current;
+    const w = target.width, h = target.height, crop = w / h, keep = this.current, time = this.time, angle = this.pivot.rotation.y;
     this.show(id, crop); this.render(SHOW_VIEW[id].gun ? -Math.PI / 2 + 0.38 : SHOW_VIEW[id].a0);
-    const sw = this.canvas.width, sh = Math.min(this.canvas.height, Math.round(sw / crop));
-    ctx.clearRect(0, 0, w, h); ctx.drawImage(this.canvas, 0, Math.round((this.canvas.height - sh) / 2), sw, sh, 0, 0, w, h);
-    if (keep) this.show(keep);
+    const scale = Math.min(this.canvas.width / w, this.canvas.height / h), sw = w * scale, sh = h * scale;
+    ctx.clearRect(0, 0, w, h); ctx.drawImage(this.canvas, (this.canvas.width - sw) / 2, (this.canvas.height - sh) / 2, sw, sh, 0, 0, w, h);
+    if (keep) { this.show(keep); this.time = time; this.render(angle); }
+    else { this.models[id].visible = false; this.current = null; this.time = time; }
   }
   thumbs() {
     if (!this.ok) return;
@@ -7063,6 +7087,7 @@ class Game {
     this.pr = Math.min(window.devicePixelRatio || 1, q.pr);
     r.setPixelRatio(this.pr);
     r.setSize(Math.max(1, window.innerWidth), Math.max(1, window.innerHeight), false);
+    this.ui.showcase.setQuality(); this.ui.showcase.thumbs();
     this.ui.syncSettings();
     this.dirty = true;
   }

@@ -1692,6 +1692,7 @@ function makeCheckerTexture() {
 const SAMPLES = 600;
 const ROAD_HALF_W = 7.4;
 const WALL_HALF_W = 9.2;
+const KART_HALF_W = 1.22;
 
 let worldGroup = null;
 let trackSamples = [];
@@ -1966,11 +1967,11 @@ function buildTrackAndWorld(trackCfg) {
   const archMat = new THREE.MeshStandardMaterial({ color: 0x1d2432, roughness: 0.35, metalness: 0.6 });
   for (const side of [-1, 1]) {
     const p = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.58, 7.2, 12), archMat);
-    p.position.set(side * (ROAD_HALF_W + 1.1), 3.6, 0);
+    p.position.set(side * (WALL_HALF_W + 1.2), 3.6, 0);
     finishGroup.add(p);
   }
   const topBeam = new THREE.Mesh(
-    new THREE.BoxGeometry(ROAD_HALF_W * 2 + 3.2, 1.6, 1.2),
+    new THREE.BoxGeometry(WALL_HALF_W * 2 + 3.6, 1.6, 1.2),
     new THREE.MeshPhysicalMaterial({ color: 0xe62e2d, clearcoat: 0.8 })
   );
   topBeam.position.set(0, 7.0, 0);
@@ -2084,18 +2085,20 @@ function buildTrackAndWorld(trackCfg) {
       br.rotation.y = Math.atan2(s.tangent.x, s.tangent.z);
       for (const side of [-1, 1]) {
         const tower = new THREE.Mesh(new THREE.BoxGeometry(1.4, 28, 1.4), pylonMat);
-        tower.position.set(side * (ROAD_HALF_W + 1.6), 12, 0);
+        tower.position.set(side * (WALL_HALF_W + 1.4), 12, 0);
         br.add(tower);
-        for (const zOff of [-14, -7, 7, 14]) {
-          const cable = beamBetween(new THREE.Vector3(side * 9, 24, 0), new THREE.Vector3(side * 9, 0.2, zOff), 0.055, cableMat);
-          br.add(cable);
+        for (const offset of [-10, -5, 5, 10]) {
+          const anchor=trackSamples[(Math.floor(tVal*SAMPLES)+offset+SAMPLES)%SAMPLES];
+          const top=s.pos.clone().addScaledVector(s.right,-side*(WALL_HALF_W+1.4)).add(new THREE.Vector3(0,24,0));
+          const foot=anchor.pos.clone().addScaledVector(anchor.right,-side*(WALL_HALF_W+1.4)).add(new THREE.Vector3(0,0.2,0));
+          worldGroup.add(beamBetween(top,foot,0.055,cableMat));
         }
         const foot = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 3), pylonMat);
-        foot.position.set(side * 9, -1.5, 0); br.add(foot);
+        foot.position.set(side * (WALL_HALF_W+1.4), -1.5, 0); br.add(foot);
         const foundation = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.8, s.pos.y + 17.2, 10), pylonMat);
-        foundation.position.set(side * 9, -(s.pos.y + 21.2) / 2, 0); br.add(foundation);
+        foundation.position.set(side * (WALL_HALF_W+1.4), -(s.pos.y + 21.2) / 2, 0); br.add(foundation);
       }
-      const crossBeam = new THREE.Mesh(new THREE.BoxGeometry(ROAD_HALF_W * 2 + 4.5, 1.4, 1.4), pylonMat);
+      const crossBeam = new THREE.Mesh(new THREE.BoxGeometry(WALL_HALF_W * 2 + 4.5, 1.4, 1.4), pylonMat);
       crossBeam.position.set(0, 22, 0);
       br.add(crossBeam);
       worldGroup.add(br);
@@ -3044,9 +3047,9 @@ function stepRacer(r, dt, nowSec) {
   const nRel = r.pos.clone().sub(ns.pos);
   const nLat = nRel.dot(ns.right);
 
-  if (Math.abs(nLat) > WALL_HALF_W - 0.95) {
+  if (Math.abs(nLat) > WALL_HALF_W - KART_HALF_W) {
     const sign = Math.sign(nLat);
-    const excess = Math.abs(nLat) - (WALL_HALF_W - 0.95);
+    const excess = Math.abs(nLat) - (WALL_HALF_W - KART_HALF_W);
     r.pos.addScaledVector(ns.right, -sign * excess);
     r.speed *= 0.90;
     if (r.speed > 18 && Math.random() < 0.7) {

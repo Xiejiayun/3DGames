@@ -32,7 +32,7 @@ jobs:
       - name: Install deployment tools
         run: npm ci
 
-      - name: Install browser for kart checks
+      - name: Install browser for 3D checks
         run: npx playwright install --with-deps chromium
 
       - name: Check kart 3D scenes
@@ -62,6 +62,19 @@ jobs:
 
       - name: Test CS scene regressions
         run: npm test
+
+      - name: Check CS WebGL scenes
+        run: npm run test:cs:browser
+        env:
+          CS_QA_OUTPUT: ${{ runner.temp }}/cs-screenshots
+
+      - name: Save CS screenshots and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cs-3d-screenshots
+          path: ${{ runner.temp }}/cs-screenshots
+          retention-days: 7
 
       - name: Build static site
         run: npm run build

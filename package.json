@@ -14,6 +14,7 @@
     "test:kart": "node scripts/kart-3d-check.mjs",
     "build": "node scripts/build-site.mjs && cf build --mode production",
     "deploy": "npm run build && cf deploy --prebuilt --mode production",
-    "test": "node --test scripts/test-cs.mjs"
+    "test": "node --test scripts/test-cs.mjs",
+    "test:flappy": "node scripts/test-flappy.mjs"
   }
 }

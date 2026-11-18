@@ -216,6 +216,31 @@
     text-shadow: 0 2px 6px rgba(0,0,0,0.8);
   }
 
+  /* Forward Corner Curvature & Ramp Warning HUD */
+  #cornerHint {
+    position: absolute; top: 162px; left: 50%; transform: translateX(-50%);
+    padding: 6px 16px; border-radius: 999px;
+    background: var(--glass); border: 1px solid var(--line);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.42);
+    font-size: 13px; font-weight: 900; letter-spacing: 0.1em;
+    white-space: nowrap; pointer-events: none; display: none; z-index: 5;
+  }
+  #cornerHint.warn-turn {
+    color: var(--cool); border-color: rgba(92, 225, 255, 0.58);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.42), 0 0 14px rgba(92, 225, 255, 0.25);
+  }
+  #cornerHint.warn-sharp {
+    color: #ff8c42; border-color: rgba(255, 95, 64, 0.72);
+    background: rgba(54, 16, 10, 0.8);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45), 0 0 18px rgba(255, 77, 66, 0.36);
+  }
+  #cornerHint.warn-ramp {
+    color: var(--accent); border-color: rgba(255, 182, 46, 0.72);
+    background: rgba(36, 24, 6, 0.8);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45), 0 0 18px rgba(255, 182, 46, 0.35);
+  }
+
   /* Incoming Missile Warning */
   #missileAlert {
     position: absolute; bottom: 115px; left: 50%; transform: translateX(-50%);
@@ -269,7 +294,7 @@
 
   #centerBanner {
     position: absolute; left: 50%; top: 36%; transform: translate(-50%, -50%);
-    text-align: center; pointer-events: none;
+    width: min(92vw, 560px); text-align: center; pointer-events: none;
   }
   #countdownText {
     font-size: clamp(58px, 12vw, 118px); font-weight: 900; letter-spacing: 0.06em;
@@ -278,16 +303,16 @@
   }
   #countdownText.show { opacity: 1; transform: scale(1); }
   #toastText {
-    margin-top: 8px; font-size: 22px; font-weight: 900; letter-spacing: 0.12em;
+    margin-top: 8px; font-size: clamp(16px, 3.8vw, 22px); font-weight: 900; letter-spacing: 0.12em;
     color: var(--accent); text-shadow: 0 3px 12px rgba(0,0,0,0.85);
     opacity: 0; transition: opacity .18s;
   }
   #toastText.show { opacity: 1; }
   #wrongWay {
-    position: absolute; left: 50%; top: 24%; transform: translateX(-50%);
+    position: absolute; left: 50%; top: 29%; transform: translateX(-50%);
     padding: 8px 22px; border-radius: 999px; background: rgba(220, 38, 38, 0.88);
     font-size: 15px; font-weight: 900; letter-spacing: 0.14em; display: none;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5); z-index: 6;
   }
 
   /* ---------- Mobile Touch Controls ---------- */
@@ -307,9 +332,10 @@
   /* ---------- Pause & Results ---------- */
   #pausePanel, #resultPanel { background: rgba(5, 10, 18, 0.65); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
   .modal-card {
-    pointer-events: auto; width: min(500px, 100%); border-radius: 22px;
-    background: var(--glass-strong); border: 1px solid var(--line); padding: 26px 24px;
-    display: flex; flex-direction: column; align-items: center; gap: 15px; text-align: center;
+    pointer-events: auto; width: min(500px, 100%); max-block-size: calc(100vh - 28px);
+    overflow-y: auto; touch-action: pan-y; border-radius: 22px;
+    background: var(--glass-strong); border: 1px solid var(--line); padding: 22px 22px;
+    display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;
     box-shadow: 0 24px 60px rgba(0,0,0,0.6);
   }
   .modal-title { font-size: 30px; font-weight: 900; letter-spacing: 0.04em; }
@@ -317,6 +343,41 @@
     font-size: 46px; font-weight: 900; color: var(--accent);
     text-shadow: 0 4px 16px rgba(255,182,46,0.4);
   }
+  #resultStats { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+  .rating-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; border-radius: 12px;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+  }
+  .rating-label { font-size: 11.5px; font-weight: 800; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
+  .rating-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 34px; height: 26px; padding: 0 10px; border-radius: 8px;
+    font-size: 15px; font-weight: 900; letter-spacing: 0.06em;
+  }
+  .rating-badge.grade-S {
+    background: linear-gradient(135deg, #ffe066, #ff9f1c); color: #241100;
+    box-shadow: 0 0 16px rgba(255, 182, 46, 0.6);
+  }
+  .rating-badge.grade-A {
+    background: linear-gradient(135deg, #d07fff, #7b2cbf); color: #fff;
+    box-shadow: 0 0 14px rgba(208, 127, 255, 0.45);
+  }
+  .rating-badge.grade-B {
+    background: linear-gradient(135deg, #5ce1ff, #0077b6); color: #041929;
+    box-shadow: 0 0 12px rgba(92, 225, 255, 0.4);
+  }
+  .rating-badge.grade-C {
+    background: rgba(255,255,255,0.14); color: var(--muted); border: 1px solid rgba(255,255,255,0.2);
+  }
+  .telemetry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .tel-card {
+    padding: 8px 10px; border-radius: 10px; text-align: left;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .tel-lbl { font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; color: var(--muted); }
+  .tel-val { font-family: var(--mono); font-size: 15px; font-weight: 900; color: var(--paper); }
   .standings { width: 100%; display: flex; flex-direction: column; gap: 6px; }
   .standing-row {
     display: flex; align-items: center; justify-content: space-between;
@@ -342,6 +403,8 @@
     .choices-3 { grid-template-columns: 1fr; }
     .kart-preview-box { block-size: 72px; }
     #minimapWrap { width: 112px; height: 112px; top: 60px; left: 10px; }
+    #cornerHint { top: 178px; font-size: 11.5px; padding: 5px 12px; max-width: calc(100vw - 24px); }
+    #wrongWay { top: 218px; }
     #dash { width: 196px; right: 12px; bottom: 14px; }
     #hudSpeed { font-size: 32px; }
   }
@@ -433,6 +496,8 @@
       <div id="itemName" data-i18n="noItem">拾取彩虹道具箱 (E)</div>
     </div>
 
+    <div id="cornerHint"></div>
+
     <div id="missileAlert" data-i18n="missileAlert">⚠ 后方导弹锁定！速开护盾或急转！</div>
 
     <div id="centerBanner">
@@ -494,6 +559,7 @@
       <div id="resultRank" class="result-rank">第 1 名</div>
       <div id="resultTime" style="font-family:var(--mono);font-size:18px;color:var(--cool);">01:12.34</div>
       <div id="resultNewBest" style="font-size:13px;font-weight:800;color:var(--ok);display:none;" data-i18n="newRecord">★ 刷新赛道最佳纪录！</div>
+      <div id="resultStats"></div>
       <div id="standingsList" class="standings"></div>
       <div class="btn-row">
         <button id="againBtn" class="btn-primary" data-i18n="raceAgain">再来一局</button>
@@ -4064,7 +4130,18 @@ const I18N = {
     hitMissile: '💥 被追踪导弹击中!', hitBubble: '💧 被水泡困住!', hitBanana: '🍌 踩中香蕉皮打滑!',
     evadeMissile: '🎯 极限机动甩开导弹!',
     finalLap: '🔔 最后一圈!', rankFmt: (n) => `第 ${n} 名`,
-    meTag: ' (你)'
+    meTag: ' (你)',
+    hintRamp: '▲ 前方飞跃跳台',
+    hintSharpLeft: '◀ 急左弯 · 建议漂移',
+    hintSharpRight: '▶ 急右弯 · 建议漂移',
+    hintLeft: '◀ 前方左弯',
+    hintRight: '▶ 前方右弯',
+    lapSplitFmt: (lap, t, d) => `⏱ 第 ${lap} 圈 ${t}${d}`,
+    statRating: '车手评级',
+    statBestLap: '最快单圈',
+    statDrifts: '漂移小喷',
+    statBoostTricks: '加速 / 特技',
+    statItemPlays: '道具攻防'
   },
   en: {
     eyebrow: 'PBR CLEARCOAT 3D KART RACING · ITEM COMBAT & DRIFT',
@@ -4090,7 +4167,18 @@ const I18N = {
     hitMissile: '💥 HIT BY MISSILE!', hitBubble: '💧 TRAPPED IN WATER BUBBLE!', hitBanana: '🍌 BANANA SPIN-OUT!',
     evadeMissile: '🎯 MISSILE EVADED!',
     finalLap: '🔔 FINAL LAP!', rankFmt: (n) => ['#1ST', '#2ND', '#3RD', '#4TH'][n - 1] || `#${n}`,
-    meTag: ' (YOU)'
+    meTag: ' (YOU)',
+    hintRamp: '▲ JUMP RAMP AHEAD',
+    hintSharpLeft: '◀ SHARP LEFT · DRIFT!',
+    hintSharpRight: '▶ SHARP RIGHT · DRIFT!',
+    hintLeft: '◀ LEFT TURN',
+    hintRight: '▶ RIGHT TURN',
+    lapSplitFmt: (lap, t, d) => `⏱ LAP ${lap} ${t}${d}`,
+    statRating: 'DRIVER RATING',
+    statBestLap: 'BEST LAP',
+    statDrifts: 'DRIFTS',
+    statBoostTricks: 'BOOSTS & TRICKS',
+    statItemPlays: 'ITEM PLAYS'
   }
 };
 
@@ -7590,6 +7678,7 @@ function spawnItemEffect(owner, itemId, opts = {}) {
   const dict = I18N[lang];
   if (itemId === 'nitro') {
     owner.boostTimer = 2.6;
+    owner.stats.boostCount++;
     owner.visual.shockRing.material.opacity = 0.95;
     owner.visual.shockRing.scale.setScalar(0.5);
     if (owner.isPlayer) { sfx.boost(); showToast(dict.nitroBoost); }
@@ -7605,6 +7694,7 @@ function spawnItemEffect(owner, itemId, opts = {}) {
       if (d > 0 && d < bestDiff) { bestDiff = d; bestTarget = r; }
     }
     owner.boostTimer = 2.1;
+    owner.stats.boostCount++;
     if (bestTarget) {
       const dir = bestTarget.pos.clone().sub(owner.pos).normalize();
       for (let k = 0; k < 10; k++) {
@@ -7694,7 +7784,7 @@ function updateProjectiles(dt) {
         spawnParticle(p.pos, new THREE.Vector3((Math.random() - 0.5) * 2, 1.5, (Math.random() - 0.5) * 2), 0xff9f1c, 1.1, 0.3);
       }
       if (p.target && dist < 2.2) {
-        inflictHit(p.target, 'missile');
+        inflictHit(p.target, 'missile', p.owner);
         removeProjectileAt(i);
         continue;
       }
@@ -7703,7 +7793,7 @@ function updateProjectiles(dt) {
       for (const r of racers) {
         if (r === p.owner && p.life > 5.8) continue;
         if (r.pos.distanceToSquared(p.pos) < 7.5) {
-          inflictHit(r, 'bubble');
+          inflictHit(r, 'bubble', p.owner);
           removeProjectileAt(i);
           break;
         }
@@ -7713,7 +7803,7 @@ function updateProjectiles(dt) {
       for (const r of racers) {
         if (r === p.owner && p.life > 17.2) continue;
         if (r.pos.distanceToSquared(p.pos) < 3.4) {
-          inflictHit(r, 'banana');
+          inflictHit(r, 'banana', p.owner);
           removeProjectileAt(i);
           break;
         }
@@ -7724,16 +7814,18 @@ function updateProjectiles(dt) {
   $('missileAlert').style.display = playerTargeted ? 'block' : 'none';
 }
 
-function inflictHit(racer, kind) {
+function inflictHit(racer, kind, attacker) {
   const dict = I18N[lang];
   if (racer.shieldTimer > 0) {
     racer.shieldTimer = 0;
+    racer.stats.hitCount++;
     if (racer.isPlayer) { sfx.pickup(); showToast(dict.shieldBlock); }
     for (let k = 0; k < 14; k++) {
       spawnParticle(racer.pos.clone().add(new THREE.Vector3(0, 1, 0)), new THREE.Vector3((Math.random() - 0.5) * 12, 5, (Math.random() - 0.5) * 12), 0xffd166, 1.4, 0.45);
     }
     return;
   }
+  if (attacker && attacker !== racer) attacker.stats.hitCount++;
 
   sfx.explosion();
   if (racer.isPlayer) camShake = 0.65;
@@ -7885,6 +7977,9 @@ function createRacer(charCfg, index, isPlayer) {
     lap: 1,
     checkpoint: 0,
     totalProgress: (startIdx / SAMPLES) - 1,
+    lapTimes: [],
+    lapStartTime: 0,
+    stats: { driftCount: 0, boostCount: 0, trickCount: 0, hitCount: 0 },
     finished: false,
     finishTime: 0,
     aiBaseLane: baseLane,
@@ -7922,6 +8017,7 @@ function startRace() {
   $('toastText').classList.remove('show');
   $('wrongWay').style.display = 'none';
   $('missileAlert').style.display = 'none';
+  $('cornerHint').style.display = 'none';
   $('hudCoins').textContent = '0/10';
   $('hudPos').textContent = `1/${racers.length}`;
   $('hudLap').textContent = `1/${TOTAL_LAPS}`;
@@ -7971,6 +8067,7 @@ window.addEventListener('keydown', (e) => {
     if (p && p.doubleBoostWindow > 0) {
       p.doubleBoostWindow = 0;
       p.boostTimer = Math.max(p.boostTimer, 0.72);
+      p.stats.boostCount++;
       sfx.boost();
       showToast(I18N[lang].doubleBoost);
     }
@@ -8010,6 +8107,7 @@ function triggerPlayerBoost() {
   if (p.boostTimer > 0.35) return;
   p.capsules--;
   p.boostTimer = 2.35;
+  p.stats.boostCount++;
   p.visual.shockRing.material.opacity = 0.95;
   p.visual.shockRing.scale.setScalar(0.5);
   sfx.boost();
@@ -8032,6 +8130,7 @@ function togglePause() {
   if (gameState === 'racing') {
     gameState = 'paused';
     $('pausePanel').classList.add('show');
+    $('cornerHint').style.display = 'none';
     sfx.updateEngine(0, false, false);
   } else if (gameState === 'paused') {
     gameState = 'racing';
@@ -8161,6 +8260,7 @@ function stepRacer(r, dt, nowSec) {
         : r.driftCharge >= 0.42 ? { boost: 0.75, dbl: 0.35, evade: 0, msg: dict.miniTurbo1 }
         : null;
       if (tier) {
+        if (r.stats) r.stats.driftCount++;
         r.boostTimer = Math.max(r.boostTimer, tier.boost);
         r.doubleBoostWindow = tier.dbl;
         if (tier.evade > 0) r.evadeBoostTimer = tier.evade;
@@ -8190,6 +8290,7 @@ function stepRacer(r, dt, nowSec) {
     if (r.draftTimer >= 1.05) {
       r.draftTimer = 0;
       r.boostTimer = Math.max(r.boostTimer, 1.15);
+      r.stats.boostCount++;
       if (r.isPlayer) { sfx.boost(); showToast(dict.slipstream); }
     }
   } else {
@@ -8307,6 +8408,7 @@ function stepRacer(r, dt, nowSec) {
       r.airY = 0.25;
       r.doingTrick = true;
       r.trickAngle = 0;
+      r.stats.trickCount++;
       if (r.isPlayer) sfx.boost();
     }
   }
@@ -8335,6 +8437,7 @@ function stepRacer(r, dt, nowSec) {
     if (r.pos.distanceToSquared(pad.pos) < pad.radius * pad.radius) {
       if (r.boostTimer < 1.0) {
         r.boostTimer = 1.35;
+        r.stats.boostCount++;
         if (r.isPlayer) { sfx.boost(); showToast(dict.boostPad); }
       }
     }
@@ -8376,16 +8479,29 @@ function stepRacer(r, dt, nowSec) {
   if (tNorm > 0.4 && tNorm < 0.65 && r.checkpoint === 0) r.checkpoint = 1;
   if (prevIdx > SAMPLES * 0.85 && r.sampleIdx < SAMPLES * 0.15 && r.checkpoint === 1) {
     r.checkpoint = 0;
-    if (r.lap < TOTAL_LAPS) {
-      r.lap++;
-      if (r.isPlayer) {
-        sfx.lap();
-        if (r.lap === TOTAL_LAPS) showToast(dict.finalLap);
+    if (!r.finished) {
+      const lapDur = raceTime - r.lapStartTime;
+      r.lapTimes.push(lapDur);
+      r.lapStartTime = raceTime;
+      if (r.lap < TOTAL_LAPS) {
+        r.lap++;
+        if (r.isPlayer) {
+          sfx.lap();
+          let deltaStr = '';
+          if (r.lapTimes.length >= 2) {
+            const prevBest = Math.min(...r.lapTimes.slice(0, -1));
+            const delta = lapDur - prevBest;
+            deltaStr = ` (${delta < -0.004 ? '-' : '+'}${Math.abs(delta).toFixed(2)}s)`;
+          }
+          let msg = dict.lapSplitFmt(r.lap - 1, fmtTime(lapDur), deltaStr);
+          if (r.lap === TOTAL_LAPS) msg += ` · ${dict.finalLap}`;
+          showToast(msg);
+        }
+      } else {
+        r.finished = true;
+        r.finishTime = raceTime;
+        if (r.isPlayer) finishRace();
       }
-    } else if (!r.finished) {
-      r.finished = true;
-      r.finishTime = raceTime;
-      if (r.isPlayer) finishRace();
     }
   }
   r.totalProgress = (r.lap - 1) + tNorm;
@@ -8546,6 +8662,7 @@ function finishRace() {
   sfx.updateEngine(0, false, false);
   sfx.win();
   $('missileAlert').style.display = 'none';
+  $('cornerHint').style.display = 'none';
 
   const sorted = [...racers].sort((a, b) => {
     if (a.finished && b.finished) return a.finishTime - b.finishTime;
@@ -8562,6 +8679,41 @@ function finishRace() {
   const isNew = saveBestTime(TRACKS[selectedTrack].id, DIFFS[selectedDiff].id, raceTime);
   $('resultNewBest').style.display = isNew ? 'block' : 'none';
 
+  const player = racers.find(r => r.isPlayer) || racers[0];
+  const statsEl = $('resultStats');
+  if (player && statsEl) {
+    const bestLap = player.lapTimes.length ? Math.min(...player.lapTimes) : raceTime / TOTAL_LAPS;
+    const st = player.stats || { driftCount: 0, boostCount: 0, trickCount: 0, hitCount: 0 };
+    const techScore = st.driftCount * 12 + st.boostCount * 10 + st.trickCount * 15 + st.hitCount * 14;
+    const rankBonus = myRank === 1 ? 60 : myRank === 2 ? 30 : myRank === 3 ? 10 : 0;
+    const totalScore = techScore + rankBonus;
+    const rating = totalScore >= 180 ? 'S' : totalScore >= 120 ? 'A' : totalScore >= 60 ? 'B' : 'C';
+    statsEl.innerHTML = `
+      <div class="rating-row">
+        <span class="rating-label">${dict.statRating}</span>
+        <span class="rating-badge grade-${rating}">${rating}</span>
+      </div>
+      <div class="telemetry-grid">
+        <div class="tel-card">
+          <span class="tel-lbl">${dict.statBestLap}</span>
+          <span class="tel-val">${fmtTime(bestLap)}</span>
+        </div>
+        <div class="tel-card">
+          <span class="tel-lbl">${dict.statDrifts}</span>
+          <span class="tel-val">${st.driftCount}</span>
+        </div>
+        <div class="tel-card">
+          <span class="tel-lbl">${dict.statBoostTricks}</span>
+          <span class="tel-val">${st.boostCount} / ${st.trickCount}</span>
+        </div>
+        <div class="tel-card">
+          <span class="tel-lbl">${dict.statItemPlays}</span>
+          <span class="tel-val">${st.hitCount}</span>
+        </div>
+      </div>
+    `;
+  }
+
   const list = $('standingsList');
   list.innerHTML = '';
   sorted.forEach((r, idx) => {
@@ -8576,8 +8728,67 @@ function finishRace() {
 }
 
 /* ---------------------------------------------------------------------
-   12. Minimap & Radial Speed Lines Overlay
+   12. Minimap, Forward Corner Hint & Radial Speed Lines Overlay
    --------------------------------------------------------------------- */
+function updateCornerHint(player) {
+  const el = $('cornerHint');
+  if (!player || trackSamples.length === 0) {
+    el.className = '';
+    el.style.display = 'none';
+    return;
+  }
+  const dict = I18N[lang];
+  const fwdX = Math.sin(player.heading);
+  const fwdZ = Math.cos(player.heading);
+
+  // Check for upcoming jump ramp ahead along the track
+  let rampAhead = false;
+  for (const ramp of jumpRamps) {
+    const dx = ramp.pos.x - player.pos.x;
+    const dy = ramp.pos.y - player.pos.y;
+    const dz = ramp.pos.z - player.pos.z;
+    const ahead = dx * fwdX + dz * fwdZ;
+    const align = ramp.tangent.x * fwdX + ramp.tangent.z * fwdZ;
+    const perp = Math.abs(dx * fwdZ - dz * fwdX);
+    if (ahead >= 14 && ahead <= 42 && Math.abs(dy) < 10 && perp < ramp.halfWidth + 14 && align > 0.3) {
+      rampAhead = true;
+      break;
+    }
+  }
+
+  if (rampAhead) {
+    el.textContent = dict.hintRamp;
+    el.className = 'warn-ramp';
+    el.style.display = 'block';
+    return;
+  }
+
+  // Sample track tangents ahead (+12 to +34 samples) to detect corner curvature
+  let deltaYaw = 0;
+  const sStart = trackSamples[(player.sampleIdx + 12) % SAMPLES];
+  let yawPrev = Math.atan2(sStart.tangent.x, sStart.tangent.z);
+  for (let step = 13; step <= 34; step++) {
+    const sNext = trackSamples[(player.sampleIdx + step) % SAMPLES];
+    const yawNext = Math.atan2(sNext.tangent.x, sNext.tangent.z);
+    deltaYaw += wrapAngle(yawNext - yawPrev);
+    yawPrev = yawNext;
+  }
+
+  const absYaw = Math.abs(deltaYaw);
+  if (absYaw > 0.55) {
+    el.textContent = deltaYaw > 0 ? dict.hintSharpLeft : dict.hintSharpRight;
+    el.className = 'warn-sharp';
+    el.style.display = 'block';
+  } else if (absYaw > 0.24) {
+    el.textContent = deltaYaw > 0 ? dict.hintLeft : dict.hintRight;
+    el.className = 'warn-turn';
+    el.style.display = 'block';
+  } else {
+    el.className = '';
+    el.style.display = 'none';
+  }
+}
+
 function drawMinimap() {
   const cvs = $('minimap');
   const g = cvs.getContext('2d');
@@ -8812,6 +9023,7 @@ function animate(now) {
         } else if (player.startRevCharge >= 0.62 && player.startRevCharge <= 1.02) {
           player.boostTimer = 1.45;
           player.speed = 26;
+          if (player.stats) player.stats.boostCount++;
           player.visual.shockRing.material.opacity = 0.95;
           player.visual.shockRing.scale.setScalar(0.5);
           sfx.boost();
@@ -8819,6 +9031,7 @@ function animate(now) {
         } else if (player.startRevCharge >= 0.30) {
           player.boostTimer = 0.80;
           player.speed = 20;
+          if (player.stats) player.stats.boostCount++;
           sfx.boost();
           showToast(I18N[lang].goodStart);
         } else {
@@ -8853,6 +9066,7 @@ function animate(now) {
     const s = trackSamples[player.sampleIdx];
     const dot = Math.sin(player.heading) * s.tangent.x + Math.cos(player.heading) * s.tangent.z;
     $('wrongWay').style.display = (dot < -0.4 && player.speed > 5) ? 'block' : 'none';
+    updateCornerHint(player);
 
     const sorted = [...racers].sort((a, b) => b.totalProgress - a.totalProgress);
     const rank = sorted.indexOf(player) + 1;
@@ -8886,6 +9100,7 @@ function animate(now) {
     }
   } else {
     drawSpeedLines(false);
+    $('cornerHint').style.display = 'none';
   }
 
   // Camera System (Chase / Cockpit / Far / Victory Orbit)
@@ -8955,6 +9170,7 @@ function backToMenu() {
   drawSpeedLines(false);
   clearRacers();
   $('hud').style.display = 'none';
+  $('cornerHint').style.display = 'none';
   $('pauseBtn').style.display = 'none';
   $('camBtn').style.display = 'none';
   $('touchControls').style.display = 'none';

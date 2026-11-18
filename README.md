@@ -19,6 +19,7 @@
 ```text
 .
 ├── .github/workflows/   # Cloudflare 自动部署工作流
+├── assets/previews/     # 首页游戏实机截图（WebP）
 ├── games/               # 单文件 3D 游戏页面
 │   ├── cs.html
 │   ├── flappy.html
@@ -29,6 +30,8 @@
 ├── wrangler.config.ts   # Wrangler 静态资源配置
 └── package.json
 ```
+
+首页每张游戏卡片顶部提供可点击的实机截图，并支持中英文图片说明。`assets/previews/` 中的图片来自对应游戏的实际 Three.js 渲染画面，统一为 960 × 540 的 WebP；游戏页面本身不依赖这些首页预览图。更新截图时需将图片加入 Git，构建才会收集它们。
 
 ## 自动部署到 Cloudflare
 
@@ -51,7 +54,7 @@
 ### 部署规则
 
 - 每次推送到 `main` 自动校验并部署；Pull Request 只构建和校验，不读取部署凭据。
-- 构建脚本将所有已加入 Git 的 HTML 复制到 `dist/`，保留文件名及子目录结构；只部署该目录。新增 HTML 无需修改工作流；当前页面的脚本和样式均内嵌或引用 CDN。如果以后增加独立 CSS、JS、图片等资源，需要同步调整 `scripts/build-site.mjs` 的收集规则。
+- 构建脚本将所有已加入 Git 的 HTML 和 `assets/previews/*.webp` 预览图复制到 `dist/`，保留文件名及子目录结构；只部署该目录。新增 HTML 和该目录下的 WebP 无需修改工作流。如果以后增加其他独立 CSS、JS 或图片等资源，需要同步调整 `scripts/build-site.mjs` 的收集规则。
 - `index.html` 为首页，游戏页面可通过 `/games/cs.html`、`/games/flappy.html`、`/games/kart.html` 访问。不存在的路径返回 404。
 - 同一分支同一时间只运行一个工作流，避免并行发布。手动运行非 `main` 分支只校验，不更新线上站点。
 - 若账户中已存在同名 Worker，部署会更新该 Worker；需要另一个站点时，先修改 `cloudflare.config.ts` 中的 `worker.name`。
@@ -63,9 +66,10 @@
 ```sh
 npm ci
 npm run build
+npm run test:home
 npx cf deploy --prebuilt --mode production --dry-run
 ```
 
-以上命令无需 Cloudflare 凭据，也不会上传文件。依赖版本由 `package-lock.json` 固定。
+以上命令无需 Cloudflare 凭据，也不会上传文件。首页检查需要先运行 `npx playwright install chromium`，会验证构建产物中的截图、中英文切换、游戏入口及桌面/平板/手机布局。依赖版本由 `package-lock.json` 固定。
 
 如需回滚，在 Cloudflare 控制台打开该 Worker 的 **Deployments**，选择上一版本回滚；同时回退 GitHub 上对应变更，避免下一次推送再次发布问题版本。

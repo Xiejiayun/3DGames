@@ -79,6 +79,9 @@ jobs:
       - name: Build static site
         run: npm run build
 
+      - name: Check homepage previews and navigation
+        run: npm run test:home
+
       - name: Validate deployment
         run: npx cf deploy --prebuilt --mode production --dry-run
 

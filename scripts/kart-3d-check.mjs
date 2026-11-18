@@ -8,7 +8,7 @@ import { chromium } from 'playwright';
 const html = await readFile(new URL('../games/kart.html', import.meta.url), 'utf8');
 const expose = `globalThis.qa = { THREE, scene, camera, renderer, skyMat, TRACKS, CHARS,
   buildTrackAndWorld, buildKartMesh, startRace, backToMenu, spawnItemEffect,
-  stepRacer, updateProjectiles, animate, disposeObject, previewRenderers, get samples(){return trackSamples},
+  stepRacer, updateProjectiles, animate, animateScarf, updateSunShadow, disposeObject, previewRenderers, get samples(){return trackSamples},
   get world(){return worldGroup}, get racers(){return racers},
   get props(){return animatedProps}, get projectiles(){return activeProjectiles},
   get ramps(){return jumpRamps}, set track(v){selectedTrack=v},
@@ -62,6 +62,32 @@ try {
         if(!hit || hit.point.y<s.pos.y-.1) failures.push('unsupported shoulder gap');
       }
       if (id === 0) {
+        const quay = qa.world.getObjectByName('lighthouse-quay');
+        if (!quay?.getObjectByName('harbor-jetty')) failures.push('missing lighthouse service jetty');
+        if (quay) {
+          const footprint = new qa.THREE.Box3().setFromObject(quay);
+          for (const sample of qa.samples) {
+            const nearest = footprint.clampPoint(sample.pos,new qa.THREE.Vector3());
+            if (Math.hypot(nearest.x-sample.pos.x,nearest.z-sample.pos.z)<9.2) failures.push('quay intersects road envelope');
+          }
+        }
+        const boats = quay?.getObjectsByProperty('name','harbor-rowboat') || [];
+        if (boats.length!==2) failures.push('missing harbor rowboats');
+        for (const boat of boats) {
+          // Sample the footwell beside the diagonal oar and between the seats.
+          const ray = new qa.THREE.Raycaster(boat.localToWorld(new qa.THREE.Vector3(.25,2,-.25)),new qa.THREE.Vector3(0,-1,0));
+          const hit = ray.intersectObject(boat,true)[0];
+          if (!hit || boat.worldToLocal(hit.point.clone()).y>.1) failures.push('rowboat interior must be hollow');
+        }
+        const headland = qa.world.getObjectByName('coastal-headland');
+        if (!headland) failures.push('missing first-corner headland');
+        else for (let station=0;station<qa.samples.length;station+=4) {
+          const sample=qa.samples[station];
+          for (const across of [-9.2,0,9.2]) {
+            const ray=new qa.THREE.Raycaster(sample.pos.clone().addScaledVector(sample.right,across).add(new qa.THREE.Vector3(0,30,0)),new qa.THREE.Vector3(0,-1,0));
+            if (ray.intersectObject(headland).length) failures.push('headland enters driving envelope');
+          }
+        }
         qa.camera.position.set(0,-5,0);qa.renderer.render(qa.scene,qa.camera);
         if(qa.skyMat.uniforms.uUnderwater.value!==1) failures.push('bright sky remains underwater');
         qa.camera.position.y=5;qa.renderer.render(qa.scene,qa.camera);
@@ -87,9 +113,9 @@ try {
         }
         const gondolas=qa.props.filter(p=>p.type==='gondola');
         if(gondolas.length!==3) failures.push('gondola count');
-        qa.animate(1200);
+        const stamp=performance.now(); qa.animate(stamp);
         for(const ap of gondolas) {
-          const expected=ap.path.getPointAt((1.2*.025+ap.phase)%1);
+          const expected=ap.path.getPointAt((stamp*.001*.025+ap.phase)%1);
           if(ap.mesh.position.distanceTo(expected)>.001) failures.push('gondola detached from cable');
           if(ap.mesh.position.y-7.8<15) failures.push('gondola enters driving clearance');
         }
@@ -120,6 +146,42 @@ try {
       qa.updateProjectiles(1/60);
       if (qa.racers.some(r => !Number.isFinite(r.pos.length()))) failures.push('nonfinite racer');
       for (const r of qa.racers) {
+        if (r.charCfg.charStyle==='dao') {
+          if (!r.visual.root.getObjectByName('dao-helmet-stripe') || !r.visual.root.getObjectByName('blaze-wing-flap')) failures.push('missing Dao racing kit');
+          const tails = r.visual.physParts.find(part=>part.mode==='scarf')?.pivot;
+          const ribbons = tails?.children.find(part=>part.geometry?.type==='BufferGeometry');
+          if (!tails || tails.position.x<=0 || !ribbons?.geometry.attributes.uv) failures.push('scarf must stay on driver left');
+          const intakes = r.visual.root.getObjectsByProperty('name','blaze-intake');
+          if (intakes.length!==2 || intakes[0].scale.x*intakes[1].scale.x>=0) failures.push('intakes must be mirrored');
+          const scarf=r.visual.physParts.find(part=>part.mode==='scarf');
+          if (scarf) {
+            qa.animateScarf(scarf,1,1,.4);
+            const positions=scarf.ribbon.geometry.attributes.position;
+            for (const vertex of [0,1,22,23]) {
+              if (Math.abs(positions.getX(vertex)-scarf.rest[vertex*3])>1e-7 || Math.abs(positions.getY(vertex)-scarf.rest[vertex*3+1])>1e-7) failures.push('scarf knot detaches');
+            }
+            const firstTip=positions.getY(20);
+            qa.animateScarf(scarf,1.2,1,.4);
+            if (Math.abs(positions.getY(20)-firstTip)<.001) failures.push('scarf tips do not flutter');
+          }
+          r.visual.root.traverse(part=>{
+            for(const attribute of ['position','normal']) {
+              const values=part.geometry?.attributes[attribute]?.array;
+              if(values && !values.every(Number.isFinite)) failures.push(`invalid vehicle ${attribute}`);
+            }
+          });
+          if(r.visual.root.getObjectsByProperty('name','dao-racing-boot').length!==2) failures.push('missing seated boots');
+          // Check actual exterior winding and cockpit depth, not just part names.
+          r.visual.bodyGroup.updateWorldMatrix(true,true);
+          const body=r.visual.bodyGroup;
+          const down=new qa.THREE.Vector3(0,-1,0).transformDirection(body.matrixWorld);
+          const rayAt=depth=>new qa.THREE.Raycaster(body.localToWorld(new qa.THREE.Vector3(0,2,depth)),down);
+          const nose=body.getObjectByName('blaze-sculpted-nose'), floor=body.getObjectByName('blaze-floorpan');
+          const noseHit=nose && rayAt(1.05).intersectObject(nose)[0];
+          const floorHit=floor && rayAt(0).intersectObject(floor)[0];
+          if(!noseHit || noseHit.face.normal.y<.3) failures.push('nose exterior must face upward');
+          if(!floorHit || body.worldToLocal(floorHit.point.clone()).y>.34) failures.push('cockpit must remain recessed');
+        }
         if (!r.visual.chassisFrame || r.visual.wheels.some(w=>w.parent.parent!==r.visual.chassisFrame)) failures.push('wheels outside chassis frame');
         const headgear=r.visual.headGroup.getObjectByName('open-face-headgear');
         if (!headgear || headgear.geometry.parameters.thetaLength>1.3) failures.push('headgear covers face');
@@ -147,7 +209,7 @@ try {
       const closest=qa.samples.reduce((a,s)=>Math.hypot(s.pos.x-peel.pos.x,s.pos.z-peel.pos.z)<a.distance?
         {distance:Math.hypot(s.pos.x-peel.pos.x,s.pos.z-peel.pos.z),y:s.pos.y}:a,{distance:Infinity});
       if(Math.abs(peel.pos.y-closest.y-.07)>.01 || peel.mesh.children.length!==4) failures.push('banana pose or silhouette');
-      qa.cam=1;qa.animate(2000);
+      qa.cam=1;qa.animate(performance.now());
       const headPos=owner.visual.headGroup.getWorldPosition(new qa.THREE.Vector3());
       if(qa.camera.position.distanceTo(headPos)<.5) failures.push('cockpit inside head');
       qa.cam=0;
@@ -155,6 +217,20 @@ try {
       return { id: qa.TRACKS[id].id, failures };
     }, id);
     assert.deepEqual(result.failures, [], `${result.id}: ${result.failures.join(', ')}`);
+    if (id===0) {
+      await page.evaluate(()=>{
+        qa.startRace(); qa.state='review'; qa.cam=0;
+        const racer=qa.racers[0], sample=qa.samples[58];
+        racer.pos.copy(sample.pos); racer.sampleIdx=58; racer.heading=Math.atan2(sample.tangent.x,sample.tangent.z);
+        qa.stepRacer(racer,0,performance.now()/1000);
+        qa.updateSunShadow();
+        const heading=new qa.THREE.Vector3(Math.sin(racer.heading),0,Math.cos(racer.heading));
+        qa.camera.position.copy(racer.pos).addScaledVector(heading,-7.2); qa.camera.position.y+=3.3;
+        qa.camera.lookAt(racer.pos.clone().addScaledVector(heading,9.5).add(new qa.THREE.Vector3(0,1.1,0)));
+        qa.camera.fov=62; qa.camera.updateProjectionMatrix(); qa.renderer.render(qa.scene,qa.camera);
+      });
+      await page.screenshot({path:join(screenshots,'coast-first-corner.png')});
+    }
     for (const t of [.02, .17, .25, .41, .65, .85]) {
       await page.evaluate(t => {
         const s = qa.samples[Math.floor(t * 600)];
@@ -170,15 +246,19 @@ try {
     console.log(`PASS ${result.id}: geometry, race updates, all items, screenshots`);
   }
   for(let id=0;id<3;id++) {
-    await page.evaluate(id=>{
+    const views = id===0 ? ['front','side','rear'] : ['front'];
+    for (const view of views) {
+    await page.evaluate(({id,view})=>{
       const s=new qa.THREE.Scene();s.background=new qa.THREE.Color(0x24364a);s.environment=qa.scene.environment;
       s.add(new qa.THREE.HemisphereLight(0xffffff,0x243345,1.3));
       const light=new qa.THREE.DirectionalLight(0xffffff,2);light.position.set(3,5,4);s.add(light);
       const kart=qa.buildKartMesh(qa.CHARS[id]);s.add(kart.root);
-      const cam=new qa.THREE.PerspectiveCamera(35,1100/700,.1,30);cam.position.set(3.2,2.1,4.2);cam.lookAt(0,.8,0);
+      const positions={front:[3.2,2.1,4.2],side:[5,1.4,0],rear:[-3.2,1.9,-4.2]};
+      const cam=new qa.THREE.PerspectiveCamera(35,1100/700,.1,30);cam.position.set(...positions[view]);cam.lookAt(0,.8,0);
       qa.renderer.render(s,cam);qa.disposeObject(kart.root);
-    },id);
-    await page.screenshot({path:join(screenshots,`driver-${id}.png`)});
+    },{id,view});
+    await page.screenshot({path:join(screenshots,view==='front'?`driver-${id}.png`:`driver-${id}-${view}.png`)});
+    }
   }
   const memory = await page.evaluate(() => {
     qa.backToMenu();

@@ -502,6 +502,7 @@
   </div>
 </div>
 
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js"}}</script>
 <script type="module">
 const $ = (id) => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -605,9 +606,9 @@ const CHARS = [
   {
     id: 'blaze',
     name: { zh: '皮蛋 · Dao', en: 'Dao · Blaze' },
-    kartName: { zh: '赤焰 GT-K1 (方程式)', en: 'Blaze GT-K1 (Formula)' },
+    kartName: { zh: '赤焰 Sprint 27', en: 'Blaze Sprint 27' },
     tag: { zh: '全能均衡', en: 'Balanced' },
-    desc: { zh: '双叉臂悬挂 + 碳纤维双层尾翼 + 飘扬红尾巾', en: 'Wishbone suspension, carbon wing & flowing scarf.' },
+    desc: { zh: '27 号竞速卡丁车 · 镁色轮毂、外露引擎与全盔车手', en: 'No. 27 sprint kart with bronze wheels, exposed engine and a full-face helmet.' },
     bodyColor: 0xe62e2d, trimColor: 0xf8f9fa, accentColor: 0x2563eb, caliperColor: 0xff2a2a,
     helmetColor: 0x1d4ed8, skinColor: 0xffdfc4, cheekColor: 0xff8da1,
     kartStyle: 'formula', charStyle: 'dao',
@@ -1010,7 +1011,156 @@ function makeTireTreadTex() {
 }
 const sharedTireTex = makeTireTreadTex();
 
+function kartEffects(bodyGroup, charCfg, chromeMat, sprint = false) {
+  // Twin/Quad Exhaust Nozzles + Multi-Stage Flame Cones + Sonic Shockwave Ring
+  const flames = [];
+  const flameOuterMat = new THREE.MeshBasicMaterial({ color: 0x38b6ff, transparent: true, opacity: 0.88 });
+  const flameCoreMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 });
+  const pipeOffsets = sprint ? [-0.76] : charCfg.kartStyle === 'turbine' ? [-0.42, -0.22, 0.22, 0.42] : [-0.32, 0.32];
+  for (const xOff of pipeOffsets) {
+    if (!sprint) {
+      const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.11, 0.44, 14), chromeMat);
+      nozzle.rotation.x = Math.PI / 2;
+      nozzle.name = 'fallback-nozzle';
+      nozzle.position.set(xOff, 0.48, -1.24);
+      bodyGroup.add(nozzle);
+    }
+
+    const flameGroup = new THREE.Group();
+    flameGroup.position.set(xOff, sprint ? 0.58 : 0.48, -1.46);
+    const outer = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.95, 10), flameOuterMat);
+    outer.rotation.x = -Math.PI / 2;
+    outer.position.z = -0.45;
+    const core = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.55, 8), flameCoreMat);
+    core.rotation.x = -Math.PI / 2;
+    core.position.z = -0.25;
+    flameGroup.add(outer, core);
+    flameGroup.visible = false;
+    bodyGroup.add(flameGroup);
+    flames.push({ group: flameGroup, outer });
+  }
+
+  const shockRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.65, 0.045, 10, 24),
+    new THREE.MeshBasicMaterial({ color: 0x5ce1ff, transparent: true, opacity: 0 })
+  );
+  shockRing.position.set(0, 0.55, -1.55);
+  bodyGroup.add(shockRing);
+
+  // Energy Shield Bubble (visible when shield active)
+  const shieldMesh = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(1.65, 1),
+    new THREE.MeshBasicMaterial({ color: 0xffd166, wireframe: true, transparent: true, opacity: 0.55 })
+  );
+  shieldMesh.position.set(0, 0.72, 0);
+  shieldMesh.visible = false;
+  bodyGroup.add(shieldMesh);
+
+  // Water Bubble Trap (visible when trapped by water bomb)
+  const bubbleTrapMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(1.55, 20, 16),
+    new THREE.MeshPhysicalMaterial({ color: 0x48cae4, roughness: 0.08, transmission: 0.65, transparent: true, opacity: 0.62, clearcoat: 1 })
+  );
+  bubbleTrapMesh.position.set(0, 0.75, 0);
+  bubbleTrapMesh.visible = false;
+  bodyGroup.add(bubbleTrapMesh);
+  return { flames, shockRing, shieldMesh, bubbleTrapMesh };
+}
+
+let sprintTemplate;
+const assetLibrary = new Map();
+async function loadRaceAssets() {
+  const { GLTFLoader } = await import('https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/loaders/GLTFLoader.js');
+  const loader = new GLTFLoader();
+  await Promise.all(['coast','forest','alpine','frost','volt','items'].map(async id => {
+    try {
+      const {scene} = await loader.loadAsync(`./assets/${id}.glb`);
+      const root = scene.children.find(obj => obj.userData.assetId === id);
+      if (!root?.userData.gameRig) throw Error('Missing game rig');
+      root.traverse(obj => {
+        obj.visible = !obj.userData.hidden;
+        if(obj.userData.restScale) obj.scale.fromArray(obj.userData.restScale);
+        obj.castShadow = !!obj.userData.casts; obj.receiveShadow = !!obj.userData.receives;
+        if (obj.geometry) obj.geometry.userData.assetShared = true;
+        if (obj.material) {
+          obj.material.userData.assetShared = true;
+          if (obj.userData.wire) obj.material.wireframe = true;
+          if (obj.userData.noDepthWrite) obj.material.depthWrite = false;
+          if (obj.isPoints) obj.material.size = obj.userData.pointSize;
+        }
+      });
+      assetLibrary.set(id,root);
+    } catch(error) { console.warn(`Using procedural fallback for ${id}`,error); }
+  }));
+}
+
+function instantiateRaceAsset(id) {
+  const root=assetLibrary.get(id).clone(true), nodes=new Map();
+  root.traverse(obj=>{if(obj.userData.binding) nodes.set(obj.userData.binding,obj);});
+  function bind(value) {
+    if (!value || typeof value!=='object') return value;
+    if (value.node) return nodes.get(value.node);
+    if (value.vec) return new THREE.Vector3().fromArray(value.vec);
+    if (value.curve) return new THREE.CatmullRomCurve3().fromJSON(value.curve);
+    if (Array.isArray(value)) return value.map(bind);
+    return Object.fromEntries(Object.entries(value).map(([field,entry])=>[field,bind(entry)]));
+  }
+  return {root,rig:bind(root.userData.gameRig)};
+}
+
+function buildPackedKart(id) {
+  const {rig}=instantiateRaceAsset(id);
+  for (const mesh of [rig.brakeLight,rig.shockRing,...rig.flames.map(flame=>flame.outer)]) {
+    mesh.material=mesh.material.clone(); delete mesh.material.userData.assetShared;
+  }
+  return rig;
+}
+async function loadSprintKart() {
+  const { GLTFLoader } = await import('https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/loaders/GLTFLoader.js');
+  const asset = await new GLTFLoader().loadAsync('./assets/sprint-27.glb');
+  const names = ['Fairings','Helmet','Driver','Steering','WheelFL','WheelFR','WheelBL','WheelBR','SleeveL','SleeveR','GloveL','GloveR'];
+  if (!names.every(name => asset.scene.getObjectByName(name))) throw new Error('Incomplete Sprint 27 rig');
+  asset.scene.traverse(node => { if (node.isMesh) { node.castShadow = true; node.geometry.userData.sprintShared = true; node.material.userData.sprintShared = true; } });
+  sprintTemplate = asset.scene;
+}
+
+function buildSprintKart(charCfg) {
+  const root = new THREE.Group(), chassisFrame = new THREE.Group(), bodyGroup = new THREE.Group();
+  root.add(chassisFrame); chassisFrame.add(bodyGroup);
+  const model = sprintTemplate.clone(true);
+  const part = name => model.getObjectByName(name);
+  const driverGroup = part('Driver'), headGroup = part('Helmet'), steerWheelGroup = part('Steering');
+  bodyGroup.add(part('Fairings'), driverGroup, steerWheelGroup); driverGroup.attach(headGroup);
+  const wheels = [], frontSteerGroups = [], armRigs = [];
+  for (const axle of ['F','B']) for (const side of ['L','R']) {
+    const wheel = part(`Wheel${axle}${side}`), pivot = new THREE.Group();
+    pivot.position.copy(wheel.position); chassisFrame.add(pivot); pivot.attach(wheel);
+    wheel.userData.radius = pivot.position.y; wheels.push(wheel);
+    if (axle === 'F') frontSteerGroups.push(pivot);
+  }
+  for (const [side,sign] of [['L',-1],['R',1]]) {
+    const sleeve = part(`Sleeve${side}`), glove = part(`Glove${side}`), lower = new THREE.Group();
+    steerWheelGroup.attach(glove);
+    const elbow = new THREE.Vector3(sign*.39,.81,-.015), wrist = glove.getWorldPosition(new THREE.Vector3());
+    const delta = wrist.clone().sub(elbow), length = delta.length();
+    lower.position.copy(elbow).lerp(wrist,.5); lower.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());
+    lower.attach(sleeve); driverGroup.attach(lower); driverGroup.worldToLocal(elbow);
+    armRigs.push({lower,elbow,glove,length});
+  }
+  const brakeLight = new THREE.Mesh(new THREE.BoxGeometry(.30,.035,.04),new THREE.MeshBasicMaterial({color:0x661111}));
+  brakeLight.position.set(0,.51,-1.43); bodyGroup.add(brakeLight);
+  const dizzyGroup = new THREE.Group(); dizzyGroup.visible = false; dizzyGroup.position.y = .48; headGroup.add(dizzyGroup);
+  for (let index=0;index<4;index++) {
+    const star = new THREE.Mesh(new THREE.OctahedronGeometry(.075),new THREE.MeshBasicMaterial({color:0xffd60a}));
+    star.position.set(.32*Math.cos(index*TAU/4),0,.32*Math.sin(index*TAU/4)); dizzyGroup.add(star);
+  }
+  return { root,chassisFrame,bodyGroup,driverGroup,headGroup,steerWheelGroup,armRigs,wheels,frontSteerGroups,
+    brakeLight,dizzyGroup,eyes:[],physParts:[],fanBlades:[],engineGroup:bodyGroup,...kartEffects(bodyGroup,charCfg,new THREE.MeshStandardMaterial({color:0x858585,metalness:.7,roughness:.36}),true) };
+}
+
 function buildKartMesh(charCfg) {
+  if (assetLibrary.has(charCfg.id)) return buildPackedKart(charCfg.id);
+  if (sprintTemplate && charCfg.id === 'blaze') return buildSprintKart(charCfg);
   const root = new THREE.Group();
   const chassisFrame = new THREE.Group();
   root.add(chassisFrame);
@@ -1050,14 +1200,17 @@ function buildKartMesh(charCfg) {
   const chassisMesh = new THREE.Mesh(chassisGeo, paintMat);
   chassisMesh.position.set(0, 0.46, 0);
   chassisMesh.castShadow = true;
+  chassisMesh.name = 'floorpan';
   bodyGroup.add(chassisMesh);
 
   // Front Carbon Aero Splitter & Nose Wing
   const splitter = new THREE.Mesh(new THREE.BoxGeometry(1.48, 0.05, 0.46), carbonMat);
   splitter.position.set(0, 0.25, 1.46);
+  splitter.name = 'fallback-splitter';
   bodyGroup.add(splitter);
 
   const noseFairing = new THREE.Mesh(new THREE.ConeGeometry(0.44, 0.95, 16), trimMat);
+  noseFairing.name = 'fallback-nose';
   noseFairing.rotation.x = Math.PI / 2 + 0.18;
   noseFairing.scale.set(1.25, 1.0, 0.55);
   noseFairing.position.set(0, 0.48, 1.25);
@@ -1068,15 +1221,18 @@ function buildKartMesh(charCfg) {
   for (const s of [-1, 1]) {
     const pod = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.30, 1.38), paintMat);
     pod.position.set(s * 0.78, 0.42, -0.02);
+    pod.name = 'fallback-pod';
     pod.castShadow = true;
     bodyGroup.add(pod);
 
     const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.08, 1.22), trimMat);
     stripe.position.set(s * 0.78, 0.46, 0.02);
+    stripe.name = 'fallback-pod';
     bodyGroup.add(stripe);
 
     const intake = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.20, 0.12), carbonMat);
     intake.position.set(s * 0.78, 0.42, 0.66);
+    intake.name = 'fallback-pod';
     bodyGroup.add(intake);
   }
 
@@ -1146,6 +1302,7 @@ function buildKartMesh(charCfg) {
     for (const s of [-1, 1]) {
       const duct = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.22, 0.72, 16, 1, true), trimMat);
       duct.material = trimMat.clone(); duct.material.side = THREE.DoubleSide;
+      duct.name = 'fallback-duct';
       duct.rotation.x = Math.PI / 2;
       duct.position.set(s * 0.86, 0.52, -0.15);
       bodyGroup.add(duct);
@@ -1165,6 +1322,7 @@ function buildKartMesh(charCfg) {
       bodyGroup.add(neon);
     }
     const aeroWing = new THREE.Mesh(new THREE.BoxGeometry(1.56, 0.06, 0.36), accentMat);
+    aeroWing.name = 'fallback-wing';
     aeroWing.position.set(0, 0.96, -1.08);
     aeroWing.rotation.x = -0.18;
     bodyGroup.add(aeroWing);
@@ -1182,6 +1340,7 @@ function buildKartMesh(charCfg) {
       }
     }
     const scoop = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.18, 0.38), accentMat);
+    scoop.name = 'fallback-scoop';
     scoop.position.set(0, 0.26, 0.04);
     engineGroup.add(scoop);
 
@@ -1195,60 +1354,13 @@ function buildKartMesh(charCfg) {
     bodyGroup.add(beamBetween(new THREE.Vector3(-0.38,1.28,-0.6),new THREE.Vector3(0.38,1.28,-0.6),0.035,trimMat));
     for (const side of [-1,1]) bodyGroup.add(beamBetween(new THREE.Vector3(side*0.38,1.28,-0.6),new THREE.Vector3(side*0.65,0.5,-1.02),0.035,trimMat));
     const muscleWing = new THREE.Mesh(new THREE.BoxGeometry(1.68, 0.07, 0.38), trimMat);
+    muscleWing.name = 'fallback-wing';
     muscleWing.position.set(0, 1.12, -1.14);
     muscleWing.rotation.x = -0.2;
     bodyGroup.add(muscleWing);
   }
 
-  // Twin/Quad Exhaust Nozzles + Multi-Stage Flame Cones + Sonic Shockwave Ring
-  const flames = [];
-  const flameOuterMat = new THREE.MeshBasicMaterial({ color: 0x38b6ff, transparent: true, opacity: 0.88 });
-  const flameCoreMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 });
-  const pipeOffsets = charCfg.kartStyle === 'turbine' ? [-0.42, -0.22, 0.22, 0.42] : [-0.32, 0.32];
-  for (const xOff of pipeOffsets) {
-    const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.11, 0.44, 14), chromeMat);
-    nozzle.rotation.x = Math.PI / 2;
-    nozzle.position.set(xOff, 0.48, -1.24);
-    bodyGroup.add(nozzle);
-
-    const flameGroup = new THREE.Group();
-    flameGroup.position.set(xOff, 0.48, -1.46);
-    const outer = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.95, 10), flameOuterMat);
-    outer.rotation.x = -Math.PI / 2;
-    outer.position.z = -0.45;
-    const core = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.55, 8), flameCoreMat);
-    core.rotation.x = -Math.PI / 2;
-    core.position.z = -0.25;
-    flameGroup.add(outer, core);
-    flameGroup.visible = false;
-    bodyGroup.add(flameGroup);
-    flames.push({ group: flameGroup, outer });
-  }
-
-  const shockRing = new THREE.Mesh(
-    new THREE.TorusGeometry(0.65, 0.045, 10, 24),
-    new THREE.MeshBasicMaterial({ color: 0x5ce1ff, transparent: true, opacity: 0 })
-  );
-  shockRing.position.set(0, 0.55, -1.55);
-  bodyGroup.add(shockRing);
-
-  // Energy Shield Bubble (visible when shield active)
-  const shieldMesh = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(1.65, 1),
-    new THREE.MeshBasicMaterial({ color: 0xffd166, wireframe: true, transparent: true, opacity: 0.55 })
-  );
-  shieldMesh.position.set(0, 0.72, 0);
-  shieldMesh.visible = false;
-  bodyGroup.add(shieldMesh);
-
-  // Water Bubble Trap (visible when trapped by water bomb)
-  const bubbleTrapMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(1.55, 20, 16),
-    new THREE.MeshPhysicalMaterial({ color: 0x48cae4, roughness: 0.08, transmission: 0.65, transparent: true, opacity: 0.62, clearcoat: 1 })
-  );
-  bubbleTrapMesh.position.set(0, 0.75, 0);
-  bubbleTrapMesh.visible = false;
-  bodyGroup.add(bubbleTrapMesh);
+  const { flames, shockRing, shieldMesh, bubbleTrapMesh } = kartEffects(bodyGroup, charCfg, chromeMat);
 
   /* -------------------------------------------------------------------
      High-Detail Cartoon Driver (Eyes + Glints, Cheeks, Hands, Physics Scarf/Ears/Ponytails)
@@ -1716,9 +1828,9 @@ let snowPoints = null;
 function disposeObject(root) {
   const geometries = new Set(), materials = new Set(), textures = new Set();
   root.traverse(o => {
-    if (o.geometry) geometries.add(o.geometry);
+    if (o.geometry && !o.geometry.userData.sprintShared && !o.geometry.userData.assetShared) geometries.add(o.geometry);
     for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
-      if (!m || m === skyMat) continue;
+      if (!m || m === skyMat || m.userData.sprintShared || m.userData.assetShared) continue;
       materials.add(m);
       for (const value of Object.values(m)) {
         if (value?.isTexture && value !== sharedTireTex) textures.add(value);
@@ -1804,39 +1916,6 @@ function buildTrackAndWorld(trackCfg) {
   const skyDome = new THREE.Mesh(new THREE.SphereGeometry(620, 36, 20), skyMat);
   worldGroup.add(skyDome);
 
-  // Distant Vertex-Colored Mountain Horizon Ring
-  const mtnPos = [], mtnCol = [], mtnIdx = [];
-  const NA = 160, NR = 6, R0 = 260, R1 = 480;
-  const colLow = new THREE.Color(trackCfg.groundColor);
-  const colMid = new THREE.Color(trackCfg.id === 'alpine' ? 0x5c7696 : 0x4b5868);
-  const colPeak = new THREE.Color(0xf4f9ff);
-  const tmpC = new THREE.Color();
-  for (let j = 0; j <= NR; j++) {
-    const t = j / NR, r = R0 + (R1 - R0) * t;
-    const env = Math.sin(t * Math.PI);
-    for (let i = 0; i <= NA; i++) {
-      const a = (i / NA) * TAU;
-      const x = Math.cos(a) * r, z = Math.sin(a) * r + 55;
-      const h = env * (22 + 52 * Math.abs(Math.sin(a * 7 + j * 1.3) * Math.cos(a * 4 - j)));
-      mtnPos.push(x, h - 3, z);
-      tmpC.copy(colLow).lerp(colMid, clamp(h / 35, 0, 1)).lerp(colPeak, clamp((h - 38) / 25, 0, 1));
-      mtnCol.push(tmpC.r, tmpC.g, tmpC.b);
-    }
-  }
-  for (let j = 0; j < NR; j++) {
-    for (let i = 0; i < NA; i++) {
-      const a = j * (NA + 1) + i, b = a + 1, d = a + NA + 1, e = d + 1;
-      mtnIdx.push(a, b, d, b, e, d);
-    }
-  }
-  const mtnGeo = new THREE.BufferGeometry();
-  mtnGeo.setAttribute('position', new THREE.Float32BufferAttribute(mtnPos, 3));
-  mtnGeo.setAttribute('color', new THREE.Float32BufferAttribute(mtnCol, 3));
-  mtnGeo.setIndex(mtnIdx);
-  mtnGeo.computeVertexNormals();
-  worldGroup.add(new THREE.Mesh(mtnGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 })));
-
-  // Lighting
   worldGroup.add(new THREE.HemisphereLight(0xffffff, trackCfg.groundColor, 0.95));
   const sun = new THREE.DirectionalLight(0xfff5e4, 1.65);
   sun.position.set(110, 170, 80);
@@ -1858,7 +1937,56 @@ function buildTrackAndWorld(trackCfg) {
     trackSamples.push({ t, pos, tangent, right });
   }
 
-  // Road, Kerbs & Guardrails
+  if (assetLibrary.has(trackCfg.id)) {
+    const {root,rig}=instantiateRaceAsset(trackCfg.id);
+    worldGroup.add(root);
+    ({boostPads,jumpRamps,itemBoxes,animatedProps,snowPoints}=rig);
+    if(snowPoints) {snowPoints.geometry=snowPoints.geometry.clone(); snowPoints.geometry.userData={...snowPoints.geometry.userData,assetShared:false};}
+    return;
+  }
+  // Distant Vertex-Colored Mountain Horizon Ring
+  const mtnPos = [], mtnCol = [], mtnIdx = [];
+  const NA = 320, NR = 19, R0 = 260, R1 = 480;
+  const alpineRidge=trackCfg.id==='alpine', coastalRidge=trackCfg.id==='coast';
+  const ridgeHash=(x,z)=>{const value=Math.sin(x*127.1+z*311.7)*43758.5453;return value-Math.floor(value)};
+  function ridgeNoise(x,z) {
+    const ix=Math.floor(x),iz=Math.floor(z),fx=x-ix,fz=z-iz;
+    const sx=fx*fx*(3-2*fx),sz=fz*fz*(3-2*fz);
+    return lerp(lerp(ridgeHash(ix,iz),ridgeHash(ix+1,iz),sx),lerp(ridgeHash(ix,iz+1),ridgeHash(ix+1,iz+1),sx),sz);
+  }
+  const colLow = new THREE.Color(trackCfg.groundColor);
+  const colMid = new THREE.Color(trackCfg.id === 'alpine' ? 0x5c7696 : 0x4b5868);
+  const colPeak = new THREE.Color(0xf4f9ff);
+  const tmpC = new THREE.Color();
+  for (let j = 0; j <= NR; j++) {
+    const t = j / NR, r = R0 + (R1 - R0) * t;
+    const env = Math.sin(t * Math.PI);
+    for (let i = 0; i <= NA; i++) {
+      const a = (i / NA) * TAU;
+      const x = Math.cos(a) * r, z = Math.sin(a) * r + 55;
+      const fold=1-Math.abs(2*ridgeNoise(x*.018,z*.018)-1);
+      const massif=ridgeNoise(x*.01,z*.01), scree=ridgeNoise(x*.087,z*.087);
+      const h=env*(9+(alpineRidge?105:coastalRidge?33:61)*massif+(alpineRidge?64:26)*fold**3+11*scree);
+      mtnPos.push(x, h - 3, z);
+      tmpC.copy(colLow).lerp(colMid,clamp(h/60,0,1)).multiplyScalar(.69+.40*fold+.16*scree);
+      if(alpineRidge) tmpC.lerp(colPeak,clamp((h-58-18*fold-11*scree)/14,0,1));
+      mtnCol.push(tmpC.r, tmpC.g, tmpC.b);
+    }
+  }
+  for (let j = 0; j < NR; j++) {
+    for (let i = 0; i < NA; i++) {
+      const a = j * (NA + 1) + i, b = a + 1, d = a + NA + 1, e = d + 1;
+      mtnIdx.push(a, b, d, b, e, d);
+    }
+  }
+  const mtnGeo = new THREE.BufferGeometry();
+  mtnGeo.setAttribute('position', new THREE.Float32BufferAttribute(mtnPos, 3));
+  mtnGeo.setAttribute('color', new THREE.Float32BufferAttribute(mtnCol, 3));
+  mtnGeo.setIndex(mtnIdx);
+  mtnGeo.computeVertexNormals();
+  worldGroup.add(new THREE.Mesh(mtnGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 })));
+
+  // Road, kerbs and guardrails for procedural fallback and offline asset baking.
   const roadPos = [], roadUV = [], roadIdx = [];
   const kerbPos = [], kerbUV = [], kerbIdx = [];
   const wallPos = [], wallIdx = [];
@@ -2497,6 +2625,51 @@ function clearProjectiles() {
   }
 }
 
+function itemVisual(type) {
+  if(assetLibrary.has('items')) {
+    const source=assetLibrary.get('items');
+    const binding=source.userData.gameRig[type].node;
+    return source.children.find(child=>child.userData.binding===binding).clone(true);
+  }
+  if (type === 'banana') {
+    const grp = new THREE.Group();
+    const peelMat = new THREE.MeshStandardMaterial({ color: 0xffd60a, roughness: 0.35 });
+    grp.name='banana-peel';
+    const stem=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.12,0.45,8),peelMat);stem.position.y=0.36;grp.add(stem);
+    for(let n=0;n<3;n++) {
+      const a=n/3*TAU;
+      const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(0,0.45,0),new THREE.Vector3(Math.cos(a)*0.35,0.18,Math.sin(a)*0.35),new THREE.Vector3(Math.cos(a)*0.75,0.07,Math.sin(a)*0.75)]);
+      const peel=new THREE.Mesh(new THREE.TubeGeometry(curve,10,0.13,5,false),peelMat);grp.add(peel);
+    }
+    return grp;
+  }
+  if (type === 'bubble') {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.95, 16, 12),
+      new THREE.MeshPhysicalMaterial({ color: 0x00bbf9, transmission: 0.6, transparent: true, opacity: 0.78, clearcoat: 1 })
+    );
+    return mesh;
+  }
+  if (type === 'missile') {
+    const grp = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 1.35, 10).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xef233c }));
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.48, 10).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xffbe0b }));
+    nose.position.z = 0.85;
+    grp.name='homing-missile';nose.name='missile-nose';
+    grp.add(body, nose);
+    const finMat=new THREE.MeshStandardMaterial({color:0x263645,roughness:0.6});
+    for(let n=0;n<4;n++) {
+      const pivot=new THREE.Group();pivot.rotation.z=n/4*TAU;
+      const fin=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.45,0.42),finMat);fin.position.set(0,0.28,-0.42);pivot.add(fin);grp.add(pivot);
+    }
+    const nozzle=new THREE.Mesh(new THREE.TorusGeometry(0.18,0.055,8,14),finMat);nozzle.position.z=-0.7;grp.add(nozzle);
+    const exhaust=new THREE.Mesh(new THREE.ConeGeometry(0.16,0.5,8).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xff9f1c}));
+    exhaust.position.z=-0.95;grp.add(exhaust);
+    return grp;
+  }
+  throw Error('Unknown kart item: '+type);
+}
+
 function spawnItemEffect(owner, itemId) {
   const dict = I18N[lang];
   if (itemId === 'nitro') {
@@ -2526,15 +2699,7 @@ function spawnItemEffect(owner, itemId) {
     }
     if (owner.isPlayer) { sfx.boost(); showToast('⚡ 闪电磁铁牵引!'); }
   } else if (itemId === 'banana') {
-    const grp = new THREE.Group();
-    const peelMat = new THREE.MeshStandardMaterial({ color: 0xffd60a, roughness: 0.35 });
-    grp.name='banana-peel';
-    const stem=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.12,0.45,8),peelMat);stem.position.y=0.36;grp.add(stem);
-    for(let n=0;n<3;n++) {
-      const a=n/3*TAU;
-      const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(0,0.45,0),new THREE.Vector3(Math.cos(a)*0.35,0.18,Math.sin(a)*0.35),new THREE.Vector3(Math.cos(a)*0.75,0.07,Math.sin(a)*0.75)]);
-      const peel=new THREE.Mesh(new THREE.TubeGeometry(curve,10,0.13,5,false),peelMat);grp.add(peel);
-    }
+    const grp = itemVisual(itemId);
     const backPos = owner.pos.clone().add(new THREE.Vector3(-Math.sin(owner.heading) * 2.6, 0, -Math.cos(owner.heading) * 2.6));
     const sample=trackSamples[findClosestSample(backPos,owner.sampleIdx)];
     backPos.y=sample.pos.y+0.07;
@@ -2544,10 +2709,7 @@ function spawnItemEffect(owner, itemId) {
     activeProjectiles.push({ type: 'banana', owner, mesh: grp, pos: backPos, life: 18.0 });
     if (owner.isPlayer) sfx.beep(420, 0.08);
   } else if (itemId === 'bubble') {
-    const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.95, 16, 12),
-      new THREE.MeshPhysicalMaterial({ color: 0x00bbf9, transmission: 0.6, transparent: true, opacity: 0.78, clearcoat: 1 })
-    );
+    const mesh = itemVisual(itemId);
     const startIdx = (owner.sampleIdx + 18) % SAMPLES;
     const pos = trackSamples[startIdx].pos.clone().add(new THREE.Vector3(0, 1.2, 0));
     mesh.position.copy(pos);
@@ -2559,20 +2721,7 @@ function spawnItemEffect(owner, itemId) {
     const sorted = [...racers].sort((a, b) => b.totalProgress - a.totalProgress);
     const myRank = sorted.indexOf(owner);
     const target = myRank > 0 ? sorted[myRank - 1] : sorted[(myRank + 1) % sorted.length];
-    const grp = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 1.35, 10).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xef233c }));
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.48, 10).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xffbe0b }));
-    nose.position.z = 0.85;
-    grp.name='homing-missile';nose.name='missile-nose';
-    grp.add(body, nose);
-    const finMat=new THREE.MeshStandardMaterial({color:0x263645,roughness:0.6});
-    for(let n=0;n<4;n++) {
-      const pivot=new THREE.Group();pivot.rotation.z=n/4*TAU;
-      const fin=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.45,0.42),finMat);fin.position.set(0,0.28,-0.42);pivot.add(fin);grp.add(pivot);
-    }
-    const nozzle=new THREE.Mesh(new THREE.TorusGeometry(0.18,0.055,8,14),finMat);nozzle.position.z=-0.7;grp.add(nozzle);
-    const exhaust=new THREE.Mesh(new THREE.ConeGeometry(0.16,0.5,8).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xff9f1c}));
-    exhaust.position.z=-0.95;grp.add(exhaust);
+    const grp = itemVisual(itemId);
     const pos = owner.pos.clone().add(new THREE.Vector3(0, 0.9, 0));
     grp.position.copy(pos);
     projectileGroup.add(grp);
@@ -3447,7 +3596,7 @@ const camLookSmooth = new THREE.Vector3();
 
 function animate(now) {
   requestAnimationFrame(animate);
-  const dt = Math.min(0.05, (now - lastTime) / 1000);
+  const dt = clamp((now - lastTime) / 1000, 0, 0.05);
   const nowSec = now * 0.001;
   lastTime = now;
 
@@ -3705,6 +3854,8 @@ window.addEventListener('resize', () => {
   resizeSpeedLines();
 });
 
+/* Asset bootstrap */
+await Promise.all([loadRaceAssets(),loadSprintKart().catch(error=>console.warn('Using procedural Sprint fallback',error))]);
 buildTrackAndWorld(TRACKS[0]);
 applyLang();
 $('loading').classList.add('hide');

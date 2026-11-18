@@ -5,21 +5,21 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const output = join(root, "dist");
-const pages = execFileSync("git", ["ls-files", "-z", "--", "*.html"], {
+const files = execFileSync("git", ["ls-files", "-z", "--", "*.html", "assets/previews/*.webp"], {
   cwd: root,
   encoding: "utf8",
 }).split("\0").filter(Boolean);
 
-if (!pages.includes("index.html")) {
+if (!files.includes("index.html")) {
   throw new Error("A tracked index.html is required as the site homepage.");
 }
 
-// Rebuild the public directory from tracked HTML only, preserving relative paths.
+// Publish tracked pages and game previews, preserving their relative paths.
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
-for (const page of pages) {
-  const destination = join(output, page);
+for (const file of files) {
+  const destination = join(output, file);
   await mkdir(dirname(destination), { recursive: true });
-  await copyFile(join(root, page), destination);
+  await copyFile(join(root, file), destination);
 }
-console.log(`Prepared ${pages.length} HTML pages in dist/.`);
+console.log(`Prepared ${files.length} site files in dist/.`);

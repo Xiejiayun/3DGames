@@ -1,6 +1,6 @@
 # 3DGames
 
-基于 Three.js 构建的零外部资源网页 3D 游戏合集（所有几何体、材质与合成音效均由代码实时生成）。在线访问：**https://game.jeremyxie.com/**。
+基于 Three.js 构建的单页面 3D 游戏合集。在线访问：**https://game.jeremyxie.com/**。
 
 ## 游戏列表
 
@@ -11,6 +11,10 @@
 | **Turbo Kart 3D · 极速卡丁车** | 3D 卡丁车竞速 | [`games/kart.html`](games/kart.html) |
 
 ## 目录结构
+
+**单独玩或分享赛车：** 下载原始 `games/kart.html`，用支持 WebGL 2 的现代浏览器打开即可。三辆赛车及车手、三条赛道、道具和渲染引擎都在这个文件内，不需要 Blender、模型目录、CDN 或本地服务器。
+
+玩法、镜头和光照仍可直接编辑 HTML 中的模块脚本。若要替换某个模型，先执行 `node scripts/pack-kart-html.mjs --extract kart-models`，替换导出目录里的对应 GLB，再执行 `node scripts/pack-kart-html.mjs kart-models` 写回 HTML。正常构建和部署不需要执行这两步。
 
 ```text
 .

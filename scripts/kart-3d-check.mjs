@@ -7,24 +7,29 @@ import { chromium } from 'playwright';
 
 const html = await readFile(new URL('../games/kart.html', import.meta.url), 'utf8');
 const expose = `globalThis.qa = { THREE, scene, camera, renderer, skyMat, TRACKS, CHARS,
-  buildTrackAndWorld, buildKartMesh, startRace, backToMenu, spawnItemEffect,
+  buildTrackAndWorld, buildKartMesh, buildProceduralKart, startRace, backToMenu, spawnItemEffect,
   stepRacer, updateProjectiles, animate, animateScarf, updateSunShadow, disposeObject, previewRenderers, get samples(){return trackSamples},
   get world(){return worldGroup}, get racers(){return racers},
   get props(){return animatedProps}, get projectiles(){return activeProjectiles},
   get ramps(){return jumpRamps}, set track(v){selectedTrack=v},
   set char(v){selectedChar=v}, set state(v){gameState=v}, set cam(v){camMode=v}, get state(){return gameState} };`;
 const instrumented = html.replace(/<\/script>\s*<\/body>/, `${expose}</script></body>`);
-const server = createServer((req, res) => {
+const server = createServer(async (req, res) => {
+  if (req.url!=='/games/kart.html') { res.writeHead(404).end(); return; }
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.end(instrumented);
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const screenshots = process.env.KART_SCREENSHOTS || join(tmpdir(), 'kart-3d-check', String(process.pid));
 await mkdir(screenshots, { recursive: true });
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, executablePath: process.env.KART_BROWSER });
 try {
   const page = await browser.newPage({ viewport: { width: 1100, height: 700 } });
   const errors = [];
+  await page.route(/^https?:/, route=>{
+    if(route.request().url()===`http://127.0.0.1:${server.address().port}/games/kart.html`) return route.continue();
+    errors.push(`Unexpected network request: ${route.request().url()}`);return route.abort();
+  });
   page.on('pageerror', e => errors.push(String(e)));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   // Deterministic static frames avoid timing differences in visual evidence.
@@ -39,6 +44,8 @@ try {
     const result = await page.evaluate(id => {
       qa.track = id; qa.startRace(); qa.state = 'review';
       const failures = [];
+      if (!qa.world.children.some(obj=>obj.userData.assetId===qa.TRACKS[id].id)) failures.push('track GLB fallback');
+      if (!qa.world.getObjectByName('sign-'+qa.TRACKS[id].id)) failures.push('missing illustrated track sign');
       qa.world.traverse(o => {
         const a = o.geometry?.attributes.position?.array;
         if (a && !a.every(Number.isFinite)) failures.push(`nonfinite geometry: ${o.name}`);
@@ -121,7 +128,8 @@ try {
         }
         qa.world.traverse(o=>{if(o.name==='frosted-pine'&&o.position.y!==-3.2) failures.push('floating pine')});
         const lake=qa.world.getObjectByName('frozen-lake');
-        if(qa.samples.some(s=>Math.hypot(s.pos.x-lake.position.x,s.pos.z-lake.position.z)<lake.children[0].geometry.parameters.radiusBottom+9.7)) failures.push('lake shore overlaps track');
+        lake.children[0].geometry.computeBoundingBox();
+        if(qa.samples.some(s=>Math.hypot(s.pos.x-lake.position.x,s.pos.z-lake.position.z)<lake.children[0].geometry.boundingBox.max.x+9.7)) failures.push('lake shore overlaps track');
       }
       if (id === 1) {
         for (const name of ['forest-cave-shell','forest-suspension-bridge','waterfall-pool','forest-boulder']) {
@@ -147,13 +155,14 @@ try {
       if (qa.racers.some(r => !Number.isFinite(r.pos.length()))) failures.push('nonfinite racer');
       for (const r of qa.racers) {
         if (r.charCfg.charStyle==='dao') {
-          if (!r.visual.root.getObjectByName('dao-helmet-stripe') || !r.visual.root.getObjectByName('blaze-wing-flap')) failures.push('missing Dao racing kit');
-          const tails = r.visual.physParts.find(part=>part.mode==='scarf')?.pivot;
+          const fallback=qa.buildProceduralKart(r.charCfg);
+          if (!fallback.root.getObjectByName('dao-helmet-stripe') || !fallback.root.getObjectByName('blaze-wing-flap')) failures.push('missing Dao racing kit');
+          const tails = fallback.physParts.find(part=>part.mode==='scarf')?.pivot;
           const ribbons = tails?.children.find(part=>part.geometry?.type==='BufferGeometry');
           if (!tails || tails.position.x<=0 || !ribbons?.geometry.attributes.uv) failures.push('scarf must stay on driver left');
-          const intakes = r.visual.root.getObjectsByProperty('name','blaze-intake');
+          const intakes = fallback.root.getObjectsByProperty('name','blaze-intake');
           if (intakes.length!==2 || intakes[0].scale.x*intakes[1].scale.x>=0) failures.push('intakes must be mirrored');
-          const scarf=r.visual.physParts.find(part=>part.mode==='scarf');
+          const scarf=fallback.physParts.find(part=>part.mode==='scarf');
           if (scarf) {
             qa.animateScarf(scarf,1,1,.4);
             const positions=scarf.ribbon.geometry.attributes.position;
@@ -164,16 +173,16 @@ try {
             qa.animateScarf(scarf,1.2,1,.4);
             if (Math.abs(positions.getY(20)-firstTip)<.001) failures.push('scarf tips do not flutter');
           }
-          r.visual.root.traverse(part=>{
+          fallback.root.traverse(part=>{
             for(const attribute of ['position','normal']) {
               const values=part.geometry?.attributes[attribute]?.array;
               if(values && !values.every(Number.isFinite)) failures.push(`invalid vehicle ${attribute}`);
             }
           });
-          if(r.visual.root.getObjectsByProperty('name','dao-racing-boot').length!==2) failures.push('missing seated boots');
+          if(fallback.root.getObjectsByProperty('name','dao-racing-boot').length!==2) failures.push('missing seated boots');
           // Check actual exterior winding and cockpit depth, not just part names.
-          r.visual.bodyGroup.updateWorldMatrix(true,true);
-          const body=r.visual.bodyGroup;
+          fallback.bodyGroup.updateWorldMatrix(true,true);
+          const body=fallback.bodyGroup;
           const down=new qa.THREE.Vector3(0,-1,0).transformDirection(body.matrixWorld);
           const rayAt=depth=>new qa.THREE.Raycaster(body.localToWorld(new qa.THREE.Vector3(0,2,depth)),down);
           const nose=body.getObjectByName('blaze-sculpted-nose'), floor=body.getObjectByName('blaze-floorpan');
@@ -181,10 +190,17 @@ try {
           const floorHit=floor && rayAt(0).intersectObject(floor)[0];
           if(!noseHit || noseHit.face.normal.y<.3) failures.push('nose exterior must face upward');
           if(!floorHit || body.worldToLocal(floorHit.point.clone()).y>.34) failures.push('cockpit must remain recessed');
+          qa.disposeObject(fallback.root);
         }
         if (!r.visual.chassisFrame || r.visual.wheels.some(w=>w.parent.parent!==r.visual.chassisFrame)) failures.push('wheels outside chassis frame');
-        const headgear=r.visual.headGroup.getObjectByName('open-face-headgear');
-        if (!headgear || headgear.geometry.parameters.thetaLength>1.3) failures.push('headgear covers face');
+        if (r.visual.bodyGroup.getObjectByName('Fairings')) {
+          if (r.visual.headGroup.name!=='Helmet' || r.visual.wheels.length!==4) failures.push('invalid Sprint 27 rig');
+        } else if (r.visual.root.userData.assetId===r.charCfg.id) {
+          const frost=r.charCfg.id==='frost';
+          if(!r.visual.headGroup || !r.visual.bodyGroup.getObjectByName(frost?'frost-airframe':'volt-coachwork')) failures.push('missing packed driver or custom bodywork');
+          if(frost && (r.visual.fanBlades.length!==2 || r.visual.fanBlades.some(rotor=>!rotor.children.some(child=>child.name.startsWith('frost-impeller'))))) failures.push('impeller detached from rotor');
+          if(!frost && !r.visual.engineGroup.getObjectByName('volt-powerplant')) failures.push('V8 detached from engine rig');
+        } else failures.push('kart GLB fallback');
         for(const rig of r.visual.armRigs) {
           if(rig.glove.parent!==r.visual.steerWheelGroup) failures.push('hands detached from wheel');
         }
@@ -208,7 +224,7 @@ try {
       const peel=qa.projectiles.at(-1);
       const closest=qa.samples.reduce((a,s)=>Math.hypot(s.pos.x-peel.pos.x,s.pos.z-peel.pos.z)<a.distance?
         {distance:Math.hypot(s.pos.x-peel.pos.x,s.pos.z-peel.pos.z),y:s.pos.y}:a,{distance:Infinity});
-      if(Math.abs(peel.pos.y-closest.y-.07)>.01 || peel.mesh.children.length!==4) failures.push('banana pose or silhouette');
+      if(Math.abs(peel.pos.y-closest.y-.07)>.01 || peel.mesh.children.length!==4 || !peel.mesh.userData.binding) failures.push('banana asset, pose or silhouette');
       qa.cam=1;qa.animate(performance.now());
       const headPos=owner.visual.headGroup.getWorldPosition(new qa.THREE.Vector3());
       if(qa.camera.position.distanceTo(headPos)<.5) failures.push('cockpit inside head');
@@ -217,6 +233,22 @@ try {
       return { id: qa.TRACKS[id].id, failures };
     }, id);
     assert.deepEqual(result.failures, [], `${result.id}: ${result.failures.join(', ')}`);
+    await page.evaluate(id=>{
+      const name={forest:'redwood',alpine:'frosted-pine',coast:'palm'}[id];
+      const anchor=qa.world.getObjectByName(name), target=anchor.getWorldPosition(new qa.THREE.Vector3());
+      const distance=id==='forest'?25:14;
+      qa.camera.fov=52;qa.camera.updateProjectionMatrix();
+      qa.camera.position.copy(target).add(new qa.THREE.Vector3(distance*.46,distance*.91,distance));
+      qa.camera.lookAt(target.add(new qa.THREE.Vector3(0,id==='forest'?10:5,0)));qa.renderer.render(qa.scene,qa.camera);
+    },result.id);
+    await page.screenshot({path:join(screenshots,`${result.id}-habitat.png`)});
+    await page.evaluate(id=>{
+      const sign=qa.world.getObjectByName('sign-'+id), target=sign.getWorldPosition(new qa.THREE.Vector3());target.y+=3.4;
+      const direction=sign.getWorldDirection(new qa.THREE.Vector3());
+      qa.camera.position.copy(target).addScaledVector(direction,15);qa.camera.position.y+=1.2;
+      qa.camera.lookAt(target);qa.renderer.render(qa.scene,qa.camera);
+    },result.id);
+    await page.screenshot({path:join(screenshots,`${result.id}-sign.png`)});
     if (id===0) {
       await page.evaluate(()=>{
         qa.startRace(); qa.state='review'; qa.cam=0;
@@ -246,13 +278,14 @@ try {
     console.log(`PASS ${result.id}: geometry, race updates, all items, screenshots`);
   }
   for(let id=0;id<3;id++) {
-    const views = id===0 ? ['front','side','rear'] : ['front'];
+    const views = id===0 ? ['front','side','rear'] : ['front','rear'];
     for (const view of views) {
     await page.evaluate(({id,view})=>{
       const s=new qa.THREE.Scene();s.background=new qa.THREE.Color(0x24364a);s.environment=qa.scene.environment;
       s.add(new qa.THREE.HemisphereLight(0xffffff,0x243345,1.3));
       const light=new qa.THREE.DirectionalLight(0xffffff,2);light.position.set(3,5,4);s.add(light);
       const kart=qa.buildKartMesh(qa.CHARS[id]);s.add(kart.root);
+      if(id===0 && !kart.root.getObjectByName('Fairings')) throw Error('Sprint GLB not loaded');
       const positions={front:[3.2,2.1,4.2],side:[5,1.4,0],rear:[-3.2,1.9,-4.2]};
       const cam=new qa.THREE.PerspectiveCamera(35,1100/700,.1,30);cam.position.set(...positions[view]);cam.lookAt(0,.8,0);
       qa.renderer.render(s,cam);qa.disposeObject(kart.root);

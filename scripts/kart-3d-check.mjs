@@ -7,10 +7,10 @@ import { chromium } from 'playwright';
 
 const html = await readFile(new URL('../games/kart.html', import.meta.url), 'utf8');
 const expose = `globalThis.qa = { THREE, scene, camera, renderer, skyMat, TRACKS, CHARS,
-  buildTrackAndWorld, buildKartMesh, buildProceduralKart, startRace, backToMenu, spawnItemEffect,
-  stepRacer, updateProjectiles, animate, animateScarf, updateSunShadow, disposeObject, previewRenderers,
+  buildTrackAndWorld, buildKartMesh, buildProceduralKart, startRace, backToMenu, spawnItemEffect, rollWeightedItem, inflictHit,
+  stepRacer, resolveKartCollisions, wrapAngle, updateProjectiles, animate, animateScarf, updateSunShadow, disposeObject, previewRenderers,
   updateCornerHint, finishRace, get samples(){return trackSamples},
-  get world(){return worldGroup}, get racers(){return racers},
+  get world(){return worldGroup}, get racers(){return racers}, get coins(){return coinPickups},
   get props(){return animatedProps}, get projectiles(){return activeProjectiles},
   get ramps(){return jumpRamps}, set track(v){selectedTrack=v},
   set char(v){selectedChar=v}, set state(v){gameState=v}, set cam(v){camMode=v}, get state(){return gameState} };`;
@@ -47,6 +47,7 @@ try {
       const failures = [];
       if (!qa.world.children.some(obj=>obj.userData.assetId===qa.TRACKS[id].id)) failures.push('track GLB fallback');
       if (!qa.world.getObjectByName('sign-'+qa.TRACKS[id].id)) failures.push('missing illustrated track sign');
+      if (qa.coins.length !== 18) failures.push(`expected 18 coins, got ${qa.coins.length}`);
       qa.world.traverse(o => {
         const a = o.geometry?.attributes.position?.array;
         if (a && !a.every(Number.isFinite)) failures.push(`nonfinite geometry: ${o.name}`);
@@ -226,6 +227,33 @@ try {
       const closest=qa.samples.reduce((a,s)=>Math.hypot(s.pos.x-peel.pos.x,s.pos.z-peel.pos.z)<a.distance?
         {distance:Math.hypot(s.pos.x-peel.pos.x,s.pos.z-peel.pos.z),y:s.pos.y}:a,{distance:Infinity});
       if(Math.abs(peel.pos.y-closest.y-.07)>.01 || peel.mesh.children.length!==4 || !peel.mesh.userData.binding) failures.push('banana asset, pose or silhouette');
+      qa.spawnItemEffect(owner,'banana',{forward:true});
+      const fwdPeel=qa.projectiles.at(-1);
+      const fwdSample=qa.samples[(owner.sampleIdx+14)%qa.samples.length];
+      if(fwdPeel.pos.clone().sub(owner.pos).dot(qa.samples[owner.sampleIdx].tangent)<=0 || Math.abs(fwdPeel.pos.y-fwdSample.pos.y-.07)>.01) {
+        failures.push('forward banana pose');
+      }
+      const coin = qa.coins.find(c => c.cooldown <= 0);
+      if (!coin) failures.push('no active coin available');
+      else {
+        owner.coins = 0; owner.shieldTimer = 0;
+        const coinSample = qa.samples.reduce((best, s, idx) => {
+          const d = Math.hypot(s.pos.x - coin.pos.x, s.pos.z - coin.pos.z);
+          return d < best.d ? { d, idx } : best;
+        }, { d: Infinity, idx: 0 }).idx;
+        owner.sampleIdx = coinSample;
+        owner.pos.copy(coin.pos); owner.pos.y = qa.samples[coinSample].pos.y;
+        owner.airY = 0; owner.airVy = 0; owner.speed = 10;
+        qa.stepRacer(owner, 1/60, 3);
+        if (owner.coins !== 1 || coin.cooldown <= 0 || coin.mesh.visible) failures.push('coin pickup failed');
+        owner.coins = 5;
+        qa.inflictHit(owner, 'missile');
+        if (owner.coins !== 2) failures.push(`coin drop on hit failed: ${owner.coins}`);
+        owner.shieldTimer = 2.0;
+        qa.inflictHit(owner, 'missile');
+        if (owner.coins !== 2) failures.push(`shielded racer should not drop coins: ${owner.coins}`);
+        owner.shieldTimer = 0; owner.stunTimer = 0; owner.airY = 0; owner.airVy = 0; owner.coins = 0;
+      }
       qa.cam=1;qa.animate(performance.now());
       const headPos=owner.visual.headGroup.getWorldPosition(new qa.THREE.Vector3());
       if(qa.camera.position.distanceTo(headPos)<.5) failures.push('cockpit inside head');
@@ -294,6 +322,76 @@ try {
     await page.screenshot({path:join(screenshots,view==='front'?`driver-${id}.png`:`driver-${id}-${view}.png`)});
     }
   }
+  const tacticalFailures = await page.evaluate(() => {
+    const failures = [];
+    qa.track = 0; qa.startRace(); qa.state = 'racing';
+    const [r1, r2, r3, r4] = qa.racers;
+    r1.totalProgress = 2.6; r2.totalProgress = 2.2; r3.totalProgress = 1.7; r4.totalProgress = 1.1;
+    const rank1Pool = new Set(['banana', 'shield', 'bubble', 'nitro']);
+    const midPool = new Set(['missile', 'bubble', 'shield', 'magnet', 'banana']);
+    const rank4Pool = new Set(['nitro', 'magnet', 'missile', 'shield']);
+    for (let k = 0; k < 120; k++) {
+      const it1 = qa.rollWeightedItem(r1);
+      const it2 = qa.rollWeightedItem(r2);
+      const it4 = qa.rollWeightedItem(r4);
+      if (!rank1Pool.has(it1?.id)) failures.push(`invalid rank1 item: ${it1?.id}`);
+      if (!midPool.has(it2?.id)) failures.push(`invalid mid item: ${it2?.id}`);
+      if (!rank4Pool.has(it4?.id)) failures.push(`invalid rank4 item: ${it4?.id}`);
+    }
+    r1.sampleIdx = 100; r1.pos.copy(qa.samples[100].pos);
+    r1.heading = Math.atan2(qa.samples[100].tangent.x, qa.samples[100].tangent.z);
+    qa.spawnItemEffect(r1, 'bubble', { backward: true });
+    const backBubble = qa.projectiles.at(-1);
+    const backExpected = qa.samples[(100 - 6 + qa.samples.length) % qa.samples.length].pos.clone().add(new qa.THREE.Vector3(0, 1.2, 0));
+    if (backBubble.pos.distanceTo(backExpected) > 0.05) failures.push('backward bubble spawn offset');
+
+    // Extreme maneuver missile evasion (evadeBoostTimer)
+    r1.stunTimer = 0; r1.evadeBoostTimer = 0.75; r1.shieldTimer = 0;
+    qa.spawnItemEffect(r2, 'missile');
+    const missile = qa.projectiles.at(-1);
+    missile.target = r1;
+    missile.pos.copy(r1.pos).add(new qa.THREE.Vector3(0, 0.8, 5));
+    const countBefore = qa.projectiles.length;
+    qa.updateProjectiles(1 / 60);
+    if (qa.projectiles.length !== countBefore - 1 || r1.stunTimer > 0) {
+      failures.push('missile evasion failed to deflect harmlessly');
+    }
+
+    // Smart AI hazard avoidance, corner drifting & rubber-banding
+    const ai = r2;
+    ai.sampleIdx = 40; ai.pos.copy(qa.samples[40].pos);
+    ai.heading = Math.atan2(qa.samples[40].tangent.x, qa.samples[40].tangent.z);
+    ai.aiLane = 0; ai.aiBaseLane = 0; ai.speed = 35;
+    const hazSample = qa.samples[50];
+    qa.spawnItemEffect(r1, 'bubble', { backward: false });
+    const haz = qa.projectiles.at(-1);
+    haz.sampleIdx = 50; haz.pos.copy(hazSample.pos).add(new qa.THREE.Vector3(0, 1.2, 0));
+    for (let step = 0; step < 15; step++) qa.stepRacer(ai, 1 / 60, step / 60);
+    if (Math.abs(ai.aiLane) < 0.3) failures.push(`AI failed to steer away from ahead hazard: ${ai.aiLane}`);
+
+    ai.sampleIdx = 80; ai.pos.copy(qa.samples[80].pos);
+    ai.aiLane = 0; ai.aiBaseLane = 0;
+    ai.heading = Math.atan2(qa.samples[80].tangent.x, qa.samples[80].tangent.z) - 0.65;
+    ai.speed = 32; ai.drifting = false; ai.driftCharge = 0; ai.boostTimer = 0; ai.evadeBoostTimer = 0;
+    qa.stepRacer(ai, 1 / 60, 1);
+    if (!ai.drifting) failures.push('AI failed to initiate corner drift');
+    ai.driftCharge = 0.95;
+    ai.aiLane = 0; ai.aiBaseLane = 0;
+    ai.heading = Math.atan2(qa.samples[94].pos.x - ai.pos.x, qa.samples[94].pos.z - ai.pos.z);
+    qa.stepRacer(ai, 1 / 60, 1.02);
+    if (ai.drifting || ai.boostTimer <= 0 || ai.evadeBoostTimer <= 0.7) {
+      failures.push(`drift release did not grant mini-turbo & evade boost: drifting=${ai.drifting}, boost=${ai.boostTimer}, evade=${ai.evadeBoostTimer}`);
+    }
+
+    r1.totalProgress = 3.0; ai.totalProgress = 0.0;
+    for (let step = 0; step < 30; step++) qa.stepRacer(ai, 1 / 60, 2 + step / 60);
+    if (ai.aiRubber < 0.94 - 1e-6 || ai.aiRubber > 1.06 + 1e-6) failures.push(`aiRubber out of bounds: ${ai.aiRubber}`);
+
+    return failures;
+  });
+  assert.deepEqual(tacticalFailures, [], `tactical checks: ${tacticalFailures.join(', ')}`);
+  console.log('PASS tactical items, directional throws, missile evasion & AI avoidance');
+
   const memory = await page.evaluate(() => {
     qa.backToMenu();
     const counts = [];
@@ -434,7 +532,85 @@ try {
     return failures;
   });
   assert.deepEqual(telemetryCheck, [], `telemetry check: ${telemetryCheck.join(', ')}`);
+
+  let simNow = await page.evaluate(() => performance.now() + 200);
+  await page.evaluate(() => { qa.startRace(); });
+  assert.equal(await page.evaluate(() => qa.state), 'countdown');
+  simNow = await page.evaluate((startNow) => {
+    let t = startNow;
+    for (let i = 0; i < 45; i++) { t += 40; qa.animate(t); }
+    return t;
+  }, simNow);
+  await page.keyboard.down('KeyW');
+  const rocketCheck = await page.evaluate((startNow) => {
+    let t = startNow;
+    for (let i = 0; i < 40; i++) { t += 40; qa.animate(t); }
+    const p = qa.racers[0];
+    return { t, state: qa.state, rev: p.startRevCharge, overheated: p.startOverheated, boost: p.boostTimer, speed: p.speed };
+  }, simNow);
+  await page.keyboard.up('KeyW');
+  simNow = rocketCheck.t;
+  assert.equal(rocketCheck.state, 'racing');
+  assert.equal(rocketCheck.overheated, false);
+  assert.ok(rocketCheck.boost > 1.0 && rocketCheck.speed >= 20, `rocket start failed: ${JSON.stringify(rocketCheck)}`);
+
+  await page.evaluate(() => { qa.startRace(); });
+  await page.keyboard.down('KeyW');
+  const overheatCheck = await page.evaluate((startNow) => {
+    let t = startNow;
+    for (let i = 0; i < 85; i++) { t += 40; qa.animate(t); }
+    const p = qa.racers[0];
+    return { t, state: qa.state, rev: p.startRevCharge, overheated: p.startOverheated, stun: p.stunTimer, speed: p.speed };
+  }, simNow);
+  await page.keyboard.up('KeyW');
+  assert.equal(overheatCheck.state, 'racing');
+  assert.equal(overheatCheck.overheated, true);
+  assert.ok(overheatCheck.stun > 0 && overheatCheck.speed < 10, `overheat start failed: ${JSON.stringify(overheatCheck)}`);
+
+  await page.keyboard.down('ArrowUp');
+  const wallSlideResults = await page.evaluate(() => {
+    qa.track = 0; qa.startRace(); qa.state = 'racing';
+    const out = [];
+    for (const wallSide of [1, -1]) {
+      const r = qa.racers[0];
+      const sIdx = 20;
+      const s = qa.samples[sIdx];
+      const trackYaw = Math.atan2(s.tangent.x, s.tangent.z);
+      r.pos.copy(s.pos).addScaledVector(s.right, wallSide * (9.2 - 1.22 - 0.1));
+      r.sampleIdx = sIdx;
+      r.heading = trackYaw - wallSide * (35 * Math.PI / 180);
+      r.speed = 36; r.wallHitCooldown = 0; r.lateralVel = 0; r.boostTimer = 0;
+      r.airY = 0; r.airVy = 0; r.stunTimer = 0; r.bubbleTimer = 0;
+      const initialErr = Math.abs(qa.wrapAngle(r.heading - trackYaw));
+      const outwardDir = Math.sin(r.heading) * s.right.x + Math.cos(r.heading) * s.right.z;
+      for (let f = 0; f < 15; f++) qa.stepRacer(r, 1 / 60, 10 + f / 60);
+      const ns = qa.samples[r.sampleIdx];
+      const finalYaw = Math.atan2(ns.tangent.x, ns.tangent.z);
+      const finalErr = Math.abs(qa.wrapAngle(r.heading - finalYaw));
+      const finalLat = r.pos.clone().sub(ns.pos).dot(ns.right);
+      out.push({ wallSide, outwardSign: Math.sign(outwardDir), speed: r.speed, initialErr, finalErr, finalLat });
+    }
+    const a = qa.racers[0], b = qa.racers[1];
+    const s = qa.samples[20];
+    const ty = Math.atan2(s.tangent.x, s.tangent.z);
+    a.pos.copy(s.pos); a.sampleIdx = 20; a.heading = ty; a.speed = 38; a.lateralVel = 0;
+    b.pos.copy(s.pos).addScaledVector(s.tangent, 1.4); b.sampleIdx = 20; b.heading = ty; b.speed = 20; b.lateralVel = 0;
+    qa.resolveKartCollisions();
+    const bumpGap = b.pos.distanceTo(a.pos);
+    return { walls: out, bump: { speedA: a.speed, speedB: b.speed, gap: bumpGap } };
+  });
+  await page.keyboard.up('ArrowUp');
+  for (const w of wallSlideResults.walls) {
+    assert.equal(w.outwardSign, w.wallSide, `wall test setup must point outward (side ${w.wallSide})`);
+    assert.ok(w.speed > 36 * 0.70, `wall slide must retain >70% speed on side ${w.wallSide}, got ${w.speed.toFixed(2)}`);
+    assert.ok(w.finalErr < w.initialErr * 0.5, `wall slide must steer heading toward tangent on side ${w.wallSide}: ${w.initialErr.toFixed(3)} -> ${w.finalErr.toFixed(3)}`);
+    assert.ok(Math.abs(w.finalLat) <= 9.2 - 1.22 + 0.05, `racer must stay inside guardrail on side ${w.wallSide}, got lat=${w.finalLat.toFixed(3)}`);
+  }
+  assert.ok(wallSlideResults.bump.speedA < 38 && wallSlideResults.bump.speedA > 28, `rear bump must transfer gentle impulse to trailing kart, got ${wallSlideResults.bump.speedA.toFixed(2)}`);
+  assert.ok(wallSlideResults.bump.speedB > 20, `rear bump must push lead kart forward, got ${wallSlideResults.bump.speedB.toFixed(2)}`);
+  assert.ok(wallSlideResults.bump.gap > 1.4, `kart collision must separate overlapping karts, got gap=${wallSlideResults.bump.gap.toFixed(3)}`);
   assert.deepEqual(errors, [], errors.join('\n'));
+  console.log(`PASS wall-slide (${wallSlideResults.walls.map(w=>`side=${w.wallSide} spd=${w.speed.toFixed(1)} err=${w.initialErr.toFixed(2)}->${w.finalErr.toFixed(2)}`).join('; ')}) & bump (${wallSlideResults.bump.speedA.toFixed(1)}/${wallSlideResults.bump.speedB.toFixed(1)})`);
   console.log(`PASS repeated scene disposal: ${JSON.stringify(memory)}; mobile menu/start; corner hint & telemetry; no browser errors`);
   console.log(`Screenshots: ${screenshots}`);
 } finally {

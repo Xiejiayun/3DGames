@@ -7,9 +7,9 @@ import { chromium } from 'playwright';
 
 const html = await readFile(new URL('../games/kart.html', import.meta.url), 'utf8');
 const expose = `globalThis.qa = { THREE, scene, camera, renderer, skyMat, TRACKS, CHARS,
-  buildTrackAndWorld, buildKartMesh, buildProceduralKart, startRace, backToMenu, spawnItemEffect, rollWeightedItem,
-  stepRacer, updateProjectiles, animate, animateScarf, updateSunShadow, disposeObject, previewRenderers, get samples(){return trackSamples},
-  get world(){return worldGroup}, get racers(){return racers},
+  buildTrackAndWorld, buildKartMesh, buildProceduralKart, startRace, backToMenu, spawnItemEffect, rollWeightedItem, inflictHit,
+  stepRacer, resolveKartCollisions, wrapAngle, updateProjectiles, animate, animateScarf, updateSunShadow, disposeObject, previewRenderers, get samples(){return trackSamples},
+  get world(){return worldGroup}, get racers(){return racers}, get coins(){return coinPickups},
   get props(){return animatedProps}, get projectiles(){return activeProjectiles},
   get ramps(){return jumpRamps}, set track(v){selectedTrack=v},
   set char(v){selectedChar=v}, set state(v){gameState=v}, set cam(v){camMode=v}, get state(){return gameState} };`;
@@ -46,6 +46,7 @@ try {
       const failures = [];
       if (!qa.world.children.some(obj=>obj.userData.assetId===qa.TRACKS[id].id)) failures.push('track GLB fallback');
       if (!qa.world.getObjectByName('sign-'+qa.TRACKS[id].id)) failures.push('missing illustrated track sign');
+      if (qa.coins.length !== 18) failures.push(`expected 18 coins, got ${qa.coins.length}`);
       qa.world.traverse(o => {
         const a = o.geometry?.attributes.position?.array;
         if (a && !a.every(Number.isFinite)) failures.push(`nonfinite geometry: ${o.name}`);
@@ -231,6 +232,27 @@ try {
       if(fwdPeel.pos.clone().sub(owner.pos).dot(qa.samples[owner.sampleIdx].tangent)<=0 || Math.abs(fwdPeel.pos.y-fwdSample.pos.y-.07)>.01) {
         failures.push('forward banana pose');
       }
+      const coin = qa.coins.find(c => c.cooldown <= 0);
+      if (!coin) failures.push('no active coin available');
+      else {
+        owner.coins = 0; owner.shieldTimer = 0;
+        const coinSample = qa.samples.reduce((best, s, idx) => {
+          const d = Math.hypot(s.pos.x - coin.pos.x, s.pos.z - coin.pos.z);
+          return d < best.d ? { d, idx } : best;
+        }, { d: Infinity, idx: 0 }).idx;
+        owner.sampleIdx = coinSample;
+        owner.pos.copy(coin.pos); owner.pos.y = qa.samples[coinSample].pos.y;
+        owner.airY = 0; owner.airVy = 0; owner.speed = 10;
+        qa.stepRacer(owner, 1/60, 3);
+        if (owner.coins !== 1 || coin.cooldown <= 0 || coin.mesh.visible) failures.push('coin pickup failed');
+        owner.coins = 5;
+        qa.inflictHit(owner, 'missile');
+        if (owner.coins !== 2) failures.push(`coin drop on hit failed: ${owner.coins}`);
+        owner.shieldTimer = 2.0;
+        qa.inflictHit(owner, 'missile');
+        if (owner.coins !== 2) failures.push(`shielded racer should not drop coins: ${owner.coins}`);
+        owner.shieldTimer = 0; owner.stunTimer = 0; owner.airY = 0; owner.airVy = 0; owner.coins = 0;
+      }
       qa.cam=1;qa.animate(performance.now());
       const headPos=owner.visual.headGroup.getWorldPosition(new qa.THREE.Vector3());
       if(qa.camera.position.distanceTo(headPos)<.5) failures.push('cockpit inside head');
@@ -408,7 +430,84 @@ try {
     assert.equal(p.renderTarget,false,'previews must not reuse a foreign WebGL render target');
   }
   await page.screenshot({ path: join(screenshots, 'mobile-race.png') });
+  let simNow = await page.evaluate(() => performance.now() + 200);
+  await page.evaluate(() => { qa.startRace(); });
+  assert.equal(await page.evaluate(() => qa.state), 'countdown');
+  simNow = await page.evaluate((startNow) => {
+    let t = startNow;
+    for (let i = 0; i < 45; i++) { t += 40; qa.animate(t); }
+    return t;
+  }, simNow);
+  await page.keyboard.down('KeyW');
+  const rocketCheck = await page.evaluate((startNow) => {
+    let t = startNow;
+    for (let i = 0; i < 40; i++) { t += 40; qa.animate(t); }
+    const p = qa.racers[0];
+    return { t, state: qa.state, rev: p.startRevCharge, overheated: p.startOverheated, boost: p.boostTimer, speed: p.speed };
+  }, simNow);
+  await page.keyboard.up('KeyW');
+  simNow = rocketCheck.t;
+  assert.equal(rocketCheck.state, 'racing');
+  assert.equal(rocketCheck.overheated, false);
+  assert.ok(rocketCheck.boost > 1.0 && rocketCheck.speed >= 20, `rocket start failed: ${JSON.stringify(rocketCheck)}`);
+
+  await page.evaluate(() => { qa.startRace(); });
+  await page.keyboard.down('KeyW');
+  const overheatCheck = await page.evaluate((startNow) => {
+    let t = startNow;
+    for (let i = 0; i < 85; i++) { t += 40; qa.animate(t); }
+    const p = qa.racers[0];
+    return { t, state: qa.state, rev: p.startRevCharge, overheated: p.startOverheated, stun: p.stunTimer, speed: p.speed };
+  }, simNow);
+  await page.keyboard.up('KeyW');
+  assert.equal(overheatCheck.state, 'racing');
+  assert.equal(overheatCheck.overheated, true);
+  assert.ok(overheatCheck.stun > 0 && overheatCheck.speed < 10, `overheat start failed: ${JSON.stringify(overheatCheck)}`);
+
+  await page.keyboard.down('ArrowUp');
+  const wallSlideResults = await page.evaluate(() => {
+    qa.track = 0; qa.startRace(); qa.state = 'racing';
+    const out = [];
+    for (const wallSide of [1, -1]) {
+      const r = qa.racers[0];
+      const sIdx = 20;
+      const s = qa.samples[sIdx];
+      const trackYaw = Math.atan2(s.tangent.x, s.tangent.z);
+      r.pos.copy(s.pos).addScaledVector(s.right, wallSide * (9.2 - 1.22 - 0.1));
+      r.sampleIdx = sIdx;
+      r.heading = trackYaw - wallSide * (35 * Math.PI / 180);
+      r.speed = 36; r.wallHitCooldown = 0; r.lateralVel = 0; r.boostTimer = 0;
+      r.airY = 0; r.airVy = 0; r.stunTimer = 0; r.bubbleTimer = 0;
+      const initialErr = Math.abs(qa.wrapAngle(r.heading - trackYaw));
+      const outwardDir = Math.sin(r.heading) * s.right.x + Math.cos(r.heading) * s.right.z;
+      for (let f = 0; f < 15; f++) qa.stepRacer(r, 1 / 60, 10 + f / 60);
+      const ns = qa.samples[r.sampleIdx];
+      const finalYaw = Math.atan2(ns.tangent.x, ns.tangent.z);
+      const finalErr = Math.abs(qa.wrapAngle(r.heading - finalYaw));
+      const finalLat = r.pos.clone().sub(ns.pos).dot(ns.right);
+      out.push({ wallSide, outwardSign: Math.sign(outwardDir), speed: r.speed, initialErr, finalErr, finalLat });
+    }
+    const a = qa.racers[0], b = qa.racers[1];
+    const s = qa.samples[20];
+    const ty = Math.atan2(s.tangent.x, s.tangent.z);
+    a.pos.copy(s.pos); a.sampleIdx = 20; a.heading = ty; a.speed = 38; a.lateralVel = 0;
+    b.pos.copy(s.pos).addScaledVector(s.tangent, 1.4); b.sampleIdx = 20; b.heading = ty; b.speed = 20; b.lateralVel = 0;
+    qa.resolveKartCollisions();
+    const bumpGap = b.pos.distanceTo(a.pos);
+    return { walls: out, bump: { speedA: a.speed, speedB: b.speed, gap: bumpGap } };
+  });
+  await page.keyboard.up('ArrowUp');
+  for (const w of wallSlideResults.walls) {
+    assert.equal(w.outwardSign, w.wallSide, `wall test setup must point outward (side ${w.wallSide})`);
+    assert.ok(w.speed > 36 * 0.70, `wall slide must retain >70% speed on side ${w.wallSide}, got ${w.speed.toFixed(2)}`);
+    assert.ok(w.finalErr < w.initialErr * 0.5, `wall slide must steer heading toward tangent on side ${w.wallSide}: ${w.initialErr.toFixed(3)} -> ${w.finalErr.toFixed(3)}`);
+    assert.ok(Math.abs(w.finalLat) <= 9.2 - 1.22 + 0.05, `racer must stay inside guardrail on side ${w.wallSide}, got lat=${w.finalLat.toFixed(3)}`);
+  }
+  assert.ok(wallSlideResults.bump.speedA < 38 && wallSlideResults.bump.speedA > 28, `rear bump must transfer gentle impulse to trailing kart, got ${wallSlideResults.bump.speedA.toFixed(2)}`);
+  assert.ok(wallSlideResults.bump.speedB > 20, `rear bump must push lead kart forward, got ${wallSlideResults.bump.speedB.toFixed(2)}`);
+  assert.ok(wallSlideResults.bump.gap > 1.4, `kart collision must separate overlapping karts, got gap=${wallSlideResults.bump.gap.toFixed(3)}`);
   assert.deepEqual(errors, [], errors.join('\n'));
+  console.log(`PASS wall-slide (${wallSlideResults.walls.map(w=>`side=${w.wallSide} spd=${w.speed.toFixed(1)} err=${w.initialErr.toFixed(2)}->${w.finalErr.toFixed(2)}`).join('; ')}) & bump (${wallSlideResults.bump.speedA.toFixed(1)}/${wallSlideResults.bump.speedB.toFixed(1)})`);
   console.log(`PASS repeated scene disposal: ${JSON.stringify(memory)}; mobile menu/start; no browser errors`);
   console.log(`Screenshots: ${screenshots}`);
 } finally {

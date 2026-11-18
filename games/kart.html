@@ -411,7 +411,7 @@
 
       <div class="menu-foot">
         <div class="controls-hint" data-i18n-html="controls">
-          <kbd>W A S D</kbd> / <kbd>↑ ↓ ← →</kbd> 驾驶 · <kbd>Shift</kbd> 四阶漂移(松开小喷) · <kbd>Space</kbd> 氮气爆发 · <kbd>E</kbd> / <kbd>右键</kbd> 释放道具 · <kbd>V</kbd> 视角
+          <kbd>W A S D</kbd> / <kbd>↑ ↓ ← →</kbd> 驾驶(3-2-1 蓄力起步) · <kbd>Shift</kbd> 四阶漂移(松开小喷) · <kbd>Space</kbd> 氮气爆发 · <kbd>E</kbd> / <kbd>右键</kbd> 释放道具 · <kbd>V</kbd> 视角
         </div>
         <button id="startBtn" class="btn-primary" data-i18n="startRace">开始锦标赛</button>
       </div>
@@ -425,6 +425,7 @@
       <div class="ri-block"><span class="ri-lbl" data-i18n="hudPos">排名</span><span id="hudPos" class="ri-val">1/4</span></div>
       <div class="ri-block"><span class="ri-lbl" data-i18n="hudLap">圈数</span><span id="hudLap" class="ri-val">1/3</span></div>
       <div class="ri-block"><span class="ri-lbl" data-i18n="hudTime">用时</span><span id="hudTime" class="ri-val">00:00.00</span></div>
+      <div class="ri-block"><span class="ri-lbl">🪙</span><span id="hudCoins" class="ri-val" style="color:#ffd60a;">0/10</span></div>
     </div>
 
     <div id="itemSlotWrap">
@@ -4007,6 +4008,10 @@ const $ = (id) => document.getElementById(id);
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
+const wrapAngle = (a) => {
+  if (!Number.isFinite(a)) return 0;
+  return a - TAU * Math.floor((a + Math.PI) / TAU);
+};
 
 function showError(msg) {
   const box = $('errBox');
@@ -4040,7 +4045,7 @@ const I18N = {
     pickChar: '1. 选择车手与专属旗舰赛车（3D 实时预览）',
     pickTrack: '2. 选择多层立体主题赛道',
     pickDiff: '3. 选择锦标赛难度',
-    controls: '<kbd>W A S D</kbd> / <kbd>↑ ↓ ← →</kbd> 驾驶 · <kbd>Shift</kbd> 四阶漂移(松开小喷) · <kbd>Space</kbd> 氮气爆发 · <kbd>E</kbd> / <kbd>右键</kbd> 释放道具 · <kbd>V</kbd> 视角',
+    controls: '<kbd>W A S D</kbd> / <kbd>↑ ↓ ← →</kbd> 驾驶(3-2-1 蓄力起步) · <kbd>Shift</kbd> 四阶漂移(松开小喷) · <kbd>Space</kbd> 氮气爆发 · <kbd>E</kbd> / <kbd>右键</kbd> 释放道具 · <kbd>V</kbd> 视角',
     startRace: '开始锦标赛',
     hudPos: '排名', hudLap: '圈数', hudTime: '用时',
     noItem: '拾取彩虹道具箱 (E)',
@@ -4053,6 +4058,7 @@ const I18N = {
     statSpd: '极速', statAcc: '加速', statDrf: '漂移',
     laps: '3 圈', bestPrefix: '最佳纪录: ', noBest: '暂无纪录',
     go: 'GO!', miniTurbo1: '蓝火小喷!', miniTurbo2: '橙火强力喷!', miniTurbo3: '紫火极限爆发!',
+    rocketStart: '🚀 完美起步喷!', goodStart: '⚡ 起步小喷!', overheatStart: '💨 引擎过热打滑!',
     doubleBoost: '⚡ 断位双喷!', slipstream: '💨 尾流冲刺!', trickBoost: '✨ 空中特技 + 落地喷!',
     nitroBoost: '🔥 N2O 氮气爆发!', boostPad: '⚡ 加速带冲刺!', shieldBlock: '🛡️ 能量护盾抵挡攻击!',
     hitMissile: '💥 被追踪导弹击中!', hitBubble: '💧 被水泡困住!', hitBanana: '🍌 踩中香蕉皮打滑!',
@@ -4065,7 +4071,7 @@ const I18N = {
     pickChar: '1. Select Driver & Flagship Kart (Live 3D)',
     pickTrack: '2. Select Multi-Zone Track',
     pickDiff: '3. Select Grand Prix Class',
-    controls: '<kbd>W A S D</kbd> / <kbd>↑ ↓ ← →</kbd> Drive · <kbd>Shift</kbd> 4-Stage Drift · <kbd>Space</kbd> N2O · <kbd>E</kbd> / <kbd>RMB</kbd> Use Item · <kbd>V</kbd> Cam',
+    controls: '<kbd>W A S D</kbd> / <kbd>↑ ↓ ← →</kbd> Drive (Rev on 3-2-1) · <kbd>Shift</kbd> 4-Stage Drift · <kbd>Space</kbd> N2O · <kbd>E</kbd> / <kbd>RMB</kbd> Use Item · <kbd>V</kbd> Cam',
     startRace: 'START GRAND PRIX',
     hudPos: 'POS', hudLap: 'LAP', hudTime: 'TIME',
     noItem: 'Grab Rainbow Box (E)',
@@ -4078,6 +4084,7 @@ const I18N = {
     statSpd: 'SPD', statAcc: 'ACC', statDrf: 'DRF',
     laps: '3 Laps', bestPrefix: 'Best: ', noBest: 'No Record',
     go: 'GO!', miniTurbo1: 'BLUE MINI-TURBO!', miniTurbo2: 'ORANGE SUPER-TURBO!', miniTurbo3: 'PURPLE ULTRA-TURBO!',
+    rocketStart: '🚀 ROCKET START!', goodStart: '⚡ GOOD START!', overheatStart: '💨 ENGINE OVERHEAT!',
     doubleBoost: '⚡ DOUBLE BOOST!', slipstream: '💨 SLIPSTREAM BOOST!', trickBoost: '✨ AERIAL TRICK BOOST!',
     nitroBoost: '🔥 N2O OVERDRIVE!', boostPad: '⚡ BOOST PAD!', shieldBlock: '🛡️ SHIELD BLOCKED HIT!',
     hitMissile: '💥 HIT BY MISSILE!', hitBubble: '💧 TRAPPED IN WATER BUBBLE!', hitBanana: '🍌 BANANA SPIN-OUT!',
@@ -4107,7 +4114,7 @@ const CHARS = [
     helmetColor: 0x1d4ed8, skinColor: 0xffdfc4, cheekColor: 0xff8da1,
     kartStyle: 'formula', charStyle: 'dao',
     stats: { spd: 4.2, acc: 4.2, drf: 4.2 },
-    maxSpeed: 56, accel: 33, driftTurn: 1.52, chargeRate: 1.08, mass: 1.0
+    maxSpeed: 38, accel: 21, turnRate: 1.90, driftTurn: 1.72, chargeRate: 1.12, mass: 1.0
   },
   {
     id: 'frost',
@@ -4119,7 +4126,7 @@ const CHARS = [
     helmetColor: 0xef233c, skinColor: 0xffe3cc, cheekColor: 0xff758f,
     kartStyle: 'turbine', charStyle: 'bazzi',
     stats: { spd: 3.8, acc: 5.0, drf: 5.0 },
-    maxSpeed: 54, accel: 36.5, driftTurn: 1.72, chargeRate: 1.32, mass: 0.9
+    maxSpeed: 36.5, accel: 23.5, turnRate: 2.05, driftTurn: 1.88, chargeRate: 1.35, mass: 0.9
   },
   {
     id: 'volt',
@@ -4131,7 +4138,7 @@ const CHARS = [
     helmetColor: 0xffca3a, skinColor: 0xffe5d0, cheekColor: 0xff85a1,
     kartStyle: 'muscle', charStyle: 'dizni',
     stats: { spd: 5.0, acc: 3.8, drf: 3.8 },
-    maxSpeed: 59, accel: 31, driftTurn: 1.40, chargeRate: 0.96, mass: 1.22
+    maxSpeed: 40, accel: 19.5, turnRate: 1.78, driftTurn: 1.60, chargeRate: 1.00, mass: 1.22
   }
 ];
 
@@ -4192,21 +4199,21 @@ const DIFFS = [
     name: { zh: '休闲 · 新秀杯 (100cc)', en: 'Rookie Cup (100cc)' },
     tag: { zh: '轻松上手', en: 'Easy' },
     desc: { zh: 'AI 节奏柔和并提供弯道辅助，尽情体验漂移与道具乐趣。', en: 'Gentle AI pace with corner assist. Great for sightseeing & items.' },
-    aiScale: 0.82, aiBoostChance: 0.0025, aiItemChance: 0.004, steerAssist: 0.24
+    aiScale: 0.82, ccScale: 0.88, aiBoostChance: 0.0025, aiItemChance: 0.004, steerAssist: 0.24
   },
   {
     id: 'pro',
     name: { zh: '竞速 · 职业杯 (150cc)', en: 'Pro Cup (150cc)' },
     tag: { zh: '标准对抗', en: 'Normal' },
     desc: { zh: '攻防激烈的卡丁车对抗，善用四阶漂移与尾流超车。', en: 'Competitive racing with active item battles & slipstreams.' },
-    aiScale: 0.94, aiBoostChance: 0.0055, aiItemChance: 0.008, steerAssist: 0.09
+    aiScale: 0.94, ccScale: 1.00, aiBoostChance: 0.0055, aiItemChance: 0.008, steerAssist: 0.09
   },
   {
     id: 'master',
     name: { zh: '大师 · 车神杯 (200cc)', en: 'Master Cup (200cc)' },
     tag: { zh: '极限挑战', en: 'Hard' },
     desc: { zh: '高强度 AI 追击与高频氮气博弈，考验断位双喷与护盾时机。', en: 'Fast aggressive AI rivals. Master double-boosts & shield timing.' },
-    aiScale: 1.03, aiBoostChance: 0.010, aiItemChance: 0.013, steerAssist: 0.0
+    aiScale: 1.03, ccScale: 1.10, aiBoostChance: 0.010, aiItemChance: 0.013, steerAssist: 0.0
   }
 ];
 
@@ -6378,8 +6385,49 @@ let trackSamples = [];
 let boostPads = [];
 let jumpRamps = [];
 let itemBoxes = [];
+let coinPickups = [];
 let animatedProps = [];
 let snowPoints = null;
+
+// Shared coin geometries & materials retained across world rebuilds via assetShared.
+const sharedCoinGeo = new THREE.CylinderGeometry(0.50, 0.50, 0.12, 20).rotateX(Math.PI / 2);
+const sharedCoinRimGeo = new THREE.TorusGeometry(0.50, 0.06, 8, 24);
+const sharedCoinEmblemGeo = new THREE.BoxGeometry(0.14, 0.42, 0.16);
+const sharedCoinMat = new THREE.MeshStandardMaterial({
+  color: 0xffd60a, emissive: 0xb87600, emissiveIntensity: 0.35, metalness: 0.85, roughness: 0.20
+});
+const sharedCoinEmblemMat = new THREE.MeshStandardMaterial({
+  color: 0xfff3a8, emissive: 0xd99b00, emissiveIntensity: 0.40, metalness: 0.90, roughness: 0.15
+});
+for (const g of [sharedCoinGeo, sharedCoinRimGeo, sharedCoinEmblemGeo]) g.userData.assetShared = true;
+for (const m of [sharedCoinMat, sharedCoinEmblemMat]) m.userData.assetShared = true;
+
+const COIN_SLOTS = [
+  [0.04, 0], [0.055, 0], [0.07, 0],
+  [0.18, -3.5], [0.20, -3.5], [0.22, -3.5],
+  [0.41, 3.5], [0.43, 0], [0.45, -3.5],
+  [0.55, 3.5], [0.57, 3.5], [0.585, 3.5],
+  [0.73, -3.5], [0.75, 0], [0.77, 3.5],
+  [0.85, 0], [0.91, -3.2], [0.93, 3.2]
+];
+
+function spawnTrackCoins() {
+  COIN_SLOTS.forEach(([tVal, lat], idx) => {
+    const s = trackSamples[Math.floor(tVal * SAMPLES)];
+    const pos = s.pos.clone().addScaledVector(s.right, lat).add(new THREE.Vector3(0, 0.95, 0));
+    const grp = new THREE.Group();
+    grp.name = 'track-coin';
+    grp.position.copy(pos);
+    grp.rotation.y = idx * 0.45;
+    grp.add(
+      new THREE.Mesh(sharedCoinGeo, sharedCoinMat),
+      new THREE.Mesh(sharedCoinRimGeo, sharedCoinMat),
+      new THREE.Mesh(sharedCoinEmblemGeo, sharedCoinEmblemMat)
+    );
+    worldGroup.add(grp);
+    coinPickups.push({ mesh: grp, pos, cooldown: 0 });
+  });
+}
 
 // Rebuilt worlds own their generated textures; the sky and shared vehicle textures are retained.
 function disposeObject(root) {
@@ -6596,6 +6644,7 @@ function buildTrackAndWorld(trackCfg) {
   boostPads = [];
   jumpRamps = [];
   itemBoxes = [];
+  coinPickups = [];
   animatedProps = [];
   snowPoints = null;
 
@@ -6658,6 +6707,7 @@ function buildTrackAndWorld(trackCfg) {
     if(trackCfg.id==='coast') {worldGroup.add(buildHarborPoint());addCoastalHeadland();}
     ({boostPads,jumpRamps,itemBoxes,animatedProps,snowPoints}=rig);
     if(snowPoints) {snowPoints.geometry=snowPoints.geometry.clone(); snowPoints.geometry.userData={...snowPoints.geometry.userData,assetShared:false};}
+    spawnTrackCoins();
     return;
   }
   // Distant Vertex-Colored Mountain Horizon Ring
@@ -7405,6 +7455,7 @@ function buildTrackAndWorld(trackCfg) {
     snowPoints = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.7, transparent: true, opacity: 0.85 }));
     worldGroup.add(snowPoints);
   }
+  spawnTrackCoins();
 }
 
 /* ---------------------------------------------------------------------
@@ -7687,6 +7738,16 @@ function inflictHit(racer, kind) {
   sfx.explosion();
   if (racer.isPlayer) camShake = 0.65;
 
+  const lost = Math.min(racer.coins || 0, 3);
+  racer.coins = (racer.coins || 0) - lost;
+  for (let k = 0; k < lost * 3; k++) {
+    spawnParticle(
+      racer.pos.clone().add(new THREE.Vector3(0, 1.0, 0)),
+      new THREE.Vector3((Math.random() - 0.5) * 10, 5 + Math.random() * 6, (Math.random() - 0.5) * 10),
+      0xffd60a, 1.25, 0.5
+    );
+  }
+
   for (let k = 0; k < 18; k++) {
     const col = kind === 'bubble' ? 0x48cae4 : kind === 'banana' ? 0xffd60a : 0xff595e;
     spawnParticle(racer.pos.clone().add(new THREE.Vector3(0, 0.8, 0)), new THREE.Vector3((Math.random() - 0.5) * 14, 4 + Math.random() * 8, (Math.random() - 0.5) * 14), col, 1.5, 0.55);
@@ -7803,6 +7864,9 @@ function createRacer(charCfg, index, isPlayer) {
     boostTimer: 0,
     nitroCharge: 0,
     capsules: isPlayer ? 1 : 0,
+    coins: 0,
+    startRevCharge: 0,
+    startOverheated: false,
     heldItem: null,
     rouletteTimer: 0,
     shieldTimer: 0,
@@ -7810,6 +7874,8 @@ function createRacer(charCfg, index, isPlayer) {
     stunTimer: 0,
     bubbleTimer: 0,
     draftTimer: 0,
+    wallHitCooldown: 0,
+    lateralVel: 0,
     airY: 0,
     airVy: 0,
     trickAngle: 0,
@@ -7856,6 +7922,16 @@ function startRace() {
   $('toastText').classList.remove('show');
   $('wrongWay').style.display = 'none';
   $('missileAlert').style.display = 'none';
+  $('hudCoins').textContent = '0/10';
+  $('hudPos').textContent = `1/${racers.length}`;
+  $('hudLap').textContent = `1/${TOTAL_LAPS}`;
+  $('hudTime').textContent = fmtTime(0);
+  $('hudSpeed').textContent = '0';
+  $('nitroFill').style.width = '0%';
+  $('cap0').classList.toggle('ready', racers[0].capsules >= 1);
+  $('cap1').classList.toggle('ready', racers[0].capsules >= 2);
+  $('driftStageTag').textContent = 'READY';
+  $('driftStageTag').style.color = '#5ce1ff';
   updateItemUI(racers[0]);
 
   $('startPanel').classList.remove('show');
@@ -8020,6 +8096,7 @@ function stepRacer(r, dt, nowSec) {
   if (r.shieldTimer > 0) r.shieldTimer = Math.max(0, r.shieldTimer - dt);
   if (r.evadeBoostTimer > 0) r.evadeBoostTimer = Math.max(0, r.evadeBoostTimer - dt);
   if (r.doubleBoostWindow > 0) r.doubleBoostWindow = Math.max(0, r.doubleBoostWindow - dt);
+  if (r.wallHitCooldown > 0) r.wallHitCooldown = Math.max(0, r.wallHitCooldown - dt);
 
   if (r.isPlayer) {
     if (keys['KeyW'] || keys['ArrowUp'] || touch.gas) throttle += 1;
@@ -8033,9 +8110,7 @@ function stepRacer(r, dt, nowSec) {
     const targetSample = trackSamples[lookAheadIdx];
     const targetPos = targetSample.pos.clone().addScaledVector(targetSample.right, r.aiLane);
     const desiredHeading = Math.atan2(targetPos.x - r.pos.x, targetPos.z - r.pos.z);
-    let diff = desiredHeading - r.heading;
-    while (diff > Math.PI) diff -= TAU;
-    while (diff < -Math.PI) diff += TAU;
+    const diff = wrapAngle(desiredHeading - r.heading);
     steer = clamp(diff * 2.4, -1, 1);
     throttle = Math.abs(diff) > 0.55 ? 0.78 : 1.0;
     wantDrift = r.drifting
@@ -8134,23 +8209,31 @@ function stepRacer(r, dt, nowSec) {
       effectiveAiPace *= r.aiRubber;
     }
   }
-  const baseMax = r.isPlayer ? cfg.maxSpeed : cfg.maxSpeed * effectiveAiPace;
-  const maxSpd = boosting ? baseMax * 1.34 : baseMax;
+  const coinSpdMul = 1 + Math.min(10, r.coins || 0) * 0.008;
+  const coinAccMul = 1 + Math.min(10, r.coins || 0) * 0.010;
+  const baseMax = (r.isPlayer ? cfg.maxSpeed : cfg.maxSpeed * effectiveAiPace) * DIFFS[selectedDiff].ccScale * coinSpdMul;
+  const maxSpd = boosting ? baseMax * 1.25 : baseMax;
 
   const rel = r.pos.clone().sub(s.pos);
   const lateral = rel.dot(s.right);
   const offRoad = Math.abs(lateral) > ROAD_HALF_W + 0.5;
   const effectiveMax = offRoad && !boosting ? maxSpd * 0.72 : maxSpd;
 
+  const spdRatioCur = clamp(Math.max(0, r.speed) / Math.max(1, effectiveMax), 0, 1);
   if (throttle > 0 || boosting) {
-    const accelForce = boosting ? cfg.accel * 2.2 : cfg.accel * Math.max(throttle, 0.4);
-    r.speed += accelForce * dt;
+    if (r.speed > effectiveMax) {
+      r.speed = Math.max(effectiveMax, r.speed - 22 * dt);
+    } else {
+      const accelForce = (boosting ? cfg.accel * 2.2 : cfg.accel * Math.max(throttle, 0.4))
+        * coinAccMul * (1 - 0.48 * Math.pow(spdRatioCur, 1.5));
+      r.speed = Math.min(effectiveMax, r.speed + accelForce * dt);
+    }
   } else if (throttle < 0) {
     r.speed += cfg.accel * 1.35 * throttle * dt;
   } else {
     r.speed *= Math.pow(0.45, dt);
   }
-  r.speed = clamp(r.speed, -14, effectiveMax);
+  if (r.speed < -14) r.speed = -14;
 
   // Steering
   const spdFactor = Math.min(1, Math.abs(r.speed) / 14);
@@ -8159,14 +8242,12 @@ function stepRacer(r, dt, nowSec) {
     const turn = (r.driftDir * 0.65 + steer * 0.55) * cfg.driftTurn * dt * spdFactor;
     r.heading += turn;
   } else {
-    r.heading += steer * 1.58 * dt * spdFactor * revSign;
+    r.heading += steer * (cfg.turnRate || 1.58) * dt * spdFactor * revSign;
   }
 
   if (r.isPlayer && DIFFS[selectedDiff].steerAssist > 0 && r.speed > 10) {
     const trackYaw = Math.atan2(s.tangent.x, s.tangent.z);
-    let yawErr = trackYaw - r.heading;
-    while (yawErr > Math.PI) yawErr -= TAU;
-    while (yawErr < -Math.PI) yawErr += TAU;
+    const yawErr = wrapAngle(trackYaw - r.heading);
     if (Math.abs(yawErr) < 0.7) {
       r.heading += yawErr * DIFFS[selectedDiff].steerAssist * dt * 2.0;
     }
@@ -8175,8 +8256,15 @@ function stepRacer(r, dt, nowSec) {
   // Integrate XZ Position
   r.pos.x += Math.sin(r.heading) * r.speed * dt;
   r.pos.z += Math.cos(r.heading) * r.speed * dt;
+  if (Math.abs(r.lateralVel) > 0.01) {
+    r.pos.x += Math.cos(r.heading) * r.lateralVel * dt;
+    r.pos.z -= Math.sin(r.heading) * r.lateralVel * dt;
+    r.lateralVel *= Math.exp(-7.5 * dt);
+  } else {
+    r.lateralVel = 0;
+  }
 
-  // Track Lookup & Wall Scraping with Sparks
+  // Track Lookup & Elastic Wall-Slide with Sparks
   const prevIdx = r.sampleIdx;
   r.sampleIdx = findClosestSample(r.pos, prevIdx);
   const ns = trackSamples[r.sampleIdx];
@@ -8186,9 +8274,22 @@ function stepRacer(r, dt, nowSec) {
   if (Math.abs(nLat) > WALL_HALF_W - KART_HALF_W) {
     const sign = Math.sign(nLat);
     const excess = Math.abs(nLat) - (WALL_HALF_W - KART_HALF_W);
-    r.pos.addScaledVector(ns.right, -sign * excess);
-    r.speed *= 0.90;
-    if (r.speed > 18 && Math.random() < 0.7) {
+    const trackYaw = Math.atan2(ns.tangent.x, ns.tangent.z);
+    const incAngle = wrapAngle(r.heading - trackYaw);
+    // In Three.js XZ heading space, fwd . ns.right = -Math.sin(incAngle).
+    if (r.speed >= 0 && -sign * Math.sin(incAngle) > 0) {
+      const targetHeading = trackYaw + sign * 0.06;
+      r.heading -= wrapAngle(r.heading - targetHeading) * Math.min(1, dt * (9 + Math.abs(incAngle) * 8));
+    }
+    r.pos.addScaledVector(ns.right, -sign * (excess + 0.08));
+    r.lateralVel *= 0.25;
+    if (Math.abs(incAngle) < 0.42) {
+      r.speed *= Math.exp(-0.55 * dt);
+    } else if (r.wallHitCooldown <= 0 && r.speed > 14) {
+      r.speed = Math.max(r.speed * (1 - Math.min(0.22, Math.abs(incAngle) * 0.16)), 14);
+      r.wallHitCooldown = 0.35;
+    }
+    if (r.speed > 14 && Math.random() < 0.7) {
       const sparkPos = r.pos.clone().addScaledVector(ns.right, sign * 0.85).add(new THREE.Vector3(0, 0.45, 0));
       spawnParticle(sparkPos, new THREE.Vector3((Math.random() - 0.5) * 6, 3, (Math.random() - 0.5) * 6), 0xffbe0b, 0.95, 0.28);
     }
@@ -8200,7 +8301,7 @@ function stepRacer(r, dt, nowSec) {
     const relative = r.pos.clone().sub(ramp.pos);
     const along = relative.dot(ramp.tangent);
     const across = relative.dot(ramp.right);
-    if (r.airY <= 0.05 && r.speed > 26 && Math.abs(across) < ramp.halfWidth &&
+    if (r.airY <= 0.05 && r.speed > 18 && Math.abs(across) < ramp.halfWidth &&
         along >= -ramp.halfLength && along <= ramp.halfLength) {
       r.airVy = 13.5;
       r.airY = 0.25;
@@ -8251,6 +8352,22 @@ function stepRacer(r, dt, nowSec) {
         r.rouletteTimer = 0.85;
       }
       if (r.isPlayer) { sfx.pickup(); updateItemUI(r); }
+    }
+  }
+  for (const c of coinPickups) {
+    if (c.cooldown <= 0 && r.pos.distanceToSquared(c.pos) < 5.0) {
+      c.cooldown = 6.0;
+      c.mesh.visible = false;
+      if ((r.coins || 0) < 10) r.coins = (r.coins || 0) + 1;
+      r.speed = Math.min(effectiveMax, r.speed + 1.8);
+      for (let k = 0; k < 5; k++) {
+        spawnParticle(
+          c.pos.clone(),
+          new THREE.Vector3((Math.random() - 0.5) * 6, 3 + Math.random() * 4, (Math.random() - 0.5) * 6),
+          0xffd60a, 1.0, 0.35
+        );
+      }
+      if (r.isPlayer) sfx.beep(1046, 0.08, 'sine', 0.09);
     }
   }
 
@@ -8386,6 +8503,29 @@ function resolveKartCollisions() {
         const ratioB = a.charCfg.mass / totalMass;
         a.pos.x -= nx * overlap * ratioA; a.pos.z -= nz * overlap * ratioA;
         b.pos.x += nx * overlap * ratioB; b.pos.z += nz * overlap * ratioB;
+
+        // Exchange gentle momentum impulse plus minor lateral nudge and yaw perturbation.
+        const vax = Math.sin(a.heading) * a.speed, vaz = Math.cos(a.heading) * a.speed;
+        const vbx = Math.sin(b.heading) * b.speed, vbz = Math.cos(b.heading) * b.speed;
+        const relVn = (vax - vbx) * nx + (vaz - vbz) * nz;
+        const impulse = relVn > 0 ? Math.min(relVn, 18) * 0.55 : 0;
+        const latPush = Math.max(impulse, overlap * 4.5);
+
+        const fwdDotA = Math.sin(a.heading) * nx + Math.cos(a.heading) * nz;
+        const sideDotA = Math.cos(a.heading) * nx - Math.sin(a.heading) * nz;
+        const fwdDotB = Math.sin(b.heading) * nx + Math.cos(b.heading) * nz;
+        const sideDotB = Math.cos(b.heading) * nx - Math.sin(b.heading) * nz;
+
+        if (impulse > 0) {
+          a.speed = Math.max(-14, a.speed - impulse * ratioA * fwdDotA);
+          b.speed = Math.max(-14, b.speed + impulse * ratioB * fwdDotB);
+        }
+        a.lateralVel = clamp(a.lateralVel - latPush * ratioA * sideDotA, -12, 12);
+        b.lateralVel = clamp(b.lateralVel + latPush * ratioB * sideDotB, -12, 12);
+
+        const yawNudge = Math.min(0.055, impulse * 0.0045 + overlap * 0.02);
+        a.heading -= yawNudge * ratioA * sideDotA;
+        b.heading += yawNudge * ratioB * sideDotB;
 
         // Spawn metallic impact sparks
         const mid = a.pos.clone().lerp(b.pos, 0.5).add(new THREE.Vector3(0, 0.55, 0));
@@ -8543,7 +8683,7 @@ function animate(now) {
 
   skyMat.uniforms.uTime.value = nowSec;
 
-  // Update Item Boxes & Animated Environment Landmarks
+  // Update Item Boxes, Coins & Animated Environment Landmarks
   itemBoxes.forEach(ib => {
     if (ib.cooldown > 0) {
       ib.cooldown -= dt;
@@ -8551,6 +8691,13 @@ function animate(now) {
     }
     ib.mesh.rotation.y += dt * 2.2;
     ib.mesh.rotation.x += dt * 1.1;
+  });
+  coinPickups.forEach(c => {
+    if (c.cooldown > 0) {
+      c.cooldown -= dt;
+      if (c.cooldown <= 0) c.mesh.visible = true;
+    }
+    c.mesh.rotation.y += dt * 3.0;
   });
   animatedProps.forEach(ap => {
     if (ap.type === 'bob') {
@@ -8618,12 +8765,66 @@ function animate(now) {
       $('countdownText').classList.add('show');
       sfx.beep(440, 0.14);
     }
+    if (player) {
+      const holdingGas = !!(keys['KeyW'] || keys['ArrowUp'] || touch.gas);
+      if (holdingGas) {
+        player.startRevCharge = clamp(player.startRevCharge + dt * 0.58, 0, 1.15);
+      } else {
+        player.startRevCharge = Math.max(0, player.startRevCharge - dt * 0.45);
+      }
+      player.startOverheated = player.startRevCharge > 1.02;
+      $('nitroFill').style.width = `${clamp(player.startRevCharge, 0, 1) * 100}%`;
+      const stageEl = $('driftStageTag');
+      if (player.startRevCharge > 1.02) {
+        stageEl.textContent = 'OVERHEAT';
+        stageEl.style.color = '#ff4d42';
+      } else if (player.startRevCharge >= 0.62) {
+        stageEl.textContent = 'MAX REV';
+        stageEl.style.color = '#ffd60a';
+      } else {
+        stageEl.textContent = 'REV';
+        stageEl.style.color = '#5ce1ff';
+      }
+      const revActive = player.startRevCharge > 0.15;
+      const revHex = player.startOverheated ? 0xff3b30 : player.startRevCharge >= 0.62 ? 0xff9f1c : 0x38b6ff;
+      player.visual.flames.forEach(fl => {
+        fl.group.visible = revActive;
+        if (revActive) {
+          fl.outer.material.color.setHex(revHex);
+          fl.group.scale.set(1, 1, 0.45 + clamp(player.startRevCharge, 0, 1.15) * 0.65 + Math.random() * 0.3);
+        }
+      });
+      sfx.updateEngine(clamp(player.startRevCharge, 0, 1.1), false, true);
+    }
     if (countdownTimer <= 0) {
       gameState = 'racing';
       $('countdownText').textContent = I18N[lang].go;
       $('countdownText').style.color = '#68f09c';
       sfx.beep(880, 0.25);
       setTimeout(() => $('countdownText').classList.remove('show'), 700);
+      if (player) {
+        if (player.startOverheated) {
+          player.stunTimer = 0.45;
+          player.speed = 6;
+          sfx.explosion();
+          showToast(I18N[lang].overheatStart);
+          player.visual.flames.forEach(fl => { fl.group.visible = false; });
+        } else if (player.startRevCharge >= 0.62 && player.startRevCharge <= 1.02) {
+          player.boostTimer = 1.45;
+          player.speed = 26;
+          player.visual.shockRing.material.opacity = 0.95;
+          player.visual.shockRing.scale.setScalar(0.5);
+          sfx.boost();
+          showToast(I18N[lang].rocketStart);
+        } else if (player.startRevCharge >= 0.30) {
+          player.boostTimer = 0.80;
+          player.speed = 20;
+          sfx.boost();
+          showToast(I18N[lang].goodStart);
+        } else {
+          player.visual.flames.forEach(fl => { fl.group.visible = false; });
+        }
+      }
     }
     // Intro Flyby Camera orbiting around the player kart during 3-2-1
     if (player) {
@@ -8658,7 +8859,8 @@ function animate(now) {
     $('hudPos').textContent = `${rank}/${racers.length}`;
     $('hudLap').textContent = `${player.lap}/${TOTAL_LAPS}`;
     $('hudTime').textContent = fmtTime(raceTime);
-    $('hudSpeed').textContent = String(Math.round(Math.abs(player.speed) * 3.4));
+    $('hudCoins').textContent = `${player.coins}/10`;
+    $('hudSpeed').textContent = String(Math.round(Math.abs(player.speed) * 4.3));
     $('nitroFill').style.width = `${player.nitroCharge}%`;
     $('cap0').classList.toggle('ready', player.capsules >= 1);
     $('cap1').classList.toggle('ready', player.capsules >= 2);

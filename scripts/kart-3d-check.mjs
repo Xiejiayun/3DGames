@@ -8,7 +8,7 @@ import { chromium } from 'playwright';
 const html = await readFile(new URL('../games/kart.html', import.meta.url), 'utf8');
 const expose = `globalThis.qa = { THREE, scene, camera, renderer, skyMat, TRACKS, CHARS,
   buildTrackAndWorld, buildKartMesh, buildProceduralKart, startRace, backToMenu, spawnItemEffect,
-  stepRacer, updateProjectiles, animate, animateScarf, updateSunShadow, disposeObject, previewRenderers, get samples(){return trackSamples},
+  stepRacer, resolveKartCollisions, wrapAngle, updateProjectiles, animate, animateScarf, updateSunShadow, disposeObject, previewRenderers, get samples(){return trackSamples},
   get world(){return worldGroup}, get racers(){return racers},
   get props(){return animatedProps}, get projectiles(){return activeProjectiles},
   get ramps(){return jumpRamps}, set track(v){selectedTrack=v},
@@ -332,7 +332,50 @@ try {
     assert.equal(p.renderTarget,false,'previews must not reuse a foreign WebGL render target');
   }
   await page.screenshot({ path: join(screenshots, 'mobile-race.png') });
+  await page.keyboard.down('ArrowUp');
+  const wallSlideResults = await page.evaluate(() => {
+    qa.track = 0; qa.startRace(); qa.state = 'racing';
+    const out = [];
+    for (const wallSide of [1, -1]) {
+      const r = qa.racers[0];
+      const sIdx = 20;
+      const s = qa.samples[sIdx];
+      const trackYaw = Math.atan2(s.tangent.x, s.tangent.z);
+      r.pos.copy(s.pos).addScaledVector(s.right, wallSide * (9.2 - 1.22 - 0.1));
+      r.sampleIdx = sIdx;
+      r.heading = trackYaw - wallSide * (35 * Math.PI / 180);
+      r.speed = 36; r.wallHitCooldown = 0; r.lateralVel = 0; r.boostTimer = 0;
+      r.airY = 0; r.airVy = 0; r.stunTimer = 0; r.bubbleTimer = 0;
+      const initialErr = Math.abs(qa.wrapAngle(r.heading - trackYaw));
+      const outwardDir = Math.sin(r.heading) * s.right.x + Math.cos(r.heading) * s.right.z;
+      for (let f = 0; f < 15; f++) qa.stepRacer(r, 1 / 60, 10 + f / 60);
+      const ns = qa.samples[r.sampleIdx];
+      const finalYaw = Math.atan2(ns.tangent.x, ns.tangent.z);
+      const finalErr = Math.abs(qa.wrapAngle(r.heading - finalYaw));
+      const finalLat = r.pos.clone().sub(ns.pos).dot(ns.right);
+      out.push({ wallSide, outwardSign: Math.sign(outwardDir), speed: r.speed, initialErr, finalErr, finalLat });
+    }
+    const a = qa.racers[0], b = qa.racers[1];
+    const s = qa.samples[20];
+    const ty = Math.atan2(s.tangent.x, s.tangent.z);
+    a.pos.copy(s.pos); a.sampleIdx = 20; a.heading = ty; a.speed = 38; a.lateralVel = 0;
+    b.pos.copy(s.pos).addScaledVector(s.tangent, 1.4); b.sampleIdx = 20; b.heading = ty; b.speed = 20; b.lateralVel = 0;
+    qa.resolveKartCollisions();
+    const bumpGap = b.pos.distanceTo(a.pos);
+    return { walls: out, bump: { speedA: a.speed, speedB: b.speed, gap: bumpGap } };
+  });
+  await page.keyboard.up('ArrowUp');
+  for (const w of wallSlideResults.walls) {
+    assert.equal(w.outwardSign, w.wallSide, `wall test setup must point outward (side ${w.wallSide})`);
+    assert.ok(w.speed > 36 * 0.70, `wall slide must retain >70% speed on side ${w.wallSide}, got ${w.speed.toFixed(2)}`);
+    assert.ok(w.finalErr < w.initialErr * 0.5, `wall slide must steer heading toward tangent on side ${w.wallSide}: ${w.initialErr.toFixed(3)} -> ${w.finalErr.toFixed(3)}`);
+    assert.ok(Math.abs(w.finalLat) <= 9.2 - 1.22 + 0.05, `racer must stay inside guardrail on side ${w.wallSide}, got lat=${w.finalLat.toFixed(3)}`);
+  }
+  assert.ok(wallSlideResults.bump.speedA < 38 && wallSlideResults.bump.speedA > 28, `rear bump must transfer gentle impulse to trailing kart, got ${wallSlideResults.bump.speedA.toFixed(2)}`);
+  assert.ok(wallSlideResults.bump.speedB > 20, `rear bump must push lead kart forward, got ${wallSlideResults.bump.speedB.toFixed(2)}`);
+  assert.ok(wallSlideResults.bump.gap > 1.4, `kart collision must separate overlapping karts, got gap=${wallSlideResults.bump.gap.toFixed(3)}`);
   assert.deepEqual(errors, [], errors.join('\n'));
+  console.log(`PASS wall-slide (${wallSlideResults.walls.map(w=>`side=${w.wallSide} spd=${w.speed.toFixed(1)} err=${w.initialErr.toFixed(2)}->${w.finalErr.toFixed(2)}`).join('; ')}) & bump (${wallSlideResults.bump.speedA.toFixed(1)}/${wallSlideResults.bump.speedB.toFixed(1)})`);
   console.log(`PASS repeated scene disposal: ${JSON.stringify(memory)}; mobile menu/start; no browser errors`);
   console.log(`Screenshots: ${screenshots}`);
 } finally {

@@ -4007,6 +4007,10 @@ const $ = (id) => document.getElementById(id);
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
+const wrapAngle = (a) => {
+  if (!Number.isFinite(a)) return 0;
+  return a - TAU * Math.floor((a + Math.PI) / TAU);
+};
 
 function showError(msg) {
   const box = $('errBox');
@@ -4105,7 +4109,7 @@ const CHARS = [
     helmetColor: 0x1d4ed8, skinColor: 0xffdfc4, cheekColor: 0xff8da1,
     kartStyle: 'formula', charStyle: 'dao',
     stats: { spd: 4.2, acc: 4.2, drf: 4.2 },
-    maxSpeed: 56, accel: 33, driftTurn: 1.52, chargeRate: 1.08, mass: 1.0
+    maxSpeed: 38, accel: 21, turnRate: 1.90, driftTurn: 1.72, chargeRate: 1.12, mass: 1.0
   },
   {
     id: 'frost',
@@ -4117,7 +4121,7 @@ const CHARS = [
     helmetColor: 0xef233c, skinColor: 0xffe3cc, cheekColor: 0xff758f,
     kartStyle: 'turbine', charStyle: 'bazzi',
     stats: { spd: 3.8, acc: 5.0, drf: 5.0 },
-    maxSpeed: 54, accel: 36.5, driftTurn: 1.72, chargeRate: 1.32, mass: 0.9
+    maxSpeed: 36.5, accel: 23.5, turnRate: 2.05, driftTurn: 1.88, chargeRate: 1.35, mass: 0.9
   },
   {
     id: 'volt',
@@ -4129,7 +4133,7 @@ const CHARS = [
     helmetColor: 0xffca3a, skinColor: 0xffe5d0, cheekColor: 0xff85a1,
     kartStyle: 'muscle', charStyle: 'dizni',
     stats: { spd: 5.0, acc: 3.8, drf: 3.8 },
-    maxSpeed: 59, accel: 31, driftTurn: 1.40, chargeRate: 0.96, mass: 1.22
+    maxSpeed: 40, accel: 19.5, turnRate: 1.78, driftTurn: 1.60, chargeRate: 1.00, mass: 1.22
   }
 ];
 
@@ -4190,21 +4194,21 @@ const DIFFS = [
     name: { zh: '休闲 · 新秀杯 (100cc)', en: 'Rookie Cup (100cc)' },
     tag: { zh: '轻松上手', en: 'Easy' },
     desc: { zh: 'AI 节奏柔和并提供弯道辅助，尽情体验漂移与道具乐趣。', en: 'Gentle AI pace with corner assist. Great for sightseeing & items.' },
-    aiScale: 0.82, aiBoostChance: 0.0025, aiItemChance: 0.004, steerAssist: 0.24
+    aiScale: 0.82, ccScale: 0.88, aiBoostChance: 0.0025, aiItemChance: 0.004, steerAssist: 0.24
   },
   {
     id: 'pro',
     name: { zh: '竞速 · 职业杯 (150cc)', en: 'Pro Cup (150cc)' },
     tag: { zh: '标准对抗', en: 'Normal' },
     desc: { zh: '攻防激烈的卡丁车对抗，善用四阶漂移与尾流超车。', en: 'Competitive racing with active item battles & slipstreams.' },
-    aiScale: 0.94, aiBoostChance: 0.0055, aiItemChance: 0.008, steerAssist: 0.09
+    aiScale: 0.94, ccScale: 1.00, aiBoostChance: 0.0055, aiItemChance: 0.008, steerAssist: 0.09
   },
   {
     id: 'master',
     name: { zh: '大师 · 车神杯 (200cc)', en: 'Master Cup (200cc)' },
     tag: { zh: '极限挑战', en: 'Hard' },
     desc: { zh: '高强度 AI 追击与高频氮气博弈，考验断位双喷与护盾时机。', en: 'Fast aggressive AI rivals. Master double-boosts & shield timing.' },
-    aiScale: 1.03, aiBoostChance: 0.010, aiItemChance: 0.013, steerAssist: 0.0
+    aiScale: 1.03, ccScale: 1.10, aiBoostChance: 0.010, aiItemChance: 0.013, steerAssist: 0.0
   }
 ];
 
@@ -7768,6 +7772,8 @@ function createRacer(charCfg, index, isPlayer) {
     stunTimer: 0,
     bubbleTimer: 0,
     draftTimer: 0,
+    wallHitCooldown: 0,
+    lateralVel: 0,
     airY: 0,
     airVy: 0,
     trickAngle: 0,
@@ -7941,6 +7947,7 @@ function stepRacer(r, dt, nowSec) {
 
   if (r.shieldTimer > 0) r.shieldTimer = Math.max(0, r.shieldTimer - dt);
   if (r.doubleBoostWindow > 0) r.doubleBoostWindow = Math.max(0, r.doubleBoostWindow - dt);
+  if (r.wallHitCooldown > 0) r.wallHitCooldown = Math.max(0, r.wallHitCooldown - dt);
 
   if (r.isPlayer) {
     if (keys['KeyW'] || keys['ArrowUp'] || touch.gas) throttle += 1;
@@ -7953,9 +7960,7 @@ function stepRacer(r, dt, nowSec) {
     const targetSample = trackSamples[lookAheadIdx];
     const targetPos = targetSample.pos.clone().addScaledVector(targetSample.right, r.aiLane);
     const desiredHeading = Math.atan2(targetPos.x - r.pos.x, targetPos.z - r.pos.z);
-    let diff = desiredHeading - r.heading;
-    while (diff > Math.PI) diff -= TAU;
-    while (diff < -Math.PI) diff += TAU;
+    const diff = wrapAngle(desiredHeading - r.heading);
     steer = clamp(diff * 2.4, -1, 1);
     throttle = Math.abs(diff) > 0.55 ? 0.78 : 1.0;
 
@@ -8045,23 +8050,29 @@ function stepRacer(r, dt, nowSec) {
   // Speed & Boost integration
   if (r.boostTimer > 0) r.boostTimer = Math.max(0, r.boostTimer - dt);
   const boosting = r.boostTimer > 0;
-  const baseMax = r.isPlayer ? cfg.maxSpeed : cfg.maxSpeed * r.aiPace;
-  const maxSpd = boosting ? baseMax * 1.34 : baseMax;
+  const baseMax = (r.isPlayer ? cfg.maxSpeed : cfg.maxSpeed * r.aiPace) * DIFFS[selectedDiff].ccScale;
+  const maxSpd = boosting ? baseMax * 1.25 : baseMax;
 
   const rel = r.pos.clone().sub(s.pos);
   const lateral = rel.dot(s.right);
   const offRoad = Math.abs(lateral) > ROAD_HALF_W + 0.5;
   const effectiveMax = offRoad && !boosting ? maxSpd * 0.72 : maxSpd;
 
+  const spdRatioCur = clamp(Math.max(0, r.speed) / Math.max(1, effectiveMax), 0, 1);
   if (throttle > 0 || boosting) {
-    const accelForce = boosting ? cfg.accel * 2.2 : cfg.accel * Math.max(throttle, 0.4);
-    r.speed += accelForce * dt;
+    if (r.speed > effectiveMax) {
+      r.speed = Math.max(effectiveMax, r.speed - 22 * dt);
+    } else {
+      const accelForce = (boosting ? cfg.accel * 2.2 : cfg.accel * Math.max(throttle, 0.4))
+        * (1 - 0.48 * Math.pow(spdRatioCur, 1.5));
+      r.speed = Math.min(effectiveMax, r.speed + accelForce * dt);
+    }
   } else if (throttle < 0) {
     r.speed += cfg.accel * 1.35 * throttle * dt;
   } else {
     r.speed *= Math.pow(0.45, dt);
   }
-  r.speed = clamp(r.speed, -14, effectiveMax);
+  if (r.speed < -14) r.speed = -14;
 
   // Steering
   const spdFactor = Math.min(1, Math.abs(r.speed) / 14);
@@ -8070,14 +8081,12 @@ function stepRacer(r, dt, nowSec) {
     const turn = (r.driftDir * 0.65 + steer * 0.55) * cfg.driftTurn * dt * spdFactor;
     r.heading += turn;
   } else {
-    r.heading += steer * 1.58 * dt * spdFactor * revSign;
+    r.heading += steer * (cfg.turnRate || 1.58) * dt * spdFactor * revSign;
   }
 
   if (r.isPlayer && DIFFS[selectedDiff].steerAssist > 0 && r.speed > 10) {
     const trackYaw = Math.atan2(s.tangent.x, s.tangent.z);
-    let yawErr = trackYaw - r.heading;
-    while (yawErr > Math.PI) yawErr -= TAU;
-    while (yawErr < -Math.PI) yawErr += TAU;
+    const yawErr = wrapAngle(trackYaw - r.heading);
     if (Math.abs(yawErr) < 0.7) {
       r.heading += yawErr * DIFFS[selectedDiff].steerAssist * dt * 2.0;
     }
@@ -8086,8 +8095,15 @@ function stepRacer(r, dt, nowSec) {
   // Integrate XZ Position
   r.pos.x += Math.sin(r.heading) * r.speed * dt;
   r.pos.z += Math.cos(r.heading) * r.speed * dt;
+  if (Math.abs(r.lateralVel) > 0.01) {
+    r.pos.x += Math.cos(r.heading) * r.lateralVel * dt;
+    r.pos.z -= Math.sin(r.heading) * r.lateralVel * dt;
+    r.lateralVel *= Math.exp(-7.5 * dt);
+  } else {
+    r.lateralVel = 0;
+  }
 
-  // Track Lookup & Wall Scraping with Sparks
+  // Track Lookup & Elastic Wall-Slide with Sparks
   const prevIdx = r.sampleIdx;
   r.sampleIdx = findClosestSample(r.pos, prevIdx);
   const ns = trackSamples[r.sampleIdx];
@@ -8097,9 +8113,22 @@ function stepRacer(r, dt, nowSec) {
   if (Math.abs(nLat) > WALL_HALF_W - KART_HALF_W) {
     const sign = Math.sign(nLat);
     const excess = Math.abs(nLat) - (WALL_HALF_W - KART_HALF_W);
-    r.pos.addScaledVector(ns.right, -sign * excess);
-    r.speed *= 0.90;
-    if (r.speed > 18 && Math.random() < 0.7) {
+    const trackYaw = Math.atan2(ns.tangent.x, ns.tangent.z);
+    const incAngle = wrapAngle(r.heading - trackYaw);
+    // In Three.js XZ heading space, fwd . ns.right = -Math.sin(incAngle).
+    if (r.speed >= 0 && -sign * Math.sin(incAngle) > 0) {
+      const targetHeading = trackYaw + sign * 0.06;
+      r.heading -= wrapAngle(r.heading - targetHeading) * Math.min(1, dt * (9 + Math.abs(incAngle) * 8));
+    }
+    r.pos.addScaledVector(ns.right, -sign * (excess + 0.08));
+    r.lateralVel *= 0.25;
+    if (Math.abs(incAngle) < 0.42) {
+      r.speed *= Math.exp(-0.55 * dt);
+    } else if (r.wallHitCooldown <= 0 && r.speed > 14) {
+      r.speed = Math.max(r.speed * (1 - Math.min(0.22, Math.abs(incAngle) * 0.16)), 14);
+      r.wallHitCooldown = 0.35;
+    }
+    if (r.speed > 14 && Math.random() < 0.7) {
       const sparkPos = r.pos.clone().addScaledVector(ns.right, sign * 0.85).add(new THREE.Vector3(0, 0.45, 0));
       spawnParticle(sparkPos, new THREE.Vector3((Math.random() - 0.5) * 6, 3, (Math.random() - 0.5) * 6), 0xffbe0b, 0.95, 0.28);
     }
@@ -8111,7 +8140,7 @@ function stepRacer(r, dt, nowSec) {
     const relative = r.pos.clone().sub(ramp.pos);
     const along = relative.dot(ramp.tangent);
     const across = relative.dot(ramp.right);
-    if (r.airY <= 0.05 && r.speed > 26 && Math.abs(across) < ramp.halfWidth &&
+    if (r.airY <= 0.05 && r.speed > 18 && Math.abs(across) < ramp.halfWidth &&
         along >= -ramp.halfLength && along <= ramp.halfLength) {
       r.airVy = 13.5;
       r.airY = 0.25;
@@ -8297,6 +8326,29 @@ function resolveKartCollisions() {
         const ratioB = a.charCfg.mass / totalMass;
         a.pos.x -= nx * overlap * ratioA; a.pos.z -= nz * overlap * ratioA;
         b.pos.x += nx * overlap * ratioB; b.pos.z += nz * overlap * ratioB;
+
+        // Exchange gentle momentum impulse plus minor lateral nudge and yaw perturbation.
+        const vax = Math.sin(a.heading) * a.speed, vaz = Math.cos(a.heading) * a.speed;
+        const vbx = Math.sin(b.heading) * b.speed, vbz = Math.cos(b.heading) * b.speed;
+        const relVn = (vax - vbx) * nx + (vaz - vbz) * nz;
+        const impulse = relVn > 0 ? Math.min(relVn, 18) * 0.55 : 0;
+        const latPush = Math.max(impulse, overlap * 4.5);
+
+        const fwdDotA = Math.sin(a.heading) * nx + Math.cos(a.heading) * nz;
+        const sideDotA = Math.cos(a.heading) * nx - Math.sin(a.heading) * nz;
+        const fwdDotB = Math.sin(b.heading) * nx + Math.cos(b.heading) * nz;
+        const sideDotB = Math.cos(b.heading) * nx - Math.sin(b.heading) * nz;
+
+        if (impulse > 0) {
+          a.speed = Math.max(-14, a.speed - impulse * ratioA * fwdDotA);
+          b.speed = Math.max(-14, b.speed + impulse * ratioB * fwdDotB);
+        }
+        a.lateralVel = clamp(a.lateralVel - latPush * ratioA * sideDotA, -12, 12);
+        b.lateralVel = clamp(b.lateralVel + latPush * ratioB * sideDotB, -12, 12);
+
+        const yawNudge = Math.min(0.055, impulse * 0.0045 + overlap * 0.02);
+        a.heading -= yawNudge * ratioA * sideDotA;
+        b.heading += yawNudge * ratioB * sideDotB;
 
         // Spawn metallic impact sparks
         const mid = a.pos.clone().lerp(b.pos, 0.5).add(new THREE.Vector3(0, 0.55, 0));
@@ -8569,7 +8621,7 @@ function animate(now) {
     $('hudPos').textContent = `${rank}/${racers.length}`;
     $('hudLap').textContent = `${player.lap}/${TOTAL_LAPS}`;
     $('hudTime').textContent = fmtTime(raceTime);
-    $('hudSpeed').textContent = String(Math.round(Math.abs(player.speed) * 3.4));
+    $('hudSpeed').textContent = String(Math.round(Math.abs(player.speed) * 4.3));
     $('nitroFill').style.width = `${player.nitroCharge}%`;
     $('cap0').classList.toggle('ready', player.capsules >= 1);
     $('cap1').classList.toggle('ready', player.capsules >= 2);

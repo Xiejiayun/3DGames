@@ -48,12 +48,13 @@
    | `CLOUDFLARE_API_TOKEN` | 上一步创建的 API Token |
    | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Account ID |
 
-4. 将部署配置推送到 `main`，或者在 **Actions → Deploy HTML to Cloudflare → Run workflow** 中选择 `main` 手动运行。
+4. 将部署配置推送到 `main`，或者在 **Actions → Site validation and deployment → Run workflow** 中选择 `main` 手动运行。
 5. 在成功运行的 **Deploy to Cloudflare** 步骤日志中查看站点地址。
 
 ### 部署规则
 
-- 每次推送到 `main` 自动校验并部署；Pull Request 只构建和校验，不读取部署凭据。
+- `Validate site` 任务负责测试、构建和发布包 dry-run，不上传文件、不读取部署凭据；Pull Request 只运行此校验任务。
+- `Deploy production (main only)` 是独立的正式部署任务，仅在 `main` 的 push 或手动运行事件中、且校验任务成功后执行，检出同一次运行的准确提交重新构建并部署。PR 和其他分支会跳过此任务。
 - 构建脚本将所有已加入 Git 的 HTML 和 `assets/previews/*.webp` 预览图复制到 `dist/`，保留文件名及子目录结构；只部署该目录。新增 HTML 和该目录下的 WebP 无需修改工作流。如果以后增加其他独立 CSS、JS 或图片等资源，需要同步调整 `scripts/build-site.mjs` 的收集规则。
 - `index.html` 为首页，游戏页面可通过 `/games/cs.html`、`/games/flappy.html`、`/games/kart.html` 访问。不存在的路径返回 404。
 - 同一分支同一时间只运行一个工作流，避免并行发布。手动运行非 `main` 分支只校验，不更新线上站点。

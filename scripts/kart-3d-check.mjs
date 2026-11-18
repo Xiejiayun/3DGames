@@ -7,7 +7,7 @@ import { chromium } from 'playwright';
 
 const html = await readFile(new URL('../games/kart.html', import.meta.url), 'utf8');
 const expose = `globalThis.qa = { THREE, scene, camera, renderer, skyMat, TRACKS, CHARS,
-  buildTrackAndWorld, buildKartMesh, buildProceduralKart, startRace, backToMenu, spawnItemEffect,
+  buildTrackAndWorld, buildKartMesh, buildProceduralKart, startRace, backToMenu, spawnItemEffect, rollWeightedItem,
   stepRacer, updateProjectiles, animate, animateScarf, updateSunShadow, disposeObject, previewRenderers, get samples(){return trackSamples},
   get world(){return worldGroup}, get racers(){return racers},
   get props(){return animatedProps}, get projectiles(){return activeProjectiles},
@@ -225,6 +225,12 @@ try {
       const closest=qa.samples.reduce((a,s)=>Math.hypot(s.pos.x-peel.pos.x,s.pos.z-peel.pos.z)<a.distance?
         {distance:Math.hypot(s.pos.x-peel.pos.x,s.pos.z-peel.pos.z),y:s.pos.y}:a,{distance:Infinity});
       if(Math.abs(peel.pos.y-closest.y-.07)>.01 || peel.mesh.children.length!==4 || !peel.mesh.userData.binding) failures.push('banana asset, pose or silhouette');
+      qa.spawnItemEffect(owner,'banana',{forward:true});
+      const fwdPeel=qa.projectiles.at(-1);
+      const fwdSample=qa.samples[(owner.sampleIdx+14)%qa.samples.length];
+      if(fwdPeel.pos.clone().sub(owner.pos).dot(qa.samples[owner.sampleIdx].tangent)<=0 || Math.abs(fwdPeel.pos.y-fwdSample.pos.y-.07)>.01) {
+        failures.push('forward banana pose');
+      }
       qa.cam=1;qa.animate(performance.now());
       const headPos=owner.visual.headGroup.getWorldPosition(new qa.THREE.Vector3());
       if(qa.camera.position.distanceTo(headPos)<.5) failures.push('cockpit inside head');
@@ -293,6 +299,76 @@ try {
     await page.screenshot({path:join(screenshots,view==='front'?`driver-${id}.png`:`driver-${id}-${view}.png`)});
     }
   }
+  const tacticalFailures = await page.evaluate(() => {
+    const failures = [];
+    qa.track = 0; qa.startRace(); qa.state = 'racing';
+    const [r1, r2, r3, r4] = qa.racers;
+    r1.totalProgress = 2.6; r2.totalProgress = 2.2; r3.totalProgress = 1.7; r4.totalProgress = 1.1;
+    const rank1Pool = new Set(['banana', 'shield', 'bubble', 'nitro']);
+    const midPool = new Set(['missile', 'bubble', 'shield', 'magnet', 'banana']);
+    const rank4Pool = new Set(['nitro', 'magnet', 'missile', 'shield']);
+    for (let k = 0; k < 120; k++) {
+      const it1 = qa.rollWeightedItem(r1);
+      const it2 = qa.rollWeightedItem(r2);
+      const it4 = qa.rollWeightedItem(r4);
+      if (!rank1Pool.has(it1?.id)) failures.push(`invalid rank1 item: ${it1?.id}`);
+      if (!midPool.has(it2?.id)) failures.push(`invalid mid item: ${it2?.id}`);
+      if (!rank4Pool.has(it4?.id)) failures.push(`invalid rank4 item: ${it4?.id}`);
+    }
+    r1.sampleIdx = 100; r1.pos.copy(qa.samples[100].pos);
+    r1.heading = Math.atan2(qa.samples[100].tangent.x, qa.samples[100].tangent.z);
+    qa.spawnItemEffect(r1, 'bubble', { backward: true });
+    const backBubble = qa.projectiles.at(-1);
+    const backExpected = qa.samples[(100 - 6 + qa.samples.length) % qa.samples.length].pos.clone().add(new qa.THREE.Vector3(0, 1.2, 0));
+    if (backBubble.pos.distanceTo(backExpected) > 0.05) failures.push('backward bubble spawn offset');
+
+    // Extreme maneuver missile evasion (evadeBoostTimer)
+    r1.stunTimer = 0; r1.evadeBoostTimer = 0.75; r1.shieldTimer = 0;
+    qa.spawnItemEffect(r2, 'missile');
+    const missile = qa.projectiles.at(-1);
+    missile.target = r1;
+    missile.pos.copy(r1.pos).add(new qa.THREE.Vector3(0, 0.8, 5));
+    const countBefore = qa.projectiles.length;
+    qa.updateProjectiles(1 / 60);
+    if (qa.projectiles.length !== countBefore - 1 || r1.stunTimer > 0) {
+      failures.push('missile evasion failed to deflect harmlessly');
+    }
+
+    // Smart AI hazard avoidance, corner drifting & rubber-banding
+    const ai = r2;
+    ai.sampleIdx = 40; ai.pos.copy(qa.samples[40].pos);
+    ai.heading = Math.atan2(qa.samples[40].tangent.x, qa.samples[40].tangent.z);
+    ai.aiLane = 0; ai.aiBaseLane = 0; ai.speed = 35;
+    const hazSample = qa.samples[50];
+    qa.spawnItemEffect(r1, 'bubble', { backward: false });
+    const haz = qa.projectiles.at(-1);
+    haz.sampleIdx = 50; haz.pos.copy(hazSample.pos).add(new qa.THREE.Vector3(0, 1.2, 0));
+    for (let step = 0; step < 15; step++) qa.stepRacer(ai, 1 / 60, step / 60);
+    if (Math.abs(ai.aiLane) < 0.3) failures.push(`AI failed to steer away from ahead hazard: ${ai.aiLane}`);
+
+    ai.sampleIdx = 80; ai.pos.copy(qa.samples[80].pos);
+    ai.aiLane = 0; ai.aiBaseLane = 0;
+    ai.heading = Math.atan2(qa.samples[80].tangent.x, qa.samples[80].tangent.z) - 0.65;
+    ai.speed = 32; ai.drifting = false; ai.driftCharge = 0; ai.boostTimer = 0; ai.evadeBoostTimer = 0;
+    qa.stepRacer(ai, 1 / 60, 1);
+    if (!ai.drifting) failures.push('AI failed to initiate corner drift');
+    ai.driftCharge = 0.95;
+    ai.aiLane = 0; ai.aiBaseLane = 0;
+    ai.heading = Math.atan2(qa.samples[94].pos.x - ai.pos.x, qa.samples[94].pos.z - ai.pos.z);
+    qa.stepRacer(ai, 1 / 60, 1.02);
+    if (ai.drifting || ai.boostTimer <= 0 || ai.evadeBoostTimer <= 0.7) {
+      failures.push(`drift release did not grant mini-turbo & evade boost: drifting=${ai.drifting}, boost=${ai.boostTimer}, evade=${ai.evadeBoostTimer}`);
+    }
+
+    r1.totalProgress = 3.0; ai.totalProgress = 0.0;
+    for (let step = 0; step < 30; step++) qa.stepRacer(ai, 1 / 60, 2 + step / 60);
+    if (ai.aiRubber < 0.94 - 1e-6 || ai.aiRubber > 1.06 + 1e-6) failures.push(`aiRubber out of bounds: ${ai.aiRubber}`);
+
+    return failures;
+  });
+  assert.deepEqual(tacticalFailures, [], `tactical checks: ${tacticalFailures.join(', ')}`);
+  console.log('PASS tactical items, directional throws, missile evasion & AI avoidance');
+
   const memory = await page.evaluate(() => {
     qa.backToMenu();
     const counts = [];

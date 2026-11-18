@@ -4056,6 +4056,7 @@ const I18N = {
     doubleBoost: '⚡ 断位双喷!', slipstream: '💨 尾流冲刺!', trickBoost: '✨ 空中特技 + 落地喷!',
     nitroBoost: '🔥 N2O 氮气爆发!', boostPad: '⚡ 加速带冲刺!', shieldBlock: '🛡️ 能量护盾抵挡攻击!',
     hitMissile: '💥 被追踪导弹击中!', hitBubble: '💧 被水泡困住!', hitBanana: '🍌 踩中香蕉皮打滑!',
+    evadeMissile: '🎯 极限机动甩开导弹!',
     finalLap: '🔔 最后一圈!', rankFmt: (n) => `第 ${n} 名`,
     meTag: ' (你)'
   },
@@ -4080,6 +4081,7 @@ const I18N = {
     doubleBoost: '⚡ DOUBLE BOOST!', slipstream: '💨 SLIPSTREAM BOOST!', trickBoost: '✨ AERIAL TRICK BOOST!',
     nitroBoost: '🔥 N2O OVERDRIVE!', boostPad: '⚡ BOOST PAD!', shieldBlock: '🛡️ SHIELD BLOCKED HIT!',
     hitMissile: '💥 HIT BY MISSILE!', hitBubble: '💧 TRAPPED IN WATER BUBBLE!', hitBanana: '🍌 BANANA SPIN-OUT!',
+    evadeMissile: '🎯 MISSILE EVADED!',
     finalLap: '🔔 FINAL LAP!', rankFmt: (n) => ['#1ST', '#2ND', '#3RD', '#4TH'][n - 1] || `#${n}`,
     meTag: ' (YOU)'
   }
@@ -7457,12 +7459,15 @@ const activeProjectiles = [];
 const projectileGroup = new THREE.Group();
 scene.add(projectileGroup);
 
+function removeProjectileAt(idx) {
+  const p = activeProjectiles[idx];
+  projectileGroup.remove(p.mesh);
+  disposeObject(p.mesh);
+  activeProjectiles.splice(idx, 1);
+}
+
 function clearProjectiles() {
-  while (activeProjectiles.length > 0) {
-    const p = activeProjectiles.pop();
-    projectileGroup.remove(p.mesh);
-    disposeObject(p.mesh);
-  }
+  while (activeProjectiles.length > 0) removeProjectileAt(activeProjectiles.length - 1);
 }
 
 function itemVisual(type) {
@@ -7510,7 +7515,27 @@ function itemVisual(type) {
   throw Error('Unknown kart item: '+type);
 }
 
-function spawnItemEffect(owner, itemId) {
+/** Draw an item from ITEMS using rank-based tactical weights. */
+function rollWeightedItem(racer) {
+  const sorted = [...racers].sort((a, b) => b.totalProgress - a.totalProgress);
+  const idx = sorted.indexOf(racer);
+  const rank = idx >= 0 ? idx + 1 : 1;
+  const table = rank === 1
+    ? [['banana', 40], ['shield', 30], ['bubble', 20], ['nitro', 10]]
+    : rank <= 3
+      ? [['missile', 30], ['bubble', 22], ['shield', 18], ['magnet', 15], ['banana', 15]]
+      : [['nitro', 32], ['magnet', 28], ['missile', 25], ['shield', 15]];
+  const total = table.reduce((sum, [, w]) => sum + w, 0);
+  let roll = Math.random() * total;
+  let pickedId = table[table.length - 1][0];
+  for (const [id, weight] of table) {
+    roll -= weight;
+    if (roll < 0) { pickedId = id; break; }
+  }
+  return ITEMS.find(it => it.id === pickedId) || ITEMS[0];
+}
+
+function spawnItemEffect(owner, itemId, opts = {}) {
   const dict = I18N[lang];
   if (itemId === 'nitro') {
     owner.boostTimer = 2.6;
@@ -7540,17 +7565,24 @@ function spawnItemEffect(owner, itemId) {
     if (owner.isPlayer) { sfx.boost(); showToast('⚡ 闪电磁铁牵引!'); }
   } else if (itemId === 'banana') {
     const grp = itemVisual(itemId);
-    const backPos = owner.pos.clone().add(new THREE.Vector3(-Math.sin(owner.heading) * 2.6, 0, -Math.cos(owner.heading) * 2.6));
-    const sample=trackSamples[findClosestSample(backPos,owner.sampleIdx)];
-    backPos.y=sample.pos.y+0.07;
-    grp.position.copy(backPos);
-    grp.rotation.set(-Math.asin(sample.tangent.y),Math.atan2(sample.tangent.x,sample.tangent.z),0,'YXZ');
+    let sampleIdx, peelPos;
+    if (opts.forward) {
+      sampleIdx = (owner.sampleIdx + 14) % SAMPLES;
+      peelPos = trackSamples[sampleIdx].pos.clone();
+    } else {
+      peelPos = owner.pos.clone().add(new THREE.Vector3(-Math.sin(owner.heading) * 2.6, 0, -Math.cos(owner.heading) * 2.6));
+      sampleIdx = findClosestSample(peelPos, owner.sampleIdx);
+    }
+    const sample = trackSamples[sampleIdx];
+    peelPos.y = sample.pos.y + 0.07;
+    grp.position.copy(peelPos);
+    grp.rotation.set(-Math.asin(sample.tangent.y), Math.atan2(sample.tangent.x, sample.tangent.z), 0, 'YXZ');
     projectileGroup.add(grp);
-    activeProjectiles.push({ type: 'banana', owner, mesh: grp, pos: backPos, life: 18.0 });
+    activeProjectiles.push({ type: 'banana', owner, mesh: grp, pos: peelPos, sampleIdx, life: 18.0 });
     if (owner.isPlayer) sfx.beep(420, 0.08);
   } else if (itemId === 'bubble') {
     const mesh = itemVisual(itemId);
-    const startIdx = (owner.sampleIdx + 18) % SAMPLES;
+    const startIdx = (owner.sampleIdx + (opts.backward ? -6 : 18) + SAMPLES) % SAMPLES;
     const pos = trackSamples[startIdx].pos.clone().add(new THREE.Vector3(0, 1.2, 0));
     mesh.position.copy(pos);
     projectileGroup.add(mesh);
@@ -7578,17 +7610,31 @@ function updateProjectiles(dt) {
     const p = activeProjectiles[i];
     p.life -= dt;
     if (p.life <= 0) {
-      projectileGroup.remove(p.mesh);
-      disposeObject(p.mesh);
-      activeProjectiles.splice(i, 1);
+      removeProjectileAt(i);
       continue;
     }
 
     if (p.type === 'missile') {
-      if (p.target && p.target.isPlayer) playerTargeted = true;
       const targetPos = p.target ? p.target.pos.clone().add(new THREE.Vector3(0, 0.8, 0)) : p.pos;
       const dir = targetPos.clone().sub(p.pos);
       const dist = dir.length();
+      if (p.target && dist < 9 && (p.target.doingTrick || p.target.evadeBoostTimer > 0)) {
+        const away = dist > 0.1
+          ? dir.clone().normalize().multiplyScalar(-Math.max(0, 3.0 - dist))
+          : new THREE.Vector3(2.2, 0, 0);
+        const boomPos = p.pos.clone().add(away).add(new THREE.Vector3(0, 0.8, 0));
+        for (let k = 0; k < 14; k++) {
+          spawnParticle(boomPos, new THREE.Vector3((Math.random() - 0.5) * 14, 3 + Math.random() * 8, (Math.random() - 0.5) * 14), 0xff9f1c, 1.4, 0.5);
+        }
+        if (p.target.isPlayer) {
+          sfx.explosion();
+          sfx.pickup();
+          showToast(dict.evadeMissile);
+        }
+        removeProjectileAt(i);
+        continue;
+      }
+      if (p.target && p.target.isPlayer) playerTargeted = true;
       dir.normalize();
       p.pos.addScaledVector(dir, 74 * dt);
       p.mesh.position.copy(p.pos);
@@ -7598,9 +7644,7 @@ function updateProjectiles(dt) {
       }
       if (p.target && dist < 2.2) {
         inflictHit(p.target, 'missile');
-        projectileGroup.remove(p.mesh);
-        disposeObject(p.mesh);
-        activeProjectiles.splice(i, 1);
+        removeProjectileAt(i);
         continue;
       }
     } else if (p.type === 'bubble') {
@@ -7609,9 +7653,7 @@ function updateProjectiles(dt) {
         if (r === p.owner && p.life > 5.8) continue;
         if (r.pos.distanceToSquared(p.pos) < 7.5) {
           inflictHit(r, 'bubble');
-          projectileGroup.remove(p.mesh);
-          disposeObject(p.mesh);
-          activeProjectiles.splice(i, 1);
+          removeProjectileAt(i);
           break;
         }
       }
@@ -7621,9 +7663,7 @@ function updateProjectiles(dt) {
         if (r === p.owner && p.life > 17.2) continue;
         if (r.pos.distanceToSquared(p.pos) < 3.4) {
           inflictHit(r, 'banana');
-          projectileGroup.remove(p.mesh);
-          disposeObject(p.mesh);
-          activeProjectiles.splice(i, 1);
+          removeProjectileAt(i);
           break;
         }
       }
@@ -7741,6 +7781,7 @@ function createRacer(charCfg, index, isPlayer) {
   const startIdx = (SAMPLES - 6 - index * 5) % SAMPLES;
   const s = trackSamples[startIdx];
   const lat = (index % 2 === 0 ? -1 : 1) * 2.5;
+  const baseLane = (index - 1.5) * 2.0;
   const pos = s.pos.clone().addScaledVector(s.right, lat);
   const heading = Math.atan2(s.tangent.x, s.tangent.z);
 
@@ -7765,6 +7806,7 @@ function createRacer(charCfg, index, isPlayer) {
     heldItem: null,
     rouletteTimer: 0,
     shieldTimer: 0,
+    evadeBoostTimer: 0,
     stunTimer: 0,
     bubbleTimer: 0,
     draftTimer: 0,
@@ -7779,7 +7821,9 @@ function createRacer(charCfg, index, isPlayer) {
     totalProgress: (startIdx / SAMPLES) - 1,
     finished: false,
     finishTime: 0,
-    aiLane: (index - 1.5) * 2.0,
+    aiBaseLane: baseLane,
+    aiLane: baseLane,
+    aiRubber: 1,
     aiPace: DIFFS[selectedDiff].aiScale * (0.96 + (index % 3) * 0.03)
   };
 }
@@ -7901,7 +7945,10 @@ function triggerPlayerItem() {
   if (!p || !p.heldItem || p.rouletteTimer > 0) return;
   const it = p.heldItem;
   p.heldItem = null;
-  spawnItemEffect(p, it.id);
+  spawnItemEffect(p, it.id, {
+    forward: !!(keys['KeyW'] || keys['ArrowUp'] || touch.gas) && !(keys['KeyS'] || keys['ArrowDown']),
+    backward: !!(keys['KeyS'] || keys['ArrowDown'])
+  });
   updateItemUI(p);
 }
 
@@ -7919,6 +7966,37 @@ function togglePause() {
 /* ---------------------------------------------------------------------
    11. Physics Step, Animations & Collision Response
    --------------------------------------------------------------------- */
+/** Shift AI target lane away from nearby track hazards ahead, otherwise relax to base lane. */
+function updateAiLane(r, s, dt) {
+  let nearestHazardLat = null;
+  let nearestDistSq = 22 * 22;
+  for (const pr of activeProjectiles) {
+    if (pr.type !== 'banana' && pr.type !== 'bubble') continue;
+    const toHaz = pr.pos.clone().sub(r.pos);
+    const d2 = toHaz.lengthSq();
+    if (d2 >= nearestDistSq) continue;
+    const hIdx = pr.sampleIdx !== undefined ? pr.sampleIdx : findClosestSample(pr.pos, r.sampleIdx);
+    const sampleDelta = (hIdx - r.sampleIdx + SAMPLES) % SAMPLES;
+    const isAhead = (sampleDelta > 0 && sampleDelta < 40) || (sampleDelta === 0 && toHaz.dot(s.tangent) > 0);
+    if (!isAhead) continue;
+    const hs = trackSamples[hIdx];
+    const hazardLat = pr.pos.clone().sub(hs.pos).dot(hs.right);
+    if (Math.abs(hazardLat - r.aiLane) < 2.8) {
+      nearestDistSq = d2;
+      nearestHazardLat = hazardLat;
+    }
+  }
+  if (nearestHazardLat !== null) {
+    let targetLane = clamp(r.aiLane + (nearestHazardLat > r.aiLane ? -3.2 : 3.2), -5.0, 5.0);
+    if (Math.abs(targetLane - nearestHazardLat) < 2.4) {
+      targetLane = clamp(nearestHazardLat + (nearestHazardLat >= 0 ? -3.2 : 3.2), -5.0, 5.0);
+    }
+    r.aiLane = lerp(r.aiLane, targetLane, Math.min(1, dt * 7));
+  } else {
+    r.aiLane = lerp(r.aiLane, r.aiBaseLane ?? 0, Math.min(1, dt * 1.8));
+  }
+}
+
 function stepRacer(r, dt, nowSec) {
   const s = trackSamples[r.sampleIdx];
   const cfg = r.charCfg;
@@ -7933,13 +8011,14 @@ function stepRacer(r, dt, nowSec) {
     r.rouletteTimer = Math.max(0, r.rouletteTimer - dt);
     if (r.isPlayer && Math.floor(r.rouletteTimer * 12) !== prevTick) sfx.rouletteTick();
     if (r.rouletteTimer <= 0 && !r.heldItem) {
-      r.heldItem = ITEMS[Math.floor(Math.random() * ITEMS.length)];
+      r.heldItem = rollWeightedItem(r);
       if (r.isPlayer) sfx.pickup();
     }
     if (r.isPlayer) updateItemUI(r);
   }
 
   if (r.shieldTimer > 0) r.shieldTimer = Math.max(0, r.shieldTimer - dt);
+  if (r.evadeBoostTimer > 0) r.evadeBoostTimer = Math.max(0, r.evadeBoostTimer - dt);
   if (r.doubleBoostWindow > 0) r.doubleBoostWindow = Math.max(0, r.doubleBoostWindow - dt);
 
   if (r.isPlayer) {
@@ -7949,6 +8028,7 @@ function stepRacer(r, dt, nowSec) {
     if (keys['KeyD'] || keys['ArrowRight'] || touch.right) steer -= 1;
     wantDrift = !!(keys['ShiftLeft'] || keys['ShiftRight'] || touch.drift);
   } else {
+    updateAiLane(r, s, dt);
     const lookAheadIdx = (r.sampleIdx + 14) % SAMPLES;
     const targetSample = trackSamples[lookAheadIdx];
     const targetPos = targetSample.pos.clone().addScaledVector(targetSample.right, r.aiLane);
@@ -7958,6 +8038,9 @@ function stepRacer(r, dt, nowSec) {
     while (diff < -Math.PI) diff += TAU;
     steer = clamp(diff * 2.4, -1, 1);
     throttle = Math.abs(diff) > 0.55 ? 0.78 : 1.0;
+    wantDrift = r.drifting
+      ? (Math.abs(diff) >= 0.16 && diff * r.driftDir >= 0 && r.speed > 14 && r.airY <= 0.05)
+      : (Math.abs(diff) > 0.32 && r.speed > 18 && r.airY <= 0.05);
 
     if (r.boostTimer <= 0 && Math.random() < DIFFS[selectedDiff].aiBoostChance) {
       r.boostTimer = 1.6;
@@ -7981,36 +8064,32 @@ function stepRacer(r, dt, nowSec) {
   }
 
   // 4-Stage Drift State Machine
-  if (r.isPlayer && wantDrift && r.speed > 14 && r.airY <= 0.05 && (r.drifting || Math.abs(steer) > 0.1)) {
+  if (wantDrift && r.speed > 14 && r.airY <= 0.05 && (r.drifting || Math.abs(steer) > 0.1)) {
     if (!r.drifting) {
       r.drifting = true;
       r.driftDir = steer >= 0 ? 1 : -1;
       r.driftCharge = 0;
     }
-    r.driftCharge += dt * cfg.chargeRate * (0.78 + 0.35 * Math.abs(steer));
-    r.nitroCharge = Math.min(100, r.nitroCharge + dt * 28 * cfg.chargeRate);
-    if (r.nitroCharge >= 100 && r.capsules < 2) {
-      r.nitroCharge = 0;
-      r.capsules++;
-      sfx.pickup();
+    r.driftCharge += dt * cfg.chargeRate * (r.isPlayer ? (0.78 + 0.35 * Math.abs(steer)) : 1.0);
+    if (r.isPlayer) {
+      r.nitroCharge = Math.min(100, r.nitroCharge + dt * 28 * cfg.chargeRate);
+      if (r.nitroCharge >= 100 && r.capsules < 2) {
+        r.nitroCharge = 0;
+        r.capsules++;
+        sfx.pickup();
+      }
     }
   } else {
     if (r.drifting) {
-      if (r.driftCharge >= 1.35) {
-        r.boostTimer = Math.max(r.boostTimer, 1.55);
-        r.doubleBoostWindow = 0.45;
-        sfx.boost();
-        if (r.isPlayer) showToast(dict.miniTurbo3);
-      } else if (r.driftCharge >= 0.85) {
-        r.boostTimer = Math.max(r.boostTimer, 1.15);
-        r.doubleBoostWindow = 0.40;
-        sfx.boost();
-        if (r.isPlayer) showToast(dict.miniTurbo2);
-      } else if (r.driftCharge >= 0.42) {
-        r.boostTimer = Math.max(r.boostTimer, 0.75);
-        r.doubleBoostWindow = 0.35;
-        sfx.boost();
-        if (r.isPlayer) showToast(dict.miniTurbo1);
+      const tier = r.driftCharge >= 1.35 ? { boost: 1.55, dbl: 0.45, evade: 0.75, msg: dict.miniTurbo3 }
+        : r.driftCharge >= 0.85 ? { boost: 1.15, dbl: 0.40, evade: 0.75, msg: dict.miniTurbo2 }
+        : r.driftCharge >= 0.42 ? { boost: 0.75, dbl: 0.35, evade: 0, msg: dict.miniTurbo1 }
+        : null;
+      if (tier) {
+        r.boostTimer = Math.max(r.boostTimer, tier.boost);
+        r.doubleBoostWindow = tier.dbl;
+        if (tier.evade > 0) r.evadeBoostTimer = tier.evade;
+        if (r.isPlayer) { sfx.boost(); showToast(tier.msg); }
       }
     }
     r.drifting = false;
@@ -8045,7 +8124,17 @@ function stepRacer(r, dt, nowSec) {
   // Speed & Boost integration
   if (r.boostTimer > 0) r.boostTimer = Math.max(0, r.boostTimer - dt);
   const boosting = r.boostTimer > 0;
-  const baseMax = r.isPlayer ? cfg.maxSpeed : cfg.maxSpeed * r.aiPace;
+  let effectiveAiPace = r.aiPace;
+  if (!r.isPlayer) {
+    const player = racers[0];
+    if (player) {
+      const gap = player.totalProgress - r.totalProgress;
+      const rubber = clamp(1 + gap * 0.25, 0.94, 1.06);
+      r.aiRubber = lerp(r.aiRubber ?? 1, rubber, Math.min(1, dt * 3));
+      effectiveAiPace *= r.aiRubber;
+    }
+  }
+  const baseMax = r.isPlayer ? cfg.maxSpeed : cfg.maxSpeed * effectiveAiPace;
   const maxSpd = boosting ? baseMax * 1.34 : baseMax;
 
   const rel = r.pos.clone().sub(s.pos);

@@ -7,9 +7,9 @@ import { chromium } from 'playwright';
 
 const html = await readFile(new URL('../games/kart.html', import.meta.url), 'utf8');
 const expose = `globalThis.qa = { THREE, scene, camera, renderer, skyMat, TRACKS, CHARS,
-  buildTrackAndWorld, buildKartMesh, buildProceduralKart, startRace, backToMenu, spawnItemEffect,
+  buildTrackAndWorld, buildKartMesh, buildProceduralKart, startRace, backToMenu, spawnItemEffect, inflictHit,
   stepRacer, resolveKartCollisions, wrapAngle, updateProjectiles, animate, animateScarf, updateSunShadow, disposeObject, previewRenderers, get samples(){return trackSamples},
-  get world(){return worldGroup}, get racers(){return racers},
+  get world(){return worldGroup}, get racers(){return racers}, get coins(){return coinPickups},
   get props(){return animatedProps}, get projectiles(){return activeProjectiles},
   get ramps(){return jumpRamps}, set track(v){selectedTrack=v},
   set char(v){selectedChar=v}, set state(v){gameState=v}, set cam(v){camMode=v}, get state(){return gameState} };`;
@@ -46,6 +46,7 @@ try {
       const failures = [];
       if (!qa.world.children.some(obj=>obj.userData.assetId===qa.TRACKS[id].id)) failures.push('track GLB fallback');
       if (!qa.world.getObjectByName('sign-'+qa.TRACKS[id].id)) failures.push('missing illustrated track sign');
+      if (qa.coins.length !== 18) failures.push(`expected 18 coins, got ${qa.coins.length}`);
       qa.world.traverse(o => {
         const a = o.geometry?.attributes.position?.array;
         if (a && !a.every(Number.isFinite)) failures.push(`nonfinite geometry: ${o.name}`);
@@ -225,6 +226,27 @@ try {
       const closest=qa.samples.reduce((a,s)=>Math.hypot(s.pos.x-peel.pos.x,s.pos.z-peel.pos.z)<a.distance?
         {distance:Math.hypot(s.pos.x-peel.pos.x,s.pos.z-peel.pos.z),y:s.pos.y}:a,{distance:Infinity});
       if(Math.abs(peel.pos.y-closest.y-.07)>.01 || peel.mesh.children.length!==4 || !peel.mesh.userData.binding) failures.push('banana asset, pose or silhouette');
+      const coin = qa.coins.find(c => c.cooldown <= 0);
+      if (!coin) failures.push('no active coin available');
+      else {
+        owner.coins = 0; owner.shieldTimer = 0;
+        const coinSample = qa.samples.reduce((best, s, idx) => {
+          const d = Math.hypot(s.pos.x - coin.pos.x, s.pos.z - coin.pos.z);
+          return d < best.d ? { d, idx } : best;
+        }, { d: Infinity, idx: 0 }).idx;
+        owner.sampleIdx = coinSample;
+        owner.pos.copy(coin.pos); owner.pos.y = qa.samples[coinSample].pos.y;
+        owner.airY = 0; owner.airVy = 0; owner.speed = 10;
+        qa.stepRacer(owner, 1/60, 3);
+        if (owner.coins !== 1 || coin.cooldown <= 0 || coin.mesh.visible) failures.push('coin pickup failed');
+        owner.coins = 5;
+        qa.inflictHit(owner, 'missile');
+        if (owner.coins !== 2) failures.push(`coin drop on hit failed: ${owner.coins}`);
+        owner.shieldTimer = 2.0;
+        qa.inflictHit(owner, 'missile');
+        if (owner.coins !== 2) failures.push(`shielded racer should not drop coins: ${owner.coins}`);
+        owner.shieldTimer = 0; owner.stunTimer = 0; owner.airY = 0; owner.airVy = 0; owner.coins = 0;
+      }
       qa.cam=1;qa.animate(performance.now());
       const headPos=owner.visual.headGroup.getWorldPosition(new qa.THREE.Vector3());
       if(qa.camera.position.distanceTo(headPos)<.5) failures.push('cockpit inside head');
@@ -332,6 +354,40 @@ try {
     assert.equal(p.renderTarget,false,'previews must not reuse a foreign WebGL render target');
   }
   await page.screenshot({ path: join(screenshots, 'mobile-race.png') });
+  let simNow = await page.evaluate(() => performance.now() + 200);
+  await page.evaluate(() => { qa.startRace(); });
+  assert.equal(await page.evaluate(() => qa.state), 'countdown');
+  simNow = await page.evaluate((startNow) => {
+    let t = startNow;
+    for (let i = 0; i < 45; i++) { t += 40; qa.animate(t); }
+    return t;
+  }, simNow);
+  await page.keyboard.down('KeyW');
+  const rocketCheck = await page.evaluate((startNow) => {
+    let t = startNow;
+    for (let i = 0; i < 40; i++) { t += 40; qa.animate(t); }
+    const p = qa.racers[0];
+    return { t, state: qa.state, rev: p.startRevCharge, overheated: p.startOverheated, boost: p.boostTimer, speed: p.speed };
+  }, simNow);
+  await page.keyboard.up('KeyW');
+  simNow = rocketCheck.t;
+  assert.equal(rocketCheck.state, 'racing');
+  assert.equal(rocketCheck.overheated, false);
+  assert.ok(rocketCheck.boost > 1.0 && rocketCheck.speed >= 20, `rocket start failed: ${JSON.stringify(rocketCheck)}`);
+
+  await page.evaluate(() => { qa.startRace(); });
+  await page.keyboard.down('KeyW');
+  const overheatCheck = await page.evaluate((startNow) => {
+    let t = startNow;
+    for (let i = 0; i < 85; i++) { t += 40; qa.animate(t); }
+    const p = qa.racers[0];
+    return { t, state: qa.state, rev: p.startRevCharge, overheated: p.startOverheated, stun: p.stunTimer, speed: p.speed };
+  }, simNow);
+  await page.keyboard.up('KeyW');
+  assert.equal(overheatCheck.state, 'racing');
+  assert.equal(overheatCheck.overheated, true);
+  assert.ok(overheatCheck.stun > 0 && overheatCheck.speed < 10, `overheat start failed: ${JSON.stringify(overheatCheck)}`);
+
   await page.keyboard.down('ArrowUp');
   const wallSlideResults = await page.evaluate(() => {
     qa.track = 0; qa.startRace(); qa.state = 'racing';

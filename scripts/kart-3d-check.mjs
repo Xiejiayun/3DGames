@@ -8,7 +8,8 @@ import { chromium } from 'playwright';
 const html = await readFile(new URL('../games/kart.html', import.meta.url), 'utf8');
 const expose = `globalThis.qa = { THREE, scene, camera, renderer, skyMat, TRACKS, CHARS,
   buildTrackAndWorld, buildKartMesh, buildProceduralKart, startRace, backToMenu, spawnItemEffect,
-  stepRacer, updateProjectiles, animate, animateScarf, updateSunShadow, disposeObject, previewRenderers, get samples(){return trackSamples},
+  stepRacer, updateProjectiles, animate, animateScarf, updateSunShadow, disposeObject, previewRenderers,
+  updateCornerHint, finishRace, get samples(){return trackSamples},
   get world(){return worldGroup}, get racers(){return racers},
   get props(){return animatedProps}, get projectiles(){return activeProjectiles},
   get ramps(){return jumpRamps}, set track(v){selectedTrack=v},
@@ -332,8 +333,109 @@ try {
     assert.equal(p.renderTarget,false,'previews must not reuse a foreign WebGL render target');
   }
   await page.screenshot({ path: join(screenshots, 'mobile-race.png') });
+  const telemetryCheck = await page.evaluate(() => {
+    const failures = [];
+    const player = qa.racers[0];
+    const hintEl = document.getElementById('cornerHint');
+    const minimapEl = document.getElementById('minimapWrap');
+
+    // Find a curved track section without an intervening jump ramp ahead
+    let curveIdx = -1;
+    const total = qa.samples.length;
+    for (let i = 0; i < total; i++) {
+      const s0 = qa.samples[i];
+      const fwdX = s0.tangent.x, fwdZ = s0.tangent.z;
+      const nearRamp = qa.ramps.some(r => {
+        const dx = r.pos.x - s0.pos.x, dy = r.pos.y - s0.pos.y, dz = r.pos.z - s0.pos.z;
+        const ahead = dx * fwdX + dz * fwdZ;
+        return ahead >= 14 && ahead <= 42 && Math.abs(dy) < 10;
+      });
+      if (nearRamp) continue;
+      let deltaYaw = 0;
+      let prevYaw = Math.atan2(qa.samples[(i + 12) % total].tangent.x, qa.samples[(i + 12) % total].tangent.z);
+      for (let step = 13; step <= 34; step++) {
+        const sn = qa.samples[(i + step) % total];
+        const nextYaw = Math.atan2(sn.tangent.x, sn.tangent.z);
+        let d = nextYaw - prevYaw;
+        while (d > Math.PI) d -= Math.PI * 2;
+        while (d < -Math.PI) d += Math.PI * 2;
+        deltaYaw += d;
+        prevYaw = nextYaw;
+      }
+      if (Math.abs(deltaYaw) > 0.35) { curveIdx = i; break; }
+    }
+    if (curveIdx < 0) failures.push('no curved sample found');
+    else {
+      const s = qa.samples[curveIdx];
+      player.pos.copy(s.pos);
+      player.sampleIdx = curveIdx;
+      player.heading = Math.atan2(s.tangent.x, s.tangent.z);
+      qa.updateCornerHint(player);
+      const style = getComputedStyle(hintEl);
+      if (style.display === 'none' || !hintEl.textContent.trim()) failures.push('corner hint hidden on curve');
+      if (!hintEl.classList.contains('warn-turn') && !hintEl.classList.contains('warn-sharp')) failures.push('missing turn warning class');
+      const hintBox = hintEl.getBoundingClientRect();
+      const mapBox = minimapEl.getBoundingClientRect();
+      if (hintBox.top < mapBox.bottom && hintBox.left < mapBox.right && hintBox.right > mapBox.left) {
+        failures.push('corner hint overlaps minimap on mobile');
+      }
+    }
+
+    // Verify ramp warning triggers ahead of a ramp
+    const ramp = qa.ramps[0];
+    player.pos.copy(ramp.pos).addScaledVector(ramp.tangent, -24);
+    player.heading = Math.atan2(ramp.tangent.x, ramp.tangent.z);
+    qa.updateCornerHint(player);
+    if (getComputedStyle(hintEl).display === 'none' || !hintEl.classList.contains('warn-ramp')) {
+      failures.push('ramp warning did not activate');
+    }
+
+    // Verify lap split timing and telemetry stats initialization & updates
+    if (!Array.isArray(player.lapTimes) || !player.stats || typeof player.stats.driftCount !== 'number') {
+      failures.push('missing player telemetry fields');
+    }
+    const prevBoosts = player.stats.boostCount;
+    qa.spawnItemEffect(player, 'nitro');
+    if (player.stats.boostCount !== prevBoosts + 1) failures.push('nitro item did not increment boostCount');
+
+    player.checkpoint = 1;
+    player.sampleIdx = 595;
+    player.speed = 0;
+    player.pos.copy(qa.samples[2].pos);
+    player.heading = Math.atan2(qa.samples[2].tangent.x, qa.samples[2].tangent.z);
+    qa.stepRacer(player, 1/60, 1);
+    const toast1 = document.getElementById('toastText').textContent;
+    if (player.lap !== 2 || player.lapTimes.length !== 1 || !toast1.includes('1')) {
+      failures.push(`lap 1 split failed: lap=${player.lap}, len=${player.lapTimes.length}, toast=${toast1}`);
+    }
+    player.checkpoint = 1;
+    player.sampleIdx = 595;
+    player.pos.copy(qa.samples[2].pos);
+    qa.stepRacer(player, 1/60, 2);
+    const toast2 = document.getElementById('toastText').textContent;
+    if (player.lap !== 3 || player.lapTimes.length !== 2 || !toast2.includes('2') || !toast2.includes('🔔')) {
+      failures.push(`lap 2 split/final lap failed: lap=${player.lap}, len=${player.lapTimes.length}, toast=${toast2}`);
+    }
+
+    // Simulate race finish and verify #resultStats telemetry & rating badge
+    player.lapTimes = [24.5, 23.8, 23.2];
+    player.stats = { driftCount: 6, boostCount: 5, trickCount: 2, hitCount: 2 };
+    qa.finishRace();
+    const resultStats = document.getElementById('resultStats');
+    const badge = resultStats?.querySelector('.rating-badge');
+    const cards = resultStats?.querySelectorAll('.tel-card') || [];
+    if (qa.state !== 'finished') failures.push('state did not become finished');
+    if (getComputedStyle(hintEl).display !== 'none') failures.push('corner hint visible after finish');
+    if (!badge || !['S', 'A', 'B', 'C'].includes(badge.textContent.trim())) failures.push('missing or invalid rating badge');
+    if (cards.length !== 4 || !resultStats.textContent.includes('00:23.20')) failures.push('missing telemetry metrics or best lap');
+
+    qa.backToMenu();
+    if (qa.state !== 'menu') failures.push('backToMenu did not reset state');
+    return failures;
+  });
+  assert.deepEqual(telemetryCheck, [], `telemetry check: ${telemetryCheck.join(', ')}`);
   assert.deepEqual(errors, [], errors.join('\n'));
-  console.log(`PASS repeated scene disposal: ${JSON.stringify(memory)}; mobile menu/start; no browser errors`);
+  console.log(`PASS repeated scene disposal: ${JSON.stringify(memory)}; mobile menu/start; corner hint & telemetry; no browser errors`);
   console.log(`Screenshots: ${screenshots}`);
 } finally {
   await browser.close();

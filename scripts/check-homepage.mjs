@@ -27,7 +27,7 @@ const games = [
   ['skyhold', 'skyhold-bastion', '浮空要塞', 'Skyhold Bastion'],
 ].map(([slug, preview, zh, en]) => ({ href: `games/${slug}.html`, image: `assets/previews/${preview}.webp`, zh, en }));
 const sizes = [[1920, 1080], [1920, 651], [1440, 900], [1440, 675], [1366, 768], [1280, 720], [1024, 768],
-  [820, 1180], [768, 1024], [768, 600], [640, 480], [500, 568], [390, 844], [375, 667], [360, 640],
+  [820, 1180], [768, 1024], [768, 600], [640, 844], [640, 480], [500, 568], [390, 844], [375, 667], [360, 640],
   [320, 740], [320, 568], [844, 390], [568, 320]];
 let browser;
 try {
@@ -48,6 +48,7 @@ try {
     await page.setViewportSize({ width, height });
     await page.goto(origin);
     assert.equal(await page.locator('html').getAttribute('lang'), 'zh-CN');
+    assert.equal(Number(await page.locator('.count b').innerText()), games.length);
     await page.locator('.preview img').evaluateAll(imgs => Promise.all(imgs.map(img => img.decode())));
     for (const lang of ['en', 'zh']) {
       await page.locator(`[data-lang="${lang}"]`).click();

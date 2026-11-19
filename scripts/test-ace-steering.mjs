@@ -129,6 +129,19 @@ async function touchRun() {
   const page = await open({ width:320, height:568 }, true);
   const cdp = await page.context().newCDPSession(page);
   const touch = (type, touchPoints) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints });
+  async function endTouches(protocol, nativeEvent, selectors) {
+    const receipt = await page.evaluateHandle(({ nativeEvent, selectors }) => {
+      const seen = new Set();
+      for (const selector of selectors) document.querySelector(selector).addEventListener(nativeEvent, event => {
+        if (event.isTrusted && event.pointerType === 'touch') seen.add(event.pointerId);
+      }, { once:true });
+      return { seen, expected:selectors.length };
+    }, { nativeEvent, selectors });
+    try {
+      await touch(protocol, []);
+      await page.waitForFunction(signal => signal.seen.size === signal.expected, receipt, { timeout:4000 });
+    } finally { await receipt.dispose(); }
+  }
   const level = page.getByRole('button', { name:'改平', exact:true });
   const box = await level.boundingBox(); assert.ok(box.width >= 44 && box.height >= 44);
   const button = { id:2, x:Math.round(box.x + box.width / 2), y:Math.round(box.y + box.height / 2) };
@@ -138,8 +151,10 @@ async function touchRun() {
   await touch('touchMove', [moved]); const banked = await step(page, 30); assert.ok(tilt(banked) > 0.15);
   await touch('touchStart', [moved, button]); assert.ok(await level.evaluate(node => node.classList.contains('held')));
   assert.ok(!(await step(page)).leveling, 'A second thumb cannot steal a live stick');
-  await touch('touchCancel', []); const canceled = await step(page); near(Math.hypot(...canceled.stick), 0, 'Canceled touch is neutral');
-  await touch('touchStart', [start]); await touch('touchMove', [moved]); await step(page, 4); await touch('touchEnd', []);
+  await endTouches('touchCancel', 'pointercancel', ['#gl', '[data-flight="level"]']);
+  const canceled = await step(page); near(Math.hypot(...canceled.stick), 0, 'Canceled touch is neutral');
+  await touch('touchStart', [start]); await touch('touchMove', [moved]); await step(page, 4);
+  await endTouches('touchEnd', 'pointerup', ['#gl']);
   const released = await step(page); near(Math.hypot(...released.stick), 0, 'Lifting thumb centers the stick');
   await level.tap(); assert.ok((await step(page)).leveling); const done = await step(page, 180);
   near(tilt(done), 0, 'Touch button levels flight'); near(done.heading, released.heading, 'Touch recovery keeps heading');

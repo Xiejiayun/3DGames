@@ -10,6 +10,7 @@
 | **Flappy Bird 3D** | 3D 街机飞行 | [`games/flappy.html`](games/flappy.html) |
 | **Turbo Kart 3D · 极速卡丁车** | 3D 卡丁车竞速 | [`games/kart.html`](games/kart.html) |
 | **Ace Archipelago · 王牌群岛** | 3D 现代海岛空战（[场景清单与验收](docs/ace-scene-review.md)） | [`games/ace.html`](games/ace.html) |
+| **Prism Vault · 棱镜密室** | 3D 光学解谜：在十间密室中用镜子、棱镜与滤色晶体引导光束 | [`games/prism.html`](games/prism.html) |
 
 ## 目录结构
 
@@ -25,7 +26,8 @@
 │   ├── cs.html
 │   ├── flappy.html
 │   ├── kart.html
-│   └── ace.html
+│   ├── ace.html
+│   └── prism.html
 ├── scripts/             # 静态站点构建脚本
 ├── index.html           # 游戏合集首页
 ├── cloudflare.config.ts # Cloudflare Workers 配置
@@ -58,7 +60,7 @@
 - `Validate site` 任务负责测试、构建和发布包 dry-run，不上传文件、不读取部署凭据；Pull Request 只运行此校验任务。
 - `Deploy production (main only)` 是独立的正式部署任务，仅在 `main` 的 push 或手动运行事件中、且校验任务成功后执行，检出同一次运行的准确提交重新构建并部署。PR 和其他分支会跳过此任务。
 - 构建脚本将所有已加入 Git 的 HTML 和 `assets/previews/*.webp` 预览图复制到 `dist/`，保留文件名及子目录结构；只部署该目录。新增 HTML 和该目录下的 WebP 无需修改工作流。如果以后增加其他独立 CSS、JS 或图片等资源，需要同步调整 `scripts/build-site.mjs` 的收集规则。
-- `index.html` 为首页，游戏页面可通过 `/games/cs.html`、`/games/flappy.html`、`/games/kart.html`、`/games/ace.html` 访问。不存在的路径返回 404。
+- `index.html` 为首页，各游戏的直达路径见游戏列表。不存在的路径返回 404。
 - 同一分支的发布使用固定的并发组。即使工作流改名，也请保留原组名，让新旧任务继续排在同一队列，避免旧版本晚发布而覆盖新版。手动运行非 `main` 分支只校验，不更新线上站点。
 - 若账户中已存在同名 Worker，部署会更新该 Worker；需要另一个站点时，先修改 `cloudflare.config.ts` 中的 `worker.name`。
 
@@ -70,6 +72,7 @@
 npm ci
 npm run build
 npm run test:home
+npm run test:prism
 npx cf deploy --prebuilt --mode production --dry-run
 ```
 

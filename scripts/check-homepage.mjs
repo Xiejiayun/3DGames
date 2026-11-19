@@ -20,6 +20,7 @@ const server = createServer(async (req, res) => {
 });
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 const origin = `http://127.0.0.1:${server.address().port}`;
+const games = ['cs', 'flappy', 'kart', 'ace', 'prism'].map(name => `games/${name}.html`);
 let browser;
 try {
   browser = await chromium.launch({ headless: true });
@@ -50,7 +51,7 @@ try {
       assert.equal(state.lang, lang === 'zh' ? 'zh-CN' : 'en');
       assert.equal(state.overflow, false, `${width}px: no horizontal overflow`);
       assert.equal(state.columns, width > 720 ? 2 : 1);
-      assert.equal(state.cards.length, 4);
+      assert.deepEqual(state.cards.map(card => card.href), games);
       for (const card of state.cards) {
         assert.equal(card.width, 960); assert.equal(card.height, 540);
         assert.ok(Math.abs(card.ratio - 16 / 9) < 0.01, 'preview retains full 16:9 frame');
@@ -67,7 +68,7 @@ try {
   await page.keyboard.press('Enter');
   await page.waitForURL(`${origin}/games/cs.html`, { waitUntil: 'commit' });
   assert.deepEqual(errors, []);
-  console.log('PASS built homepage: 4 screenshots, ZH/EN, 4 viewports, game links, keyboard navigation; no page/HTTP errors');
+  console.log(`PASS built homepage: ${games.length} screenshots, ZH/EN, 4 viewports, game links, keyboard navigation; no page/HTTP errors`);
 } finally {
   await browser?.close();
   server.closeAllConnections();

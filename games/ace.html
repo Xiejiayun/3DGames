@@ -401,6 +401,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // ============================================================================
 // 1. I18N & GAME DATA (3 JETS, 3 MISSIONS)
@@ -1799,16 +1800,22 @@ function buildSeaArch(x, z, rotY) {
     [40,102,148,28,-5], [65,96,164,30,3], [83,75,158,33,8], [101,50,146,34,11],
     [112,8,121,42,12], [128,-18,119,47,10], [151,-18,83,44,4], [169,-18,47,34,1], [190,-18,27,22,-4]
   ];
-  const section = [[0,-0.46], [0.09,-0.82], [0.36,-1], [0.64,-0.91], [0.84,-0.84], [1,-0.42],
-    [0.97,0.38], [0.80,0.80], [0.73,0.91], [0.49,0.98], [0.32,1.01], [0.08,0.82], [0,0.44]];
+  const section = [[0,-0.46],[0.09,-0.82],[0.19,-0.98],[0.29,-0.97],[0.41,-1],[0.64,-0.91],[0.84,-0.84],[1,-0.42],
+    [0.97,0.38],[0.80,0.80],[0.68,0.95],[0.49,0.98],[0.40,1.01],[0.29,0.99],[0.19,1],[0.11,0.95],[0.06,0.80],[0,0.44]];
   const positions = [], colors = [], indices = [];
   const basalt = new THREE.Color(0x585352), ash = new THREE.Color(0xb29878), moss = new THREE.Color(0x7d8554), tint = new THREE.Color();
   spans.forEach(([along, low, high, depth, sweep], ring) => {
+    const shoulder = THREE.MathUtils.smoothstep(Math.abs(along), 77, 125), dip = 0.018 * Math.sin(along * 0.077);
     section.forEach(([rise, face], edge) => {
       const chip = hash2(ring, edge) - 0.5, height = low + (high - low) * rise + chip * 4;
-      positions.push(along + chip * 5, height, sweep + depth * face + chip * 3);
+      const course = rise + dip;
+      const notch = 1 - THREE.MathUtils.smoothstep(Math.abs(course - 0.28), 0.035, 0.11);
+      const toe = 1 - THREE.MathUtils.smoothstep(Math.abs(course - 0.125), 0.014, 0.082);
+      const relief = shoulder * THREE.MathUtils.smoothstep(Math.abs(face), 0.48, 0.84) * (10 * toe - 16 * notch);
+      positions.push(along + chip * 5, height, sweep + depth * face + Math.sign(face) * relief + chip * 3);
       const grit = 0.32 + 0.19 * Math.sin(height * 0.12 + along * 0.015) + chip * 0.24;
       tint.copy(basalt).lerp(ash, grit).lerp(moss, THREE.MathUtils.smoothstep(rise, 0.80, 1) * (0.50 + chip * 0.6));
+      tint.multiplyScalar(0.82 + 0.18 * THREE.MathUtils.smoothstep(rise, 0.01, 0.10) - 0.25 * shoulder * notch);
       colors.push(tint.r, tint.g, tint.b);
       if (ring + 1 < spans.length) {
         const first = ring * section.length + edge, next = ring * section.length + (edge + 1) % section.length;
@@ -1818,6 +1825,26 @@ function buildSeaArch(x, z, rotY) {
   });
   const last = (spans.length - 1) * section.length;
   for (let edge = 1; edge < section.length - 1; edge++) indices.push(0, edge + 1, edge, last, last + edge, last + edge + 1);
+  const splinter = [[-0.8,-0.72],[-1,0.18],[-0.63,0.90],[0.22,1],[0.92,0.42],[0.83,-0.58],[0.16,-1]];
+  function buttress(centerX, centerZ, width, depth, courses) {
+    const base = positions.length / 3, sides = splinter.length;
+    courses.forEach(([height, scale, lean, sweep, ochre], tier) => {
+      splinter.forEach(([across, fore], edge) => {
+        const chip = hash2(tier + centerX, edge) - 0.5;
+        positions.push(centerX + lean + width * across * scale + 2 * chip, height + 4 * chip, centerZ + sweep + depth * fore * scale);
+        tint.copy(basalt).lerp(ash, ochre + 0.17 * chip); colors.push(tint.r, tint.g, tint.b);
+        if (tier === 0) return;
+        const lower = base + (tier - 1) * sides, corner = lower + edge, next = lower + (edge + 1) % sides;
+        indices.push(corner, next, next + sides, corner, next + sides, corner + sides);
+      });
+    });
+    const top = base + (courses.length - 1) * sides;
+    for (let edge = 1; edge < sides - 1; edge++) indices.push(top, top + edge, top + edge + 1, base, base + edge + 1, base + edge);
+  }
+  buttress(-157, 37, 22, 18, [[-19,1.30,1,1,0.18],[26,1.06,-2,3,0.24],[45,0.74,0,2,0.18],
+    [54,0.93,0,4,0.55],[100,0.68,2,6,0.36],[133,0.48,-4,9,0.48],[143,0.22,-6,9,0.56]]);
+  buttress(145, -30, 25, 16, [[-19,1.22,0,-1,0.20],[24,1.01,0,-3,0.27],[37,0.74,-2,-4,0.18],
+    [46,0.95,-4,-3,0.53],[68,0.64,-7,0,0.38],[81,0.26,-9,2,0.52]]);
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3)); geo.setIndex(indices); geo.computeVertexNormals();
@@ -1904,26 +1931,35 @@ function buildCarrierMesh() {
   const steel = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.76, metalness: 0.16 });
   const hull = [[-18,-145],[-23,-130],[-24,44],[-20,95],[-11,126],[0,149],
     [11,126],[20,95],[24,44],[23,-130],[18,-145]];
-  landmarkMesh(root, landmarkLoft(hull, [[-9,0.70,0.94,0x775654], [0.8,0.86,0.98,0x43575f],
-    [4.1,0.90,0.989,0x7d9196], [12,1,1,0x566774], [16.4,1,1]], 0x88969a), steel);
+  const hullGeo = landmarkLoft(hull, [[-9,0.70,0.94,0x775654], [0.8,0.86,0.98,0x43575f],
+    [4.1,0.90,0.989,0x7d9196], [10.6,1,1,0xa0aaa6], [11.4,0.89,0.985,0x485c65], [16.4,0.89,0.985]], 0x88969a);
   const deck = [[-21,-150],[-29,-139],[-31,-58],[-38,9],[-38,34],[-28,61],[-21,95],[-18,137],[-8,150],
     [12,150],[22,136],[25,88],[30,67],[30,-81],[27,-126],[20,-150]];
   const deckGeo = landmarkLoft(deck, [[15.8,0.92,0.987,0x657980], [18.5,1,1,0xc0bda6], [20,1,1]], 0xffffff, true);
   landmarkMesh(root, deckGeo, [steel, new THREE.MeshStandardMaterial({ map: carrierDeckTex, roughness: 0.89, metalness: 0.08 })]);
   const house = landmarkLoft(clippedPlan(7.8, 24, 4), [[20,1,1,0x8a9b9e], [29,0.91,0.93,0x536773],
     [31,0.94,0.95,0xb7c2bf], [37,0.76,0.76]], 0x66767d);
-  landmarkMesh(root, house, steel, 19.5, 0, 7);
   const bridge = landmarkLoft(clippedPlan(8.7, 11, 3.2), [[34,0.67,0.71,0x788b91], [37.6,1,1,0xbac7c3],
     [38.6,1.02,1.02,0x376073], [41.7,1.08,1.08,0xd1d2bc], [43,1.13,1.13]], 0x8c9c9b);
-  landmarkMesh(root, bridge, steel, 19, 0, 19);
   const mast = landmarkLoft(clippedPlan(3.2, 4, 1.1), [[43,1,1,0x738a90], [52,0.58,0.55,0xadbbb9], [60,0.29,0.28]], 0xa2b1ad);
-  landmarkMesh(root, mast, steel, 19, 0, 17);
-  landmarkBlocks(root, [[20,39,-6,8.5,7,9,0xb3bab1], [20,42.7,-6,9,1.6,9.5,0xc67c54], [20,44,-6,7.8,1.2,8.6,0x475c66],
-    [19,51.4,17,10,1.1,2.4,0x99a9ad], [-23.8,12,-63,2.3,2,90,0x384e59], [23.8,12,-63,2.3,2,90,0x384e59]]);
+  landmarkMesh(root, mergeGeometries([hullGeo, house.translate(19.5, 0, 7), bridge.translate(19, 0, 19), mast.translate(19, 0, 17)]), steel);
+  const fittings = [[20,39,-6,8.5,7,9,0xb3bab1],[20,42.7,-6,9,1.6,9.5,0xc67c54],[20,44,-6,7.8,1.2,8.6,0x475c66],
+    [19,51.4,17,10,1.1,2.4,0x99a9ad],[17.6,31.0,-11,11.8,1.1,13,0x929e9d],[17.6,33.6,-13,7.7,4.2,7.7,0x677c80]];
+  for (const side of [-1, 1]) {
+    fittings.push([side * 23.8,10.96,-27,6.6,1.25,117,0x879597], [19 + side * 8.7,37.7,19,4.8,1.0,12,0xb8b8a4],
+      [19 + side * 8.1,35.9,19,1.1,3.8,5.5,0x657983]);
+    for (const along of [-78, -52, -26, 0, 26]) {
+      fittings.push([side * 25.4,13.8,along,2.1,5.4,3.2,0x8c9995]);
+    }
+    for (const along of [-69, -17, 15]) fittings.push([side * 21.1,13.25,along,1.45,3.25,6.6,0xa28b72]);
+    for (const along of [13, 19, 25]) fittings.push([19 + side * 8.9,40.2,along,0.9,3.1,1.0,0xa9aaa0]);
+  }
+  landmarkBlocks(root, fittings);
   const dish = landmarkBlocks(root, [[0,0,0,1.7,4.2,1.7,0xaabdc1], [0,2.1,0,12.5,1.5,1.6,0xd1d6c9],
     [-4.3,3.8,0,3.2,2.5,1.4,0x8baab1], [4.3,3.8,0,3.2,2.5,1.4,0x8baab1]]);
   dish.position.set(19, 59, 17); root.userData.radarDish = dish;
   const lights = [[19,58.4,17,1.9,1.4,1.9,0xff945d]];
+  for (const side of [-1, 1]) for (const along of [-69, -17, 15]) lights.push([side * 21.5,15.2,along,1.2,0.65,2.1,0xc0ad89]);
   for (const [port, starboard, along] of [[-27,26,-112],[-29,28,-67],[-32,28,-26],[-36,28,14],[-29,28,52],[-21,23,87],[-17,20,124]]) {
     lights.push([port,20.25,along,1.2,0.5,3.2,0xffce84], [starboard,20.25,along,1.2,0.5,3.2,0xb0dacf]);
   }
@@ -1937,21 +1973,27 @@ function buildDestroyerMesh() {
   const steel = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.15, roughness: 0.74 });
   const hull = [[-7.5,-71],[-10.4,-61],[-12.5,-19],[-12,26],[-8.5,53],[-3.4,71],[0,80],
     [3.4,71],[8.5,53],[12,26],[12.5,-19],[10.4,-61],[7.5,-71]];
-  landmarkMesh(root, landmarkLoft(hull, [[-6,0.55,0.93,0x795957], [1,0.79,0.975,0x455b67],
-    [3.5,0.91,0.99,0x899da4], [9,1,1,0xb9c4ba], [10,1,1]], 0x61737e), steel);
+  const hullGeo = landmarkLoft(hull, [[-6,0.55,0.93,0x795957], [1,0.79,0.975,0x455b67],
+    [3.5,0.91,0.99,0x899da4], [9,1,1,0xb9c4ba], [10,1,1]], 0x61737e);
+  const foredeck = [[-11.2,-26],[-11.8,-18],[-8.3,7],[-3.4,24],[0,33.5],[3.4,24],[8.3,7],[11.8,-18],[11.2,-26]];
+  const bow = landmarkLoft(foredeck, [[9.55,0.97,0.99,0x526771],[11.65,1,1,0xc0beaa],[12.25,1,1]], 0x758486);
   const bridge = landmarkLoft(clippedPlan(9, 17.5, 3.6), [[10,1,1,0xa8b5b3], [18.5,0.75,0.76,0x84989e],
     [20,0.81,0.80,0x385c6c], [23.1,0.74,0.69,0xd0d2bd], [24.3,0.80,0.73]], 0x889b9f);
-  landmarkMesh(root, bridge, steel, 0, 0, 13);
   const mast = landmarkLoft(clippedPlan(3.2, 4.2, 1.4), [[24.3,1,1,0x8d9fa3], [33,0.48,0.48,0xbac6bf],
     [39,0.22,0.22]], 0x899da0);
-  landmarkMesh(root, mast, steel, 0, 0, 11);
   const stack = landmarkLoft(clippedPlan(5, 6, 1.8), [[10,1,1,0x94a4a6], [17.6,0.78,0.78,0xc7875f],
     [19.9,0.78,0.78,0x445861], [21,0.80,0.80]], 0x394b59);
-  landmarkMesh(root, stack, steel, 0, 0, -17);
+  const launch = landmarkLoft([[-1.9,-6.8],[-2.2,-4.4],[-2.3,2.5],[-1.3,6.2],[0,7.8],[1.3,6.2],[2.3,2.5],[2.2,-4.4],[1.9,-6.8]],
+    [[0,0.54,0.87,0x555f60],[1.4,1,1,0xc48256],[2.45,0.94,0.96,0xceb894],[3.30,0.68,0.77]], 0xbeb9a3);
+  landmarkMesh(root, mergeGeometries([hullGeo, bow.translate(0, 0, 46), bridge.translate(0, 0, 13), mast.translate(0, 0, 11),
+    stack.translate(0, 0, -17), launch.clone().translate(-9, 13.35, -13), launch.translate(9, 13.35, -13)]), steel);
   const pad = new THREE.RingGeometry(6.7, 7.6, 20); pad.rotateX(-Math.PI / 2);
   landmarkMesh(root, pad, new THREE.MeshStandardMaterial({ color: 0xe4ddbb, polygonOffset: true, polygonOffsetFactor: -1 }), 0, 10.1, -48);
   landmarkBlocks(root, [[0,31.8,11,8.4,0.95,1.6,0x92a6aa], [0,37.8,11,5.5,1.3,1.3,0xc1cdc6],
-    [0,10.15,56,3,0.30,1.5,0xdac6a0], [0,10.15,52,5.5,0.30,1.5,0xdac6a0], [0,10.15,48,8,0.30,1.5,0xdac6a0],
+    [0,12.39,56,3,0.30,1.5,0xdac6a0], [0,12.39,52,5.5,0.30,1.5,0xdac6a0], [0,12.39,48,8,0.30,1.5,0xdac6a0],
+    ...[-1, 1].flatMap(side => [[side*8.6,12.8,-13,4.3,1.2,14.2,0x7c8987], [side*8.3,11.25,-17,1.2,2.9,1.5,0x899897],
+      [side*8.3,11.25,-9,1.2,2.9,1.5,0x899897], [side*6.9,20.0,14,3.8,0.85,13,0x9ca9a7],
+      [side*9,16.98,-13.7,2.1,0.84,6.8,0x4c666d], [side*9,17.50,-13.7,2.35,0.34,7.2,0xc3bb99]]),
     [-2,10.22,-48,1.0,0.4,6,0xd6d5bd], [2,10.22,-48,1.0,0.4,6,0xd6d5bd], [0,10.22,-48,3.2,0.4,1.1,0xd6d5bd]]);
   landmarkBlocks(root, [[0,40,11,1.4,1.9,1.4,0xff8a59]], new THREE.MeshBasicMaterial());
   return root;

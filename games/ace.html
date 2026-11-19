@@ -98,6 +98,7 @@ canvas{display:block}
   font-family:var(--mono);font-size:11px;padding:2px 6px;border-radius:4px;margin-right:4px;
   background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:var(--fg);font-weight:700;
 }
+.flight-bindings{display:contents}.sight-legend{flex-basis:100%;color:var(--fg)}
 .sortie-btn{
   border:0;border-radius:12px;padding:14px 36px;font-size:16px;font-weight:900;letter-spacing:.1em;
   text-transform:uppercase;background:linear-gradient(135deg,#ffb944,#ff7e21);color:#1d0d00;
@@ -143,6 +144,7 @@ canvas{display:block}
   border:1px solid transparent;color:var(--dim)}
 .wp-row.on{background:rgba(86,245,164,.14);border-color:rgba(86,245,164,.5);color:var(--hud);font-weight:700}
 .wp-row .k{font-size:10px;opacity:.75}
+#offscreenHit{position:absolute;right:0;bottom:calc(100% + 4px);white-space:nowrap;padding:3px 7px;border-radius:4px;background:var(--panel-hi);color:var(--amber);font:700 12px var(--font)}
 .bar-wrap{display:flex;flex-direction:column;gap:3px}
 .bar-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--hud)}
 .bar-track{height:7px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden}
@@ -295,7 +297,7 @@ canvas{display:block}
   </div>
 
   <div class="hangar-foot">
-    <details class="flight-help"><summary data-i18n="flightHelp">操作指南</summary><div class="controls-strip" data-i18n-html="controls"></div></details>
+    <details class="flight-help"><summary data-i18n="flightHelp">操作指南</summary><div class="controls-strip"><span class="sight-legend" data-i18n="sightLegend"></span><div class="flight-bindings" data-i18n-html="controls"></div></div></details>
     <button class="sortie-btn" id="sortieBtn" data-i18n="sortie">立即出击 · SORTIE</button>
   </div>
 </section>
@@ -321,6 +323,7 @@ canvas{display:block}
   <div id="flightKeys" data-i18n="flightKeys"></div>
 
   <div id="weaponPanel">
+    <span id="offscreenHit" data-i18n="offscreenHit" hidden>✓ 画外命中</span>
     <div id="telemetry"><span id="hudSpeed"></span><span id="hudAltitude"></span></div>
     <div class="wp-row" id="wpGun"><span data-i18n="cannon">机炮</span><span class="k">∞</span></div>
     <div class="wp-row on" id="wpMsl"><span>MSL</span><span id="mslCount">2 / 2</span></div>
@@ -366,7 +369,7 @@ canvas{display:block}
       <span data-i18n="quality">渲染画质</span>
       <button class="btn-ghost" id="pauseQualBtn">HIGH</button>
     </div>
-    <details class="flight-help"><summary data-i18n="flightHelp">操作指南</summary><div class="controls-strip" data-i18n-html="controls"></div></details>
+    <details class="flight-help"><summary data-i18n="flightHelp">操作指南</summary><div class="controls-strip"><span class="sight-legend" data-i18n="sightLegend"></span><div class="flight-bindings" data-i18n-html="controls"></div></div></details>
     <div class="btn-grid">
       <button class="btn-ghost" id="btnHangar" data-i18n="toHangar">返回机库</button>
       <button class="btn-ghost" id="btnRestart" data-i18n="restart">重新出击</button>
@@ -433,6 +436,7 @@ const I18N = {
     radioM3Start:'AWACS：发现敌方航母打击群！摧毁驱逐舰护航并瘫痪航母！',
     radioAce:'CRIMSON-1：竟敢闯入风暴眼……让我看看你的本事吧！',
     radioSplash:'AWACS：目标确认击毁！Splash one!',
+    sightLegend:'开口十字是机炮准星，小圆圈是转向输入；出现「命中」才算打中。', impactHit:'命中', offscreenHit:'✓ 画外命中',
     radioFlare:'热诱弹已释放，成功甩开敌方导弹！',
     objM1:'第 1/2 波 · 清除截击机', objM1Final:'第 2/2 波 · 清除轰炸机与护航机',
     objM2:'摧毁高地雷达站、防空阵地与拦截机',
@@ -458,6 +462,7 @@ const I18N = {
     targets:'TGT', score:'Score', speed:'SPD', altitude:'ALT', on:'On', off:'Off',
     controls:'<span><kbd>Mouse / Arrows</kbd>Steer</span><span><kbd>W/S</kbd>Boost/Brake</span><span><kbd>A/D</kbd>Roll</span><span><kbd>LMB / J</kbd>Hold cannon</span><span><kbd>RMB / Space</kbd>Launch</span><span><kbd>Q / Tab</kbd>Swap</span><span><kbd>E</kbd>Cycle target</span><span><kbd>F / Shift</kbd>Flares</span><span><kbd>V / C</kbd>View</span><span><kbd>Esc / P</kbd>Pause</span><span>Touch: drag the sky to steer; release to center. Hold Cannon or tap actions with your other thumb.</span>',
     winTitle:'MISSION ACCOMPLISHED', failTitle:'AIRCRAFT DESTROYED',
+    sightLegend:'The open cross is the cannon sight. The small circle shows steering input. HIT confirms contact.', impactHit:'HIT', offscreenHit:'✓ Offscreen hit',
     winSub:'Airspace secured. Outstanding flying, Ace!', failSub:'Airframe lost. Regroup and sortie again.',
     radioLaunch:'AWACS: Launch confirmed. All tactical sensors online. Good hunting!',
     radioM1W2:'AWACS: Second wave over the archipelago. Clear the bombers and their escorts!',
@@ -2118,6 +2123,7 @@ let lightningVal = 0;
 let nextLightning = 5;
 let radioTimer = 0;
 let hitMarkerTimer = 0;
+const lastHit = { point:new THREE.Vector3(), labelUntil:0 };
 let frameCount = 0;
 
 // Player state
@@ -2423,7 +2429,7 @@ function spawnEnemy(type, pos, extra = {}) {
   mesh.position.copy(pos);
   worldGroup.add(mesh);
   const e = {
-    type, label, mesh, pos: pos.clone(), quat: new THREE.Quaternion(),
+    type, label, mesh, pos: pos.clone(), previousPos: pos.clone(), quat: new THREE.Quaternion(),
     hp, maxHp: hp, speed, radius, score, isAir, isBoss, alive: true,
     fireCd: 1.5 + Math.random() * 2.5,
     mslCd: 5 + Math.random() * 6,
@@ -2509,6 +2515,8 @@ function loadMissionScene(mIdx, previewOnly = false) {
   missionTimer = 0; missionScore = 0; missionKills = 0;
   m1Wave2Spawned = false; m3AceSpawned = false;
   timeScale = 1.0; slowMoTimer = 0; shakeAmt = 0;
+  offscreenHit.hidden = true;
+  lastHit.labelUntil = 0;
   hitMarkerTimer = 0;
   document.getElementById('alertBanner').style.display = 'none';
 
@@ -2563,15 +2571,18 @@ function sampleTerrainHeight(wx, wz) {
 // ============================================================================
 // 7. WEAPONS, LOCK-ON, FLARES & DAMAGE
 // ============================================================================
+function readCannonAxis(origin, forward) {
+  forward.set(0, 0, -1).applyQuaternion(player.quat);
+  origin.copy(player.pos).addScaledVector(forward, 7);
+}
+
 function fireCannon() {
   if (player.gunCd > 0) return;
   player.gunCd = 0.085;
   sfx.playCannon();
-  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quat);
-  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(player.quat);
-  const side = (frameCount % 2 === 0 ? 1 : -1) * 1.1;
-  const pos = player.pos.clone().addScaledVector(fwd, 7).addScaledVector(right, side);
-  const vel = fwd.clone().multiplyScalar(player.speed + 920);
+  const pos = new THREE.Vector3(), vel = new THREE.Vector3();
+  readCannonAxis(pos, vel);
+  vel.multiplyScalar(player.speed + 920);
   const mesh = new THREE.Mesh(sharedTracerGeo, new THREE.MeshBasicMaterial({ color: 0xffe48a }));
   mesh.position.copy(pos);
   mesh.quaternion.copy(player.quat);
@@ -2656,8 +2667,10 @@ function deployFlares() {
   if (spoofedAny) showRadio(I18N[lang].radioFlare, false, 2.6);
 }
 
-function damageEnemy(e, dmg) {
+function damageEnemy(e, dmg, contactPoint) {
   if (!e.alive) return;
+  lastHit.point.copy(contactPoint);
+  lastHit.labelUntil = missionTimer + 0.6;
   e.hp -= dmg;
   hitMarkerTimer = 0.16;
   sfx.playHit();
@@ -2891,6 +2904,7 @@ function updateEnemies(dt) {
   let wakeIdx = 0;
   for (const e of enemies) {
     if (!e.alive) continue;
+    e.previousPos.copy(e.pos);
 
     if (e.isAir) {
       const toPlayer = _v1.subVectors(player.pos, e.pos);
@@ -2985,21 +2999,49 @@ function updateEnemies(dt) {
   for (; wakeIdx < wakeUniformData.length; wakeIdx++) wakeUniformData[wakeIdx].set(99999, 99999, 0, 0);
 }
 
+const shotStart = new THREE.Vector3(), shotStep = new THREE.Vector3();
+const relativeStart = new THREE.Vector3(), relativeStep = new THREE.Vector3();
+
+function firstPlayerContact(start, end, padding, life, dt, waterLevel) {
+  if (life <= 0 || start.y < waterLevel) return null;
+  shotStep.subVectors(end, start);
+  let limit = dt > 0 ? Math.min(1, life / dt) : 1;
+  if (end.y < waterLevel) limit = Math.min(limit, (waterLevel - start.y) / shotStep.y);
+  let first = null, earliest = Infinity;
+  for (const contact of enemies) {
+    if (!contact.alive) continue;
+    const frameStart = dt > 0 ? contact.previousPos : contact.pos;
+    relativeStart.subVectors(start, frameStart);
+    const outside = relativeStart.lengthSq() - (contact.radius + padding) ** 2;
+    let entry = 0;
+    if (outside > 0) {
+      // Subtract the contact's movement so both game objects span the same simulation tick.
+      relativeStep.subVectors(frameStart, contact.pos).add(shotStep);
+      const toward = -relativeStart.dot(relativeStep);
+      if (toward <= 0) continue;
+      const discriminant = toward * toward - relativeStep.lengthSq() * outside;
+      if (discriminant < 0) continue;
+      entry = outside / (toward + Math.sqrt(discriminant));
+    }
+    if (entry <= limit && entry < earliest) { first = contact; earliest = entry; }
+  }
+  if (first) end.copy(start).addScaledVector(shotStep, earliest);
+  return first;
+}
+
 function updateProjectilesAndFX(dt) {
   // Bullets
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
-    b.life -= dt;
+    shotStart.copy(b.pos);
     b.pos.addScaledVector(b.vel, dt);
+    const contact = b.fromPlayer && firstPlayerContact(shotStart, b.pos, 7, b.life, dt, 0);
+    b.life -= dt;
     b.mesh.position.copy(b.pos);
     let hit = false;
-    if (b.fromPlayer) {
-      for (const e of enemies) {
-        if (e.alive && b.pos.distanceTo(e.pos) < e.radius + 7) {
-          damageEnemy(e, b.dmg); hit = true; break;
-        }
-      }
-    } else if (player.alive && b.pos.distanceTo(player.pos) < 10) {
+    if (contact) {
+      damageEnemy(contact, b.dmg, b.pos); hit = true;
+    } else if (!b.fromPlayer && player.alive && b.pos.distanceTo(player.pos) < 10) {
       damagePlayer(b.dmg); hit = true;
     }
     if (hit || b.life <= 0 || b.pos.y < 0) {
@@ -3012,7 +3054,6 @@ function updateProjectilesAndFX(dt) {
   let incomingThreat = false;
   for (let i = missiles.length - 1; i >= 0; i--) {
     const m = missiles[i];
-    m.life -= dt;
     if (!m.fromPlayer && !m.spoofed && m.pos.distanceTo(player.pos) < 1200) incomingThreat = true;
 
     if (m.target && ((m.fromPlayer && m.target.alive) || (!m.fromPlayer && player.alive && !m.spoofed))) {
@@ -3022,11 +3063,14 @@ function updateProjectilesAndFX(dt) {
     } else if (m.spoofed) {
       m.dir.y -= dt * 0.6; m.dir.normalize();
     }
+    shotStart.copy(m.pos);
     m.pos.addScaledVector(m.dir, m.speed * dt);
+    const contact = m.fromPlayer && firstPlayerContact(shotStart, m.pos, 14, m.life, dt, 1);
+    m.life -= dt;
     m.mesh.position.copy(m.pos);
     m.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), m.dir);
 
-    m.trailCarry += m.speed * dt;
+    m.trailCarry += contact ? shotStart.distanceTo(m.pos) : m.speed * dt;
     while (m.trailCarry >= 9) {
       m.trailCarry -= 9;
       trailPoint.copy(m.pos).addScaledVector(m.dir, -m.trailCarry - 2.6);
@@ -3034,16 +3078,12 @@ function updateProjectilesAndFX(dt) {
     }
 
     let hit = false;
-    if (m.fromPlayer) {
-      for (const e of enemies) {
-        if (e.alive && m.pos.distanceTo(e.pos) < e.radius + 14) {
-          const mult = (!e.isAir && m.antiShip) ? m.antiShip : 1.0;
-          damageEnemy(e, m.dmg * mult);
-          spawnExplosion(m.pos, 0.85, false);
-          hit = true; break;
-        }
-      }
-    } else if (player.alive && !m.spoofed && m.pos.distanceTo(player.pos) < 15) {
+    if (contact) {
+      const mult = (!contact.isAir && m.antiShip) ? m.antiShip : 1.0;
+      damageEnemy(contact, m.dmg * mult, m.pos);
+      spawnExplosion(m.pos, 0.85, false);
+      hit = true;
+    } else if (!m.fromPlayer && player.alive && !m.spoofed && m.pos.distanceTo(player.pos) < 15) {
       damagePlayer(m.dmg); hit = true;
     }
     if (hit || m.life <= 0 || m.pos.y < 1) {
@@ -3181,39 +3221,58 @@ function strokeHUD(color, width) {
   hudCtx.strokeStyle = color; hudCtx.lineWidth = width; hudCtx.stroke();
 }
 
+const sightOrigin = new THREE.Vector3(), sightForward = new THREE.Vector3(), hudPoint = new THREE.Vector3();
+const offscreenHit = document.getElementById('offscreenHit');
+
+function drawCannonSight(width, height) {
+  readCannonAxis(sightOrigin, sightForward);
+  const target = player.primaryTarget;
+  const depth = target?.alive ? hudPoint.subVectors(target.pos, sightOrigin).dot(sightForward) : 0;
+  // The chase camera has parallax: project the actual line at the selected depth, never onto the target itself.
+  hudPoint.copy(sightOrigin).addScaledVector(sightForward, depth > 0 ? depth : 500).project(camera);
+  const sx = (1 + hudPoint.x) * width / 2, sy = (1 - hudPoint.y) * height / 2;
+  const mx = (0.5 + stick.x * 0.42) * width, my = (0.5 + stick.y * 0.42) * height;
+  if (stick.x ** 2 + stick.y ** 2 > 0.035 ** 2 && (mx - sx) ** 2 + (my - sy) ** 2 > 24 ** 2) {
+    hudCtx.beginPath(); hudCtx.arc(mx, my, 6, 0, Math.PI * 2); strokeHUD('#8ee4ff', 1.5);
+  }
+  hudCtx.beginPath();
+  hudCtx.moveTo(sx - 18, sy); hudCtx.lineTo(sx - 6, sy);
+  hudCtx.moveTo(sx + 6, sy); hudCtx.lineTo(sx + 18, sy);
+  hudCtx.moveTo(sx, sy - 12); hudCtx.lineTo(sx, sy - 4);
+  strokeHUD('#86f8b8', 1.8);
+}
+
+function drawConfirmedHit(width, height) {
+  if (missionTimer >= lastHit.labelUntil) {
+    if (!offscreenHit.hidden) offscreenHit.hidden = true;
+    return;
+  }
+  hudPoint.copy(lastHit.point).project(camera);
+  const visible = hudPoint.z >= -1 && hudPoint.z <= 1 && Math.abs(hudPoint.x) <= 1 && Math.abs(hudPoint.y) <= 1;
+  if (offscreenHit.hidden !== visible) offscreenHit.hidden = visible;
+  if (!visible) return;
+  const sx = (1 + hudPoint.x) * width / 2, sy = (1 - hudPoint.y) * height / 2;
+  if (hitMarkerTimer > 0) {
+    hudCtx.beginPath();
+    hudCtx.moveTo(sx - 12, sy - 12); hudCtx.lineTo(sx - 5, sy - 5);
+    hudCtx.moveTo(sx + 12, sy - 12); hudCtx.lineTo(sx + 5, sy - 5);
+    hudCtx.moveTo(sx - 12, sy + 12); hudCtx.lineTo(sx - 5, sy + 5);
+    hudCtx.moveTo(sx + 12, sy + 12); hudCtx.lineTo(sx + 5, sy + 5);
+    strokeHUD('#ffdf9a', 2.2);
+  }
+  const label = I18N[lang].impactHit;
+  hudCtx.font = 'bold 12px Consolas, monospace'; hudCtx.textAlign = 'center'; hudCtx.textBaseline = 'middle';
+  const left = THREE.MathUtils.clamp(sx, 18, width - 18), top = sy > height - 31 ? sy - 22 : sy + 22;
+  hudCtx.strokeStyle = '#111c24'; hudCtx.lineWidth = 3; hudCtx.strokeText(label, left, top);
+  hudCtx.fillStyle = '#ffdf9a'; hudCtx.fillText(label, left, top);
+}
+
 function drawHUD() {
   const w = hudCanvas.width, h = hudCanvas.height;
   hudCtx.clearRect(0, 0, w, h);
   if (mode !== 'playing') return;
-
   const cx = w / 2, cy = h / 2;
   hudCtx.save();
-
-  // Mouse-aim steering ring
-  const mx = cx + stick.x * (w * 0.42);
-  const my = cy + stick.y * (h * 0.42);
-  hudCtx.beginPath(); hudCtx.arc(mx, my, 15, 0, Math.PI * 2);
-  hudCtx.moveTo(mx - 22, my); hudCtx.lineTo(mx - 12, my); hudCtx.moveTo(mx + 12, my); hudCtx.lineTo(mx + 22, my);
-  strokeHUD('#8ee4ff', 1.5);
-
-  // Center aircraft boresight crosshair & Pitch Ladder
-  hudCtx.beginPath();
-  hudCtx.moveTo(cx - 18, cy); hudCtx.lineTo(cx - 6, cy);
-  hudCtx.moveTo(cx + 6, cy); hudCtx.lineTo(cx + 18, cy);
-  hudCtx.moveTo(cx, cy - 12); hudCtx.lineTo(cx, cy - 4);
-  strokeHUD('#86f8b8', 1.8);
-
-  // Hit marker flash
-  if (hitMarkerTimer > 0) {
-    hudCtx.strokeStyle = '#ff5247'; hudCtx.lineWidth = 2.4;
-    const s = 12;
-    hudCtx.beginPath();
-    hudCtx.moveTo(cx - s, cy - s); hudCtx.lineTo(cx - 4, cy - 4);
-    hudCtx.moveTo(cx + s, cy - s); hudCtx.lineTo(cx + 4, cy - 4);
-    hudCtx.moveTo(cx - s, cy + s); hudCtx.lineTo(cx - 4, cy + 4);
-    hudCtx.moveTo(cx + s, cy + s); hudCtx.lineTo(cx + 4, cy + 4);
-    hudCtx.stroke();
-  }
 
   // Artificial Horizon Pitch Ladder (stronger in 1P Cockpit, subtle in 3P)
   const euler = new THREE.Euler().setFromQuaternion(player.quat, 'YXZ');
@@ -3309,6 +3368,8 @@ function drawHUD() {
     hudCtx.fillStyle = '#f1f8ff'; hudCtx.textAlign = 'left'; hudCtx.textBaseline = 'middle';
     hudCtx.fillText(text, left + 6, top + 9);
   }
+  drawCannonSight(w, h);
+  drawConfirmedHit(w, h);
   hudCtx.restore();
 
   // Tactical Radar Minimap

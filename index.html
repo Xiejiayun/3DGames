@@ -206,11 +206,14 @@
     const labels = [...document.querySelectorAll('[data-en]')].map(node => ({ node, zh: node.textContent, en: node.dataset.en }));
     const previews = [...document.querySelectorAll('[data-alt-en]')].map(node => ({ node, zh: node.alt, en: node.dataset.altEn }));
     const buttons = document.querySelectorAll('[data-lang]');
+    const prismEntry = document.querySelector('.prism-card .play');
+    const prismPath = prismEntry.getAttribute('href');
     function setLanguage(language) {
       document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
       document.title = language === 'zh' ? '3D Games · 网页游戏厅' : '3D Games · Browser Arcade';
       for (const label of labels) label.node.textContent = label[language];
       for (const preview of previews) preview.node.alt = preview[language];
+      prismEntry.setAttribute('href', `${prismPath}?lang=${language}`);
       for (const button of buttons) button.setAttribute('aria-pressed', String(button.dataset.lang === language));
     }
     for (const button of buttons) button.addEventListener('click', () => setLanguage(button.dataset.lang));

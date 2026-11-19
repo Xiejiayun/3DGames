@@ -26,12 +26,13 @@ const games = [
   ['prism', 'prism-vault', '棱镜密室', 'Prism Vault'], ['ironcore', 'iron-core-arena', '铁核竞技场', 'Iron Core Arena'],
   ['skyhold', 'skyhold-bastion', '浮空要塞', 'Skyhold Bastion'],
 ].map(([slug, preview, zh, en]) => ({ href: `games/${slug}.html`, image: `assets/previews/${preview}.webp`, zh, en }));
+const entryHref = (game, lang) => game.href === 'games/prism.html' ? `${game.href}?lang=${lang}` : game.href;
 const sizes = [[1920, 1080], [1920, 651], [1440, 900], [1440, 675], [1366, 768], [1280, 720], [1024, 768],
   [820, 1180], [768, 1024], [768, 600], [640, 844], [640, 480], [500, 568], [390, 844], [375, 667], [360, 640],
   [320, 740], [320, 568], [844, 390], [568, 320]];
 let browser;
 try {
-  browser = await chromium.launch({ headless: true });
+  browser = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ locale: 'zh-CN' });
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
@@ -84,7 +85,7 @@ try {
       assert.equal(state.selected, lang);
       assert.deepEqual(state.scroll, [0, 0], label);
       assert.deepEqual(state.extent, [width, height], `${label}: no page scrolling`);
-      assert.deepEqual(state.cards.map(card => card.href), games.map(game => game.href));
+      assert.deepEqual(state.cards.map(card => card.href), games.map(game => entryHref(game, lang)));
       for (const [index, card] of state.cards.entries()) {
         const game = games[index];
         assert.ok(card.visible, `${label}: ${game.en} fully visible and clickable`);
@@ -102,11 +103,20 @@ try {
   await page.locator('[data-lang="en"]').focus();
   for (const game of games) {
     await page.keyboard.press('Tab');
-    assert.equal(await page.locator(':focus').getAttribute('href'), game.href);
+    assert.equal(await page.locator(':focus').getAttribute('href'), entryHref(game, 'zh'));
     assert.deepEqual(await page.evaluate(() => [scrollX, scrollY]), [0, 0]);
   }
   await page.keyboard.press('Enter');
   await page.waitForURL(url => url.origin === new URL(origin).origin && /^\/games\/skyhold(?:\.html)?$/.test(url.pathname), { waitUntil: 'commit' });
+  for (const [lang, target] of [['en', '.preview img'], ['zh', '.launch']]) {
+    await page.goto(origin);
+    await page.locator(`[data-lang="${lang}"]`).click();
+    await page.locator(`.prism-card ${target}`).click();
+    await page.locator('#guide .gt').waitFor();
+    assert.equal(new URL(page.url()).searchParams.get('lang'), lang);
+    assert.equal(await page.locator('html').getAttribute('lang'), lang === 'zh' ? 'zh-CN' : 'en');
+    assert.match(await page.locator('#guide .gt').textContent(), lang === 'zh' ? /水平镜/ : /Flat Mirror/);
+  }
   assert.deepEqual(errors, []);
   console.log(`PASS ${origin}: ${games.length} playable cards, ZH/EN, ${sizes.length} viewports with no scrolling or clipping, 16:9 screenshots and keyboard navigation`);
 } finally {

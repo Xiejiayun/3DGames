@@ -16,8 +16,9 @@ function installBoundaryFixture() {
   window.requestAnimationFrame = callback => callback === animate ? 0 : nativeFrame(callback);
   lastTime = 0;
   function read() {
+    const forward = new THREE.Vector3(0,0,-1).applyQuaternion(player.quat), contact = player.primaryTarget;
     return { time:missionTimer, mode, pos:player.pos.toArray(), speed:player.speed, hp:player.hp,
-      forward:new THREE.Vector3(0,0,-1).applyQuaternion(player.quat).toArray(),
+      forward:forward.toArray(), contactSide:contact?.alive ? forward.z * (contact.pos.x - player.pos.x) - forward.x * (contact.pos.z - player.pos.z) : null,
       label:document.getElementById('objMission').textContent };
   }
   window.boundaryQA = {
@@ -129,6 +130,9 @@ async function fly(touch) {
       else await page.keyboard.up('w');
     }
     const result = checkArc(trace, warning, assist);
+    const first = trace.findIndex(sample => sample.label === assist), previous = trace[first - 1], current = trace[first];
+    const yawStep = previous.forward[2] * current.forward[0] - previous.forward[0] * current.forward[2];
+    assert.ok(previous.contactSide * yawStep > 0, 'With two equal return arcs, start turning toward the selected contact');
     assert.ok(result.assisting - result.warning >= 1.75 && trace.at(-1).speed > 294, 'Give a full-speed pilot time to turn voluntarily');
     console.log(`PASS ${driver}: ${JSON.stringify(result)}`);
     if (evidence) await writeFile(join(evidence, `${driver}.json`), JSON.stringify({result,trace}));

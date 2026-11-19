@@ -2180,10 +2180,15 @@ function advanceThroughAirspace(forward, dt) {
       edgeHint = 'edgeWarning';
       if (edgeTurn || radius >= AREA_ASSIST) {
         const cross = (forward.x * z - forward.z * x) / (radius * flat);
-        // Straight out, either turn works: follow the stick, otherwise keep a stable side.
+        // Straight out, either arc works. Prefer the stick, then the current contact; latch the side.
         if (Math.abs(cross) > 0.20) edgeTurn = Math.sign(cross);
         else if (Math.abs(stick.x) > 0.15) edgeTurn = -Math.sign(stick.x);
-        else if (!edgeTurn) edgeTurn = Math.sign(cross) || -1;
+        else if (!edgeTurn) {
+          const contact = player.primaryTarget;
+          const contactSide = Math.abs(cross) < 0.03 && contact?.alive
+            ? forward.z * (contact.pos.x - x) - forward.x * (contact.pos.z - z) : 0;
+          edgeTurn = Math.sign(contactSide) || Math.sign(cross) || -1;
+        }
         const rate = 0.28 + 1.9 * THREE.MathUtils.smoothstep(radius, AREA_ASSIST, AREA_LIMIT);
         _q1.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, edgeTurn * rate * dt);
         player.quat.premultiply(_q1);

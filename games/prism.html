@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8"><meta name="MSRAI_Label_dbd012e0-e600-4c3e-83b7-7d3141c15efc_AI_Disclosure" content="Made with AI">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>PRISM VAULT · 棱镜密室</title>
 <meta name="description" content="3D 立体光学空间解谜 · A 3D optical spatial puzzle">
 <style>
@@ -31,7 +31,9 @@ kbd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-siz
 #tl .brand { display: flex; align-items: baseline; gap: 10px; }
 #tl .b1 { font-size: 11px; letter-spacing: .34em; font-weight: 600; color: var(--gold); }
 #tl .b2 { font-size: 12px; letter-spacing: .3em; color: var(--ink2); }
-#tl .lvl { margin-top: 6px; display: flex; align-items: baseline; gap: 10px; }
+#tl .lvl { margin-top: 6px; display: flex; align-items: baseline; gap: 10px; width: 100%; padding: 0; border: 0; background: none; text-align: left; }
+#tl .lvl::after { content: '▴'; font-size: 13px; color: var(--ink2); margin-left: auto; }
+#tl .lvl:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 4px; }
 #tl .num { font-size: 26px; font-weight: 300; letter-spacing: .04em; font-variant-numeric: tabular-nums; color: var(--gold); }
 #tl .name { font-size: 17px; font-weight: 600; letter-spacing: .06em; }
 #tl .sub { font-size: 11px; letter-spacing: .14em; color: var(--ink2); margin-top: 1px; }
@@ -41,12 +43,7 @@ kbd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-siz
 #tl.mini .brand, #tl.mini .sub, #tl.mini .menu { display: none; }
 #tl.mini .lvl { margin-top: 0; }
 #tl.mini .num { font-size: 20px; } #tl.mini .name { font-size: 14px; }
-#tl.mini::after { content: '☰'; margin-left: 10px; font-size: 13px; color: var(--ink2); }
-#tl.mini { display: flex; align-items: center; }
-#tl.mini:is(:hover, :focus-within, .dialog-source) { display: block; min-width: 250px; padding: 12px 16px 10px; }
-#tl.mini:is(:hover, :focus-within, .dialog-source)::after { content: none; }
-#tl.mini:is(:hover, :focus-within, .dialog-source) .brand, #tl.mini:is(:hover, :focus-within, .dialog-source) .menu { display: flex; } #tl.mini:is(:hover, :focus-within, .dialog-source) .sub { display: block; }
-#tl.mini:is(:hover, :focus-within, .dialog-source) .lvl { margin-top: 6px; } #tl.mini:is(:hover, :focus-within, .dialog-source) .num { font-size: 26px; } #tl.mini:is(:hover, :focus-within, .dialog-source) .name { font-size: 17px; }
+#tl.mini .lvl::after { content: '☰'; }
 .mbtn { border: 1px solid var(--line); background: rgba(255, 255, 255, .08); border-radius: 999px; padding: 3px 10px; font-size: 11px; letter-spacing: .06em; color: var(--ink2); transition: all .18s; }
 .mbtn:hover { color: var(--ink); border-color: var(--gold); background: rgba(228, 194, 122, .16); }
 
@@ -188,6 +185,38 @@ ul.rules { margin: 14px 0 6px; padding-left: 18px; font-size: 12.5px; line-heigh
 #selftest .ok { color: #8ef0a8; } #selftest .no { color: #ff8a7a; }
 #selftest small { color: #b8ad98; }
 @media (max-width: 900px) { .card { width: 84px; } .card .nm { font-size: 11px; } #tl { min-width: 0; } }
+@media (max-width: 700px), (max-height: 520px) {
+  #hud { --edge-l: max(8px, env(safe-area-inset-left)); --edge-r: max(8px, env(safe-area-inset-right)); --edge-t: max(8px, env(safe-area-inset-top)); --edge-b: max(8px, env(safe-area-inset-bottom)); }
+  #tl, #tl.mini { left: var(--edge-l); top: var(--edge-t); min-width: 0; max-width: calc(100% - var(--edge-l) - var(--edge-r) - 128px); padding: 0; z-index: 3; }
+  #tl .brand, #tl .sub { display: none; }
+  #tl .lvl, #tl.mini .lvl { align-items: center; gap: 7px; height: 44px; margin: 0; padding: 0 10px; }
+  #tl .lvl .num { font-size: 19px; } #tl .lvl .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+  #tl .menu { position: absolute; top: calc(100% + 5px); left: -1px; min-width: min(250px, 85vw); margin: 0; padding: 6px; gap: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--glass2); box-shadow: var(--shadow); }
+  #tl .mbtn { flex: 1 1 auto; min-height: 38px; color: var(--ink); }
+  #lit { left: auto; right: var(--edge-r); top: var(--edge-t); transform: none; min-width: 0; height: 44px; display: flex; align-items: center; gap: 6px; padding: 0 9px; }
+  #lit .k { font-size: 10px; letter-spacing: .03em; } #lit .v { font-size: 18px; } #lit .sl { margin: 0 2px; } #lit .pips { display: none; }
+  #guide { top: calc(var(--edge-t) + 52px); width: min(540px, calc(100% - var(--edge-l) - var(--edge-r))); max-width: none; padding: 7px 40px 7px 12px; font-size: 12px; }
+  #guide .gx { right: 0; width: 38px; height: 100%; } #tl:not(.mini) ~ #guide { visibility: hidden; }
+  #bottom { left: var(--edge-l); right: var(--edge-r); bottom: var(--edge-b); transform: none; gap: 4px; }
+  #trayWrap { width: 100%; max-width: 480px; display: grid; gap: 4px; padding: 4px; }
+  #tray { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; }
+  #bottom kbd, #trayWrap .sep, #tray .recallTip { display: none; }
+  .card { width: 100%; min-width: 0; height: 55px; padding: 3px; justify-content: center; }
+  .card .ico { width: 26px; height: 26px; flex-shrink: 0; } .card .nm { white-space: normal; line-height: 1.05; font-size: 11px; } .card .ct { top: 2px; right: 4px; font-size: 10px; }
+  #acts { gap: 4px; } .act { flex: 1; min-height: 40px; flex-direction: row; gap: 5px; }
+  #ctx { max-width: 100%; flex-wrap: wrap; justify-content: center; padding: 4px 6px; gap: 4px; }
+  #ctx .ci { flex-basis: 100%; text-align: center; margin: 0; } #ctx .ci b, #ctx .ci small { white-space: normal; }
+  #ctx button { min-height: 36px; } #floors { left: var(--edge-l); padding: 3px; gap: 3px; } #floors .fl { width: 36px; height: 36px; padding: 0 2px; white-space: nowrap; }
+  #toast { width: max-content; max-width: 90%; white-space: normal; text-align: center; bottom: calc(var(--edge-b) + 195px); }
+  #solved { top: calc(var(--edge-t) + 52px); right: var(--edge-r); max-width: calc(100% - var(--edge-l) - var(--edge-r)); } #solved button { min-height: 38px; }
+  #overlay .ov { padding: 12px; } .ovx { min-height: 38px; } .lvls { grid-template-columns: 1fr; }
+}
+@media (max-height: 520px) and (min-width: 550px) {
+  #trayWrap { display: flex; width: max-content; max-width: 100%; align-items: stretch; }
+  #tray { grid-auto-columns: minmax(70px, 90px); } .card { height: 44px; } .card .ico { height: 22px; }
+  #acts .act { width: 52px; flex: none; flex-direction: column; padding: 2px 4px; gap: 0; white-space: nowrap; } #ctx .ci { flex-basis: auto; } #ctx .ci small { display: none; }
+  #floors { top: 52%; transform: translateY(-50%); } #guide { left: auto; right: var(--edge-r); transform: none; width: clamp(140px, 21vw, 220px); } #guide.flash { animation: none; } .lvls { grid-template-columns: repeat(2, 1fr); }
+}
 </style>
 </head>
 <body>
@@ -8338,8 +8367,10 @@ void main() {
     refit() {
       if (!this.fit) return;
       const f = this.fit, W = innerWidth, H = innerHeight;
-      const safe = { l: -1 + 2 * 96 / W, r: 1 - 2 * 40 / W, b: -1 + 2 * 128 / H, t: 1 - 2 * 104 / H };
-      this.home.dist = this.fitDistance(f.box, this.home.yaw, this.home.pitch, this.home.target, safe) * (f.zoom || 1);
+      const narrow = W <= 700, short = H <= 520;
+      const safe = { l: -1 + 2 * (narrow ? 22 : short ? 48 : 96) / W, r: 1 - 2 * (narrow ? 18 : 40) / W, b: -1 + 2 * (short ? 68 : 128) / H, t: 1 - 2 * (short ? 70 : 104) / H };
+      const zoom = narrow && H > W ? Math.max(1, f.zoom || 1) : f.zoom || 1;
+      this.home.dist = this.fitDistance(f.box, this.home.yaw, this.home.pitch, this.home.target, safe) * zoom;
       this.limits.distMax = Math.max(40, this.home.dist * 2.4);
       this.limits.distMin = Math.max(7, this.home.dist * 0.32);
     }
@@ -8640,6 +8671,7 @@ void main() {
       reset: "重置",
       hint: "提示",
       levels: "选关",
+      chamberMenu: (name) => name + " · 密室菜单",
       help: "操作",
       sound: "音效",
       soundOn: "音效 开",
@@ -8760,6 +8792,7 @@ void main() {
       reset: "Reset",
       hint: "Hint",
       levels: "Levels",
+      chamberMenu: (name) => name + " · Chamber menu",
       help: "Controls",
       sound: "Sound",
       soundOn: "Sound on",
@@ -8896,9 +8929,9 @@ void main() {
       hud.innerHTML = DEFS + `
       <div id="tl" class="panel">
         <div class="brand"><span class="b1">PRISM VAULT</span><span class="b2"></span></div>
-        <div class="lvl"><span class="num"></span><span class="name"></span></div>
+        <button class="lvl" type="button" aria-controls="chamber-menu" aria-expanded="true"><span class="num"></span><span class="name"></span></button>
         <div class="sub"></div>
-        <div class="menu">
+        <div class="menu" id="chamber-menu">
           <button data-a="levels" class="mbtn" aria-haspopup="dialog"></button><button data-a="help" class="mbtn" aria-haspopup="dialog"></button>
           <button data-a="lang" class="mbtn"></button><button data-a="quality" class="mbtn"></button><button data-a="mute" class="mbtn"></button>
         </div>
@@ -8923,6 +8956,7 @@ void main() {
       <div id="labels"></div>
       <dialog id="overlay" aria-labelledby="overlay-title"><div class="ov panel"></div></dialog>`;
       this.el = (s) => hud.querySelector(s);
+      this.el("#tl .lvl").addEventListener("click", () => this.h.onMenuToggle());
       hud.querySelectorAll("button").forEach((b) => b.addEventListener("mousedown", (e) => e.preventDefault()));
       hud.querySelectorAll("[data-a]").forEach((b) => b.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -8935,7 +8969,6 @@ void main() {
       this.el("#overlay").addEventListener("click", (e) => {
         if (e.target.id === "overlay") this.closeOverlay();
       });
-      this.el("#overlay").addEventListener("close", () => this.el("#tl").classList.remove("dialog-source"));
       this.el("#overlay").addEventListener("keydown", (event) => {
         if (event.key !== "Tab") return;
         const buttons = this.el("#overlay").querySelectorAll("button:enabled");
@@ -8953,6 +8986,7 @@ void main() {
     // the title card shrinks to a chip during play (normal play keeps the HUD minimal)
     setMini(on) {
       this.el("#tl").classList.toggle("mini", !!on);
+      this.el("#tl .lvl").setAttribute("aria-expanded", String(!on));
     }
     texts(state) {
       this.el(".brand .b2").textContent = t("title");
@@ -8972,6 +9006,7 @@ void main() {
       this.el(".lvl .num").textContent = String(def.n).padStart(2, "0");
       const zh = getLang() === "zh";
       this.el(".lvl .name").textContent = zh ? def.name.zh + " · " + def.name.en : def.name.en;
+      this.el("#tl .lvl").setAttribute("aria-label", t("chamberMenu", this.el(".lvl .name").textContent));
       this.el("#tl .sub").textContent = zh ? chapter.zh + " · " + chapter.en : chapter.en;
     }
     setLit(n, total) {
@@ -9095,7 +9130,6 @@ void main() {
     }
     showOverlay(action) {
       this.h.onOverlayOpen();
-      this.el("#tl").classList.add("dialog-source");
       this.el(`[data-a="${action}"]`).focus({ preventScroll: true });
       this.el("#overlay").showModal();
     }
@@ -9468,8 +9502,13 @@ void main() {
     if (announce) ui.toast(announce);
   }
   var ui = null;
+  var compactHUD = matchMedia("(max-width: 700px), (max-height: 520px)");
   ui = new UI({
     onAction: (a) => act(a),
+    onMenuToggle: () => {
+      G.miniDone = true;
+      ui.setMini(!ui.el("#tl").classList.contains("mini"));
+    },
     onOverlayOpen: () => {
       keys.clear();
       ptr.down = false;
@@ -9616,8 +9655,8 @@ void main() {
       G.labels.push({ el, pos: info.pos.clone().add(new THREE.Vector3(0, 0.05, 1.05)), kind: "tag", layerY: info.slot.y });
     }
     ui.setLevel(def, CHAPTERS[def.chapter]);
-    ui.setMini(false);
-    G.miniDone = false;
+    ui.setMini(compactHUD.matches);
+    G.miniDone = compactHUD.matches;
     ui.hideSolved();
     ui.setGuide(null);
     refreshUI();
@@ -10605,6 +10644,12 @@ void main() {
     keys.delete(k);
   });
   window.addEventListener("blur", () => keys.clear());
+  compactHUD.addEventListener("change", () => {
+    if (compactHUD.matches && !ui.overlayOpen) {
+      ui.setMini(true);
+      G.miniDone = true;
+    }
+  });
   window.addEventListener("resize", () => {
     camera.aspect = innerWidth / innerHeight;
     camera.updateProjectionMatrix();
@@ -10775,7 +10820,7 @@ void main() {
       if (a > 3.8) G.outline.visible = false;
     }
     updateLabels();
-    if (!G.miniDone && G.t - G.levelStart > 7) {
+    if (!G.miniDone && G.t - G.levelStart > 7 && !ui.overlayOpen && !ui.el("#tl").contains(document.activeElement)) {
       G.miniDone = true;
       ui.setMini(true);
     }
@@ -10860,7 +10905,13 @@ void main() {
       }
       const x = (proj.x * 0.5 + 0.5) * W, y = (-proj.y * 0.5 + 0.5) * H;
       const inHud = rects.some((r) => x > r.left - 40 && x < r.right + 40 && y > r.top - 6 && y < r.bottom + 30);
-      el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
+      if (x < 0 || x > W || y < 0 || y > H) {
+        el.style.opacity = 0;
+        return;
+      }
+      el.style.transform = compactHUD.matches
+        ? `translate(clamp(4px, calc(${x.toFixed(1)}px - 50%), calc(${W - 4}px - 100%)), calc(${y.toFixed(1)}px - 100%))`
+        : `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
       el.style.opacity = inHud ? 0 : alpha;
     };
     const fadeA = (y) => {

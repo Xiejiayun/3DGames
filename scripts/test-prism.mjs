@@ -63,7 +63,49 @@ try {
     assert.equal(await keyFrame('1'), withMirror, 'changing the held piece releases its old preview');
   }
   assert.deepEqual(errors, []);
-  console.log(`PASS Prism Vault: ${checks.length} puzzle checks, offline WebGL, dialog input isolation, place, rotate, undo, next chamber and preview resource lifetimes`);
+  await page.close();
+  const touch = await browser.newPage({ offline: true, hasTouch: true, viewport: { width: 390, height: 844 } });
+  touch.on('pageerror', error => errors.push(error.message));
+  await touch.goto(new URL('../dist/games/prism.html?manual&q=low&mute=1&lang=en', import.meta.url).href);
+  await touch.locator('#boot').waitFor({ state: 'detached' });
+  const settleTouch = () => touch.evaluate(() => { PRISM.step(3); });
+  const menu = touch.locator('#tl .lvl');
+  const tapTargets = async selector => {
+    const obstructed = await touch.locator(selector).evaluateAll(buttons => buttons.filter(button => {
+      const box = button.getBoundingClientRect();
+      return !box.width || box.x < 0 || box.y < 0 || box.right > innerWidth || box.bottom > innerHeight ||
+        !button.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+    }).map(button => button.textContent.trim()));
+    assert.deepEqual(obstructed, [], `fully visible and tappable: ${selector}`);
+  };
+  await settleTouch();
+  assert.equal(await menu.getAttribute('aria-expanded'), 'false');
+  await touch.locator('#tray [data-key="flat"]').tap();
+  const touchSlot = await touch.evaluate(() => PRISM.slotScreenVisible('1,0,1'));
+  assert.ok(touchSlot);
+  await touch.touchscreen.tap(touchSlot.x, touchSlot.y);
+  await tapTargets('#ctx button:enabled');
+  await touch.locator('[data-c="rotate"]').tap();
+  await settleTouch();
+  await touch.locator('[data-s="next"]').tap();
+  await touch.waitForFunction(() => PRISM.state().level === 2);
+  await menu.tap();
+  await touch.locator('[data-a="levels"]').tap();
+  await touch.locator('[data-n="10"]').tap();
+  await touch.waitForFunction(() => PRISM.state().level === 10);
+  for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+    await touch.setViewportSize(viewport);
+    for (let language = 0; language < 2; language++) {
+      await settleTouch();
+      await tapTargets('#tl .lvl, #lit, #tray .card, #acts button, #floors button');
+      await menu.tap();
+      await tapTargets('#chamber-menu button');
+      await touch.locator('[data-a="lang"]').tap();
+      await menu.tap();
+    }
+  }
+  assert.deepEqual(errors, []);
+  console.log(`PASS Prism Vault: ${checks.length} puzzle checks, offline WebGL, dialog input isolation, board controls, preview lifetimes and bilingual compact touch controls`);
 } finally {
   await browser.close();
 }

@@ -1711,6 +1711,8 @@ const flareBurstSize = 8;
 const flareColor = new THREE.Color(0xffefd0);
 const smokeOrder = [];
 const viewDirection = new THREE.Vector3();
+const trailPoint = new THREE.Vector3();
+const trailDrift = new THREE.Vector3(0, 1.5, 0);
 
 function createBillboardLayer(map, additive) {
   const quad = new THREE.PlaneGeometry(1, 1);
@@ -2077,9 +2079,12 @@ function launchMissileEntity(fromPlayer, target, cfg) {
 
   const g = new THREE.Group();
   const body = new THREE.Mesh(sharedMissileGeo, new THREE.MeshStandardMaterial({ color: 0xe6edf5, roughness: 0.4 }));
-  const tip = new THREE.Mesh(sharedSphereGeo, new THREE.MeshBasicMaterial({ color: cfg.color || 0xff9d3b }));
-  tip.scale.setScalar(0.55); tip.position.z = 2.0;
-  g.add(body, tip);
+  const plume = new THREE.Mesh(sharedSphereGeo, new THREE.MeshBasicMaterial({
+    color: new THREE.Color(cfg.color || 0xff9d3b).multiplyScalar(1.7), transparent: true,
+    opacity: 0.76, blending: THREE.AdditiveBlending, depthWrite: false
+  }));
+  plume.scale.set(0.24, 0.24, 0.86); plume.position.z = 2.25;
+  g.add(body, plume);
   g.position.copy(origin);
   g.quaternion.copy(fromPlayer ? player.quat : cfg.quat);
   fxGroup.add(g);
@@ -2087,7 +2092,7 @@ function launchMissileEntity(fromPlayer, target, cfg) {
   missiles.push({
     mesh: g, pos: origin, dir: fwd.clone(),
     speed: cfg.speed || 460, turn: cfg.turn || 3.8, dmg: cfg.dmg || 55,
-    antiShip: cfg.antiShip || 1.0, fromPlayer, target, life: 6.5, smokeCd: 0, spoofed: false
+    antiShip: cfg.antiShip || 1.0, fromPlayer, target, life: 6.5, trailCarry: 0, spoofed: false
   });
 }
 
@@ -2474,10 +2479,11 @@ function updateProjectilesAndFX(dt) {
     m.mesh.position.copy(m.pos);
     m.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), m.dir);
 
-    m.smokeCd -= dt;
-    if (m.smokeCd <= 0) {
-      m.smokeCd = 0.032;
-      spawnParticle(m.pos, new THREE.Vector3(0, 1.5, 0), m.fromPlayer ? 0xeef6ff : 0xffccb8, 4.2, 0.65, 2.2, false);
+    m.trailCarry += m.speed * dt;
+    while (m.trailCarry >= 9) {
+      m.trailCarry -= 9;
+      trailPoint.copy(m.pos).addScaledVector(m.dir, -m.trailCarry - 2.6);
+      spawnParticle(trailPoint, trailDrift, m.fromPlayer ? 0xdeebf5 : 0xf0cdba, 1.65, 0.52, 2.5, false);
     }
 
     let hit = false;

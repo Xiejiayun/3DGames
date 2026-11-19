@@ -9537,7 +9537,7 @@ void main() {
     composer.setPixelRatio(pr);
     composer.setSize(w, h);
     composer.addPass(new RenderPass(scene, camera));
-    bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.5, 0.45, 0.86);
+    bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.12, 0, 0.88);
     composer.addPass(bloom);
     composer.addPass(new OutputPass());
   }

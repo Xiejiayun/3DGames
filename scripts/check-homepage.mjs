@@ -49,8 +49,8 @@ try {
       }));
       assert.equal(state.lang, lang === 'zh' ? 'zh-CN' : 'en');
       assert.equal(state.overflow, false, `${width}px: no horizontal overflow`);
-      assert.equal(state.columns, width > 1080 ? 3 : width > 720 ? 2 : 1);
-      assert.equal(state.cards.length, 3);
+      assert.equal(state.columns, width > 720 ? 2 : 1);
+      assert.equal(state.cards.length, 4);
       for (const card of state.cards) {
         assert.equal(card.width, 960); assert.equal(card.height, 540);
         assert.ok(Math.abs(card.ratio - 16 / 9) < 0.01, 'preview retains full 16:9 frame');
@@ -67,7 +67,7 @@ try {
   await page.keyboard.press('Enter');
   await page.waitForURL(`${origin}/games/cs.html`, { waitUntil: 'commit' });
   assert.deepEqual(errors, []);
-  console.log('PASS built homepage: 3 screenshots, ZH/EN, 4 viewports, game links, keyboard navigation; no page/HTTP errors');
+  console.log('PASS built homepage: 4 screenshots, ZH/EN, 4 viewports, game links, keyboard navigation; no page/HTTP errors');
 } finally {
   await browser?.close();
   server.closeAllConnections();

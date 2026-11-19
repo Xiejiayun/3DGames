@@ -8685,6 +8685,9 @@ void main() {
       quality: "画质",
       q: { high: "高", med: "中", low: "低" },
       lang: "EN",
+      switchLang: "切换到英语",
+      dismissGuide: "关闭引导",
+      noWebGL: "本设备不支持 WebGL。请使用支持 WebGL 2 的浏览器。",
       langName: "中文",
       trayRecall: "点托盘：收回选中的元件",
       held: () => "点空槽放下 · R / F 可先转好方向",
@@ -8787,7 +8790,7 @@ void main() {
       selftest: "自检"
     },
     en: {
-      title: "棱镜密室",
+      title: "Prism Vault",
       brand: "PRISM VAULT",
       lit: "Cores lit",
       floorAll: "All",
@@ -8815,6 +8818,9 @@ void main() {
       quality: "Quality",
       q: { high: "High", med: "Med", low: "Low" },
       lang: "中",
+      switchLang: "Switch to Chinese",
+      dismissGuide: "Dismiss tutorial",
+      noWebGL: "WebGL is unavailable. Use a browser with WebGL 2 support.",
       langName: "English",
       trayRecall: "Click the tray to recall the selected piece",
       held: () => "Click an empty slot · R / F to pre-turn",
@@ -8918,9 +8924,20 @@ void main() {
     }
   };
   var lang = "zh";
-  function setLang(l) {
-    lang = STR[l] ? l : "zh";
+  function supportedLang(value) {
+    const base = typeof value === "string" && value.toLowerCase().split("-")[0];
+    return base === "zh" || base === "en" ? base : null;
+  }
+  function setLang(language) {
+    lang = language;
     document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+    document.title = t("title");
+    const boot = document.querySelector("#boot .bt");
+    if (boot) {
+      boot.querySelector("b").classList.toggle("hidden", lang === "en");
+      boot.querySelector("span").textContent = t("title");
+      boot.querySelector("i").textContent = t("loading");
+    }
   }
   function getLang() {
     return lang;
@@ -8963,7 +8980,7 @@ void main() {
       <div id="lit" class="panel"><div class="k"></div><div class="v"><b class="n">0</b><span class="sl">/</span><span class="t">0</span></div><div class="pips"></div></div>
       <div id="floors" class="panel"></div>
       <button type="button" id="guide-socket" class="lab hidden"><span aria-hidden="true">A</span></button>
-      <div id="guide" class="panel hidden"><span class="gt" role="status"></span><button class="gx" aria-label="close">×</button></div>
+      <div id="guide" class="panel hidden"><span class="gt" role="status"></span><button type="button" class="gx">×</button></div>
       <div id="bottom">
         <div id="ctx" class="panel hidden"></div>
         <div id="trayWrap" class="panel">
@@ -9016,12 +9033,14 @@ void main() {
       this.el("#tl .lvl").setAttribute("aria-expanded", String(!on));
     }
     texts(state) {
-      this.el(".brand .b2").textContent = t("title");
+      this.el(".brand .b2").textContent = getLang() === "zh" ? t("title") : "";
       this.el("#lit .k").textContent = t("lit");
       const m = (a) => this.el(`[data-a="${a}"]`);
       m("levels").textContent = t("levels");
       m("help").textContent = t("help");
       m("lang").textContent = t("lang");
+      m("lang").setAttribute("aria-label", t("switchLang"));
+      this.el("#guide .gx").setAttribute("aria-label", t("dismissGuide"));
       m("quality").textContent = t("quality") + " · " + t("q." + state.quality);
       m("mute").textContent = state.muted ? t("soundOff") : t("soundOn");
       this.el('[data-a="undo"] .al').textContent = t("undo");
@@ -9128,6 +9147,7 @@ void main() {
       this.toastTimer = setTimeout(() => el.classList.add("hidden"), ms);
     }
     showSolved(s) {
+      this.solvedStats = s;
       const el = this.el("#solved");
       const stars = [1, 2, 3].map((i) => `<i class="${i <= s.stars ? "on" : ""}">★</i>`).join("");
       el.innerHTML = `
@@ -9150,6 +9170,7 @@ void main() {
       });
     }
     hideSolved() {
+      this.solvedStats = null;
       this.el("#solved").classList.add("hidden");
     }
     get overlayOpen() {
@@ -9390,13 +9411,16 @@ void main() {
     reasonLabels: [],
     fades: /* @__PURE__ */ new Map()
   };
-  setLang(params.get("lang") || store.lang || ((navigator.language || "zh").startsWith("zh") ? "zh" : "en"));
+  setLang(supportedLang(params.get("lang")) || supportedLang(store.lang) ||
+    navigator.languages?.map(supportedLang).find(Boolean) || supportedLang(navigator.language) || "en");
   var canvas = document.getElementById("gl");
   var renderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance", stencil: false });
   } catch (e) {
-    document.getElementById("boot").innerHTML = '<div class="bt">WebGL is not available on this device.<br>本设备不支持 WebGL。</div>';
+    const message = document.querySelector("#boot .bt i");
+    message.textContent = t("noWebGL");
+    message.setAttribute("role", "alert");
     throw e;
   }
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -10401,6 +10425,9 @@ void main() {
         return;
       case "lang": {
         setLang(getLang() === "zh" ? "en" : "zh");
+        const url = new URL(location.href);
+        url.searchParams.set("lang", getLang());
+        history.replaceState(null, "", url);
         store.lang = getLang();
         saveStore();
         ui.setLevel(G.def, CHAPTERS[G.def.chapter]);
@@ -10408,7 +10435,7 @@ void main() {
         updateBadges();
         rebuildReasonLabels(beams.segs.filter((s) => !s.dying));
         updateGuide(true);
-        if (G.complete) showSolvedCard(G.lastStars || 1, false);
+        if (ui.solvedStats) ui.showSolved(ui.solvedStats);
         return;
       }
       case "quality": {
@@ -10737,7 +10764,6 @@ void main() {
       store.best[G.def.id] = stars;
       saveStore();
     }
-    G.lastStars = stars;
     showSolvedCard(stars, isNew && prev > 0);
     sound.play("solved");
     clearHint();

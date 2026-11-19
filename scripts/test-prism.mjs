@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
-  const page = await browser.newPage({ offline: true, viewport: { width: 1280, height: 800 } });
+  const page = await browser.newPage({ offline: true, locale: 'en-US', viewport: { width: 1280, height: 800 } });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(new URL('../dist/games/prism.html?manual&q=low&mute=1&lang=en', import.meta.url).href);
@@ -57,6 +57,27 @@ try {
   await page.keyboard.press('r');
   assert.equal((await step()).complete, true, 'rotating the mirror lights the first core');
   assert.match(await guide.textContent(), /4\/4.*core/i);
+  const switchLanguage = async () => {
+    const menu = page.locator('#tl .lvl');
+    if (await menu.getAttribute('aria-expanded') === 'false') await menu.click();
+    await page.locator('[data-a="lang"]').click();
+  };
+  const board = () => page.evaluate(() => {
+    const { level, layout, history, held, selected, floor, best, lit, complete } = PRISM.state();
+    return { level, layout, history, held, selected, floor, best, lit, complete };
+  });
+  const solvedBoard = await board();
+  await switchLanguage();
+  assert.deepEqual(await board(), solvedBoard, 'translation preserves the solved board and undo stack');
+  assert.match(await guide.textContent(), /核心/);
+  assert.equal(await page.locator('#solved .sv-t').textContent(), '已解开');
+  assert.equal(await page.locator('#guide .gx').getAttribute('aria-label'), '关闭引导');
+  await page.locator('[data-a="help"]').click();
+  await page.getByRole('dialog', { name: '操作' }).getByRole('button', { name: '关闭' }).click();
+  await page.locator('[data-s="stay"]').click();
+  await switchLanguage();
+  assert.equal(await page.locator('#solved').isVisible(), false, 'switching does not reopen a dismissed scorecard');
+  assert.equal(await page.locator('#guide .gx').getAttribute('aria-label'), 'Dismiss tutorial');
   await page.keyboard.press('Control+z');
   assert.equal((await step()).lit, 0, 'undo restores the unlit core');
   assert.match(await guide.textContent(), /3\/4.*Rotate/);
@@ -88,6 +109,28 @@ try {
     await keyFrame('4');
     assert.equal(await keyFrame('1'), withMirror, 'changing the held piece releases its old preview');
   }
+  const direct = new URL('../dist/games/prism.html?manual&q=low&lvl=2#chamber', import.meta.url);
+  const enter = async url => { await page.goto(url.href); await page.locator('#boot').waitFor({ state: 'detached' }); };
+  const language = () => page.locator('html').getAttribute('lang');
+  await page.evaluate(() => localStorage.removeItem('prismVault.v1'));
+  await enter(direct);
+  assert.equal(await language(), 'en', 'browser preference on a fresh direct visit');
+  await switchLanguage();
+  const switched = new URL(page.url());
+  assert.equal(switched.searchParams.get('lang'), 'zh');
+  assert.equal(switched.searchParams.get('lvl'), '2');
+  assert.equal(switched.searchParams.get('q'), 'low');
+  assert.ok(switched.searchParams.has('manual'));
+  assert.equal(switched.hash, '#chamber');
+  await enter(direct);
+  assert.equal(await language(), 'zh-CN', 'saved game preference outranks the browser');
+  direct.searchParams.set('lang', 'fr'); await enter(direct);
+  assert.equal(await language(), 'zh-CN', 'unsupported URL preference does not discard the saved preference');
+  direct.searchParams.set('lang', 'en-GB'); await enter(direct);
+  assert.equal(await language(), 'en', 'supported explicit URL preference outranks saved preference');
+  await switchLanguage();
+  await page.reload(); await page.locator('#boot').waitFor({ state: 'detached' });
+  assert.equal(await language(), 'zh-CN', 'reload keeps the change even after an explicit language link');
   assert.deepEqual(errors, []);
   await page.close();
   const touch = await browser.newPage({ offline: true, hasTouch: true, viewport: { width: 390, height: 844 } });
@@ -139,7 +182,7 @@ try {
     }
   }
   assert.deepEqual(errors, []);
-  console.log(`PASS Prism Vault: ${checks.length} puzzle checks, offline WebGL, dialog input isolation, board controls, preview lifetimes, compact touch controls and the bilingual first-mirror lesson`);
+  console.log(`PASS Prism Vault: ${checks.length} puzzle checks, offline WebGL, dialog input isolation, board controls, preview lifetimes, compact touch controls, first-mirror lesson and language continuity`);
 } finally {
   await browser.close();
 }

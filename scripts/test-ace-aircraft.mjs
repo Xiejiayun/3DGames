@@ -1,18 +1,22 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
-import { resolve } from 'node:path';
+import { resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const output = process.env.ACE_SCREENSHOTS ? resolve(process.env.ACE_SCREENSHOTS, 'aircraft')
   : process.argv[2] ? resolve(process.argv[2]) : await mkdtemp(resolve(tmpdir(), 'ace-aircraft-'));
 await mkdir(output, { recursive: true });
 const html = await readFile(new URL('../games/ace.html', import.meta.url), 'utf8');
+const threeRoot = resolve(fileURLToPath(import.meta.resolve('three')), '../..');
+const { version } = JSON.parse(await readFile(resolve(threeRoot, 'package.json'), 'utf8'));
+const prefix = `https://unpkg.com/three@${version}/`;
 const close = html.lastIndexOf('</script>');
 assert.notEqual(close, -1);
 // Only the loopback test copy exposes scene references. Exercise the actual game module and renderer.
-const bridge = `\nwindow.aircraftQA = { THREE, player, camera, scene, enemies: () => enemies,
+const bridge = `\nwindow.aircraftQA = { THREE, player, camera, scene, renderer, enemies: () => enemies,
   buildBomberMesh, updateCamera, updatePlayer, drawHUD, render: () => composer && quality !== 'low'
     ? composer.render() : renderer.render(scene, camera) };\n`;
 const server = createServer((req, res) => {
@@ -82,13 +86,74 @@ function inspectSkin(bomber) {
     const bore = hit([x, y, 25], [0, 0, -1]), rim = hit([x, y + offset, 25], [0, 0, -1]);
     if (!(bore?.pos.z < z && z < rim?.pos.z && rim.pos.z - bore.pos.z > 0.14)) throw new Error('Nozzle should frame a recessed glow');
   }
+  const depths = [], frames = [];
+  if (bomber) {
+    for (const across of [-7.5, -4.4, 4.4, 7.5]) {
+      const up = Math.abs(across) > 6 ? -0.97 : -0.71;
+      depths.push(hit([across, up, -25], [0, 0, 1])?.pos.z - hit([across + 0.69, up, -25], [0, 0, 1])?.pos.z);
+    }
+  } else {
+    const [beam, eye] = { f22:[1.36,-2.9], su57:[1.18,-3.35], f35:[1.52,-2.55] }[root.name];
+    for (const side of [-1, 1]) {
+      const well = hit([side * (beam + 0.25), -0.21, -25], [0, 0, 1]);
+      const edge = hit([side * (beam + 0.766), -0.12, -25], [0, 0, 1]);
+      depths.push(well?.pos.z - edge?.pos.z);
+    }
+    const glass = root.getObjectByName('Canopy');
+    for (const shift of [-0.77, 0.88, -0.2, 0.35]) {
+      const metal = hit([0, 12, eye + shift], [0, -1, 0]);
+      const glassTop = ray.intersectObject(glass, false)[0];
+      frames.push(metal?.pos.y - (glassTop && body.worldToLocal(glassTop.point).y));
+    }
+  }
   const normals = body.geometry.getAttribute('normal');
   const normal = new THREE.Vector3();
   for (let idx = 0; idx < normals.count; idx++) {
     if (!(Math.abs(normal.fromBufferAttribute(normals, idx).length() - 1) < 0.001)) throw new Error(`Invalid normal ${idx}`);
   }
-  return { span: box.max.x - box.min.x, length: box.max.z - box.min.z, heights, noseZ: nose?.pos.z, symmetric: Math.abs(heights[0] - heights[1]) < 0.001,
+  return { span: box.max.x - box.min.x, length: box.max.z - box.min.z, depths, frames, heights, noseZ: nose?.pos.z, symmetric: Math.abs(heights[0] - heights[1]) < 0.001,
     forward: !!nose && Math.abs(nose.pos.z - box.min.z) < 0.1 && nose.normal.z < -0.9 };
+}
+
+function renderRecognitionStrip() {
+  const { THREE, renderer, enemies, buildBomberMesh } = window.aircraftQA;
+  const study = new THREE.Scene(), lens = new THREE.PerspectiveCamera(64, 1280 / 720, 1, 1500);
+  const width = 112, height = 50, tile = document.createElement('canvas'), sheet = document.createElement('canvas');
+  tile.width = width; tile.height = height; sheet.width = width * 4; sheet.height = height * 4 + 30;
+  const cell = tile.getContext('2d'), ink = sheet.getContext('2d'); ink.fillStyle = '#101b26'; ink.fillRect(0, 0, sheet.width, sheet.height);
+  ink.imageSmoothingEnabled = false; ink.fillStyle = '#d7e5ec'; ink.font = '14px sans-serif'; ink.textAlign = 'center';
+  ink.fillText('Interceptor', width, 19); ink.fillText('Heavy', width * 3, 19);
+  study.background = new THREE.Color(0x101b26); study.overrideMaterial = new THREE.MeshBasicMaterial({ color:0xffffff });
+  const escort = enemies().find(actor => actor.type === 'fighter').mesh.clone(), heavy = buildBomberMesh();
+  escort.traverse(part => { if (part.material?.isShaderMaterial) part.visible = false; });
+  const oldTarget = renderer.getRenderTarget(), target = new THREE.WebGLRenderTarget(width, height);
+  const data = new Uint8Array(width * height * 4), samples = [];
+  try {
+    renderer.setRenderTarget(target); lens.setViewOffset(1280, 720, (1280 - width) / 2, (720 - height) / 2, width, height);
+    for (const [row, range] of [175, 320].entries()) for (const [column, model] of [escort, heavy].entries()) {
+      model.position.set(0, 0, 0); model.quaternion.identity(); study.add(model);
+      lens.position.set(0, 0, -range); lens.lookAt(0, 0, 0); renderer.render(study, lens);
+      renderer.readRenderTargetPixels(target, 0, 0, width, height, data); study.remove(model);
+      const image = cell.createImageData(width, height); let left = width, right = -1, maxRuns = 0;
+      for (let line = 0; line < height; line++) {
+        let run = 0, runs = 0;
+        for (let col = 0; col < width; col++) {
+          const pixel = (line * width + col) * 4, filled = data[pixel] > 170;
+          const offset = ((height - line - 1) * width + col) * 4;
+          image.data.set(filled ? [222,234,240,255] : [16,27,38,255], offset);
+          if (filled) { left = Math.min(left, col); right = Math.max(right, col); run++; }
+          else { if (run >= 2) runs++; run = 0; }
+        }
+        if (line < height / 2) maxRuns = Math.max(maxRuns, runs);
+      }
+      samples.push({ range, kind:column ? 'heavy' : 'escort', span:right - left + 1, lowerRuns:maxRuns });
+      cell.putImageData(image, 0, 0); ink.drawImage(tile, column * width * 2, 28 + row * height * 2, width * 2, height * 2);
+    }
+  } finally {
+    renderer.setRenderTarget(oldTarget); target.dispose(); study.overrideMaterial.dispose();
+    heavy.traverse(part => { if (part.isMesh) { part.geometry.dispose(); part.material.dispose(); } });
+  }
+  return { samples, png:sheet.toDataURL('image/png').split(',')[1] };
 }
 
 function checkChase(view) {
@@ -96,6 +161,51 @@ function checkChase(view) {
   assert.ok(view.range > 16 && view.range < 30 && view.fov > 56 && view.fov < 69, 'chase cut, not travel from the last view');
   assert.ok(view.centerY < -0.18 && view.centerY > -0.55 && view.clearCenter, 'jet below the boresight');
   assert.ok(view.bounds.every(value => Math.abs(value) < 0.97), 'whole jet inside frame');
+}
+
+function renderMatchedHangar() {
+  const { THREE, player, camera, render, renderer } = window.aircraftQA, root = player.mesh;
+  camera.position.copy(root.localToWorld(new THREE.Vector3(12.3, 7.0, -21.4)));
+  camera.up.set(0, 1, 0).applyQuaternion(root.quaternion);
+  camera.lookAt(root.localToWorld(new THREE.Vector3(0, 0.05, -1.05)));
+  camera.fov = 34; camera.updateProjectionMatrix(); render();
+  const source = renderer.domElement, image = document.createElement('canvas'), point = new THREE.Vector3();
+  image.width = 820; image.height = Math.round(image.width * source.height * 0.76 / (source.width * 0.80));
+  root.userData.exterior.traverseVisible(part => {
+    if (!part.isMesh) return;
+    const positions = part.geometry.getAttribute('position');
+    for (let vertex = 0; vertex < positions.count; vertex++) {
+      point.fromBufferAttribute(positions, vertex).applyMatrix4(part.matrixWorld).project(camera);
+      if (Math.abs(point.x) > 0.78 || Math.abs(point.y) > 0.74) throw Error(`${root.name}: matched reference crop clips the aircraft`);
+    }
+  });
+  image.getContext('2d').drawImage(source, source.width * 0.10, source.height * 0.12, source.width * 0.80, source.height * 0.76, 0, 0, image.width, image.height);
+  return image.toDataURL('image/png').split(',')[1];
+}
+
+function chaseShimmer() {
+  const { THREE, renderer, player, camera, render } = window.aircraftQA, source = renderer.domElement;
+  const anchor = player.mesh.getWorldPosition(new THREE.Vector3()).project(camera), crop = document.createElement('canvas');
+  crop.width = 120; crop.height = 52;
+  const left = Math.round((anchor.x + 1) * source.width / 2 - crop.width / 2), top = Math.round((1 - anchor.y) * source.height / 2 - crop.height / 2);
+  const ctx = crop.getContext('2d', { willReadFrequently:true }), home = camera.position.clone();
+  const distance = home.distanceTo(player.pos), right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  const unitsPerPixel = 2 * distance * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / source.height;
+  const sample = offset => {
+    camera.position.copy(home).addScaledVector(right, offset * unitsPerPixel); render();
+    ctx.drawImage(source, left, top, crop.width, crop.height, 0, 0, crop.width, crop.height);
+    return ctx.getImageData(0, 0, crop.width, crop.height).data;
+  };
+  try {
+    const base = sample(0);
+    return Math.max(...[-0.4, 0.4].map(offset => {
+      const pixels = sample(offset); let changed = 0;
+      for (let pixel = 0; pixel < pixels.length; pixel += 4) {
+        if ([0, 1, 2].some(channel => Math.abs(pixels[pixel + channel] - base[pixel + channel]) > 48)) changed++;
+      }
+      return changed / (crop.width * crop.height);
+    }));
+  } finally { camera.position.copy(home); render(); }
 }
 
 function sampleSunsetExhaust(throttle) {
@@ -129,6 +239,12 @@ try {
   browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--enable-webgl'] });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   const errors = [];
+  await page.route('https://**', route => {
+    const url = route.request().url(), file = resolve(threeRoot, url.slice(prefix.length));
+    if (url.startsWith(prefix) && file.startsWith(threeRoot + sep) && file.endsWith('.js'))
+      return route.fulfill({ path:file, contentType:'application/javascript', headers:{ 'Access-Control-Allow-Origin':'*' } });
+    errors.push(`Unexpected request: ${url}`); return route.abort();
+  });
   page.on('pageerror', err => errors.push(err.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.addInitScript(() => {
@@ -172,6 +288,8 @@ try {
     const hangar = await page.evaluate(inspectView);
     const skin = await page.evaluate(inspectSkin, false);
     assert.ok(skin.forward && skin.symmetric, `${id}: nose / mirrored wing normals: ${JSON.stringify(skin)}`);
+    assert.ok(skin.depths.every(depth => depth > 0.45) && Math.abs(skin.depths[0] - skin.depths[1]) < 0.02, `${id}: recessed inlets on both sides`);
+    assert.ok(skin.frames.slice(0, 2).every(gap => gap > 0.045) && skin.frames.slice(2).every(gap => gap < -0.1), `${id}: two raised metal rails, exposed glass between them`);
     assert.equal(hangar.id, id);
     assert.equal(hangar.engines, id === 'f35' ? 1 : 2);
     assert.ok(hangar.mode === 'hangar' && hangar.exterior && !hangar.cockpit && !hangar.underCard, `${id}: clear of hangar cards`);
@@ -181,9 +299,14 @@ try {
     if (index) await frame();
     assert.ok((await page.evaluate(inspectView)).clearHud, `${id}: hangar evidence has no stale HUD`);
     await shot(`${id}-hangar`);
+    const reference = await page.evaluate(renderMatchedHangar);
+    await writeFile(resolve(output, `${id}-exterior.png`), Buffer.from(reference, 'base64'));
     await click('#sortieBtn'); await frame();
     checkChase(await page.evaluate(inspectView));
     await shot(`${id}-chase`);
+    const shimmer = await page.evaluate(chaseShimmer);
+    assert.ok(shimmer < 0.08, `${id}: excessive high-contrast change in a held chase close-up (${shimmer})`);
+    console.log(`${id}: chase crop changes ${(shimmer * 100).toFixed(2)}% for ±0.4 px of camera motion`);
     await page.keyboard.press('v'); const seatDraws = await frame();
     const seat = await page.evaluate(inspectView);
     assert.ok(seat.mode === '1p' && seat.cockpit && !seat.exterior && seat.eyeError < 1e-5 && seat.fov >= 69);
@@ -197,6 +320,15 @@ try {
   assert.ok(spans[1] > spans[0] && spans[0] > spans[2] && lengths[1] > lengths[0] && lengths[0] > lengths[2]);
   const bomber = await page.evaluate(inspectSkin, true);
   assert.ok(bomber.forward && bomber.symmetric && bomber.span > spans[1] * 1.7);
+  assert.ok(bomber.depths.every(depth => depth > 0.78), 'All four pods have real, recessed mouths');
+  const strip = await page.evaluate(renderRecognitionStrip);
+  console.log('Unlabelled front silhouettes (1280×720 camera crop, pixels):', strip.samples);
+  for (const range of [175, 320]) {
+    const [escort, heavy] = strip.samples.filter(sample => sample.range === range);
+    assert.ok(escort.span >= 18 && heavy.span > escort.span * 1.70 && heavy.span < 112, 'Size difference survives actual distant pixel coverage');
+    if (range === 175) assert.ok(heavy.lowerRuns >= 4 && heavy.lowerRuns > escort.lowerRuns, 'Separate pods below the wing, not just a differently coloured body');
+  }
+  await writeFile(resolve(output, 'aircraft-silhouettes.png'), Buffer.from(strip.png, 'base64'));
 
   const motion = await page.evaluate(() => {
     const { THREE, player, camera, updateCamera, updatePlayer, render, drawHUD } = window.aircraftQA;

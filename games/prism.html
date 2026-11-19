@@ -6010,26 +6010,30 @@ void main() {
   var MAT = {};
   var swappables = [];
   var shinySet = /* @__PURE__ */ new Set();
+  function bindReflection(material, texture) {
+    if (material?.userData.envK == null) return;
+    if (!material.envMap) material.needsUpdate = true;
+    material.envMap = texture;
+    material.envMapIntensity = material.userData.envK;
+  }
   function shiny(mat, k) {
     mat.userData.envK = k;
     shinySet.add(mat);
-    if (MAT.env) {
-      mat.envMap = MAT.env;
-      mat.envMapIntensity = k;
-    }
+    if (MAT.env) bindReflection(mat, MAT.env);
     return mat;
   }
   function unshiny(mat) {
     shinySet.delete(mat);
   }
-  function setEnv(tex2) {
-    const first = !MAT.env;
-    MAT.env = tex2;
-    for (const m of shinySet) {
-      m.envMap = tex2;
-      m.envMapIntensity = m.userData.envK;
-      if (first) m.needsUpdate = true;
-    }
+  function setEnv(texture, root) {
+    MAT.env = texture;
+    const bind = material => bindReflection(material, texture);
+    shinySet.forEach(bind);
+    root.traverse(node => {
+      if (Array.isArray(node.material)) node.material.forEach(bind);
+      else bind(node.material);
+      bind(node.userData.realMat);
+    });
   }
   function createMaterials(renderer2) {
     const aniso = Math.min(8, renderer2.capabilities.getMaxAnisotropy());
@@ -9516,19 +9520,22 @@ void main() {
   }
   var PAL = { from: paletteOf("dawn"), to: paletteOf("dawn"), k: 1, cur: {}, env: null, envName: "" };
   lerpPalette(PAL.cur, PAL.from, PAL.to, 1);
+  function rebuildReflections() {
+    const previous = PAL.env;
+    const target = buildEnvironment(renderer, PAL.to, SUN_DIR);
+    scene.environment = target.texture;
+    setEnv(target.texture, scene);
+    PAL.env = target;
+    PAL.envName = PAL.to.name;
+    previous?.dispose();
+  }
+  canvas.addEventListener("webglcontextrestored", rebuildReflections);
   function setChapterSky(name, immediate) {
     if (PAL.to.name === name && !immediate) return;
     PAL.from = immediate ? paletteOf(name) : Object.assign({}, PAL.cur, { name: PAL.cur.name });
     PAL.to = paletteOf(name);
     PAL.k = immediate ? 1 : 0;
-    if (PAL.envName !== name) {
-      const rt = buildEnvironment(renderer, PAL.to, SUN_DIR);
-      if (PAL.env) PAL.env.dispose();
-      PAL.env = rt;
-      PAL.envName = name;
-      scene.environment = rt.texture;
-      setEnv(rt.texture);
-    }
+    if (PAL.envName !== name) rebuildReflections();
   }
   function applyPalette(dt) {
     if (PAL.k < 1) PAL.k = Math.min(1, PAL.k + dt / 1.6);

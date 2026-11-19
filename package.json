@@ -13,7 +13,7 @@
   },
   "scripts": {
     "test:home": "node scripts/check-homepage.mjs",
-    "test:prism": "node scripts/test-prism.mjs",
+    "test:prism": "node scripts/test-prism.mjs && node scripts/test-prism-performance.mjs",
     "test:ironcore": "node scripts/test-ironcore.mjs",
     "test:skyhold": "node scripts/test-skyhold.mjs",
     "test:kart": "node scripts/kart-3d-check.mjs",

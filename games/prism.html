@@ -9424,6 +9424,7 @@ void main() {
     throw e;
   }
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.info.autoReset = false;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -9509,6 +9510,7 @@ void main() {
   }
   function applyQuality(q, announce) {
     G.quality = q;
+    resetFrameSampling();
     document.body.classList.toggle("lowfx", q === "low");
     const dpr = Math.min(window.devicePixelRatio || 1, q === "high" ? 2 : q === "med" ? 1.5 : 1);
     renderer.setPixelRatio(dpr);
@@ -9721,7 +9723,7 @@ void main() {
       u.searchParams.set("lvl", n);
       history.replaceState(null, "", u);
     }
-    G.fps = { acc: 0, n: 0, start: G.t + 1 };
+    resetFrameSampling();
     warmUp();
   }
   function warmUp() {
@@ -10700,7 +10702,9 @@ void main() {
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     keys.delete(k);
   });
-  window.addEventListener("blur", () => keys.clear());
+  window.addEventListener("blur", () => { keys.clear(); frameClock.focused = false; resetFrameSampling(); });
+  window.addEventListener("focus", () => { frameClock.focused = true; resetFrameSampling(); });
+  document.addEventListener("visibilitychange", resetFrameSampling);
   compactHUD.addEventListener("change", () => {
     if (compactHUD.matches && !ui.overlayOpen) {
       ui.setMini(true);
@@ -10769,18 +10773,43 @@ void main() {
     clearHint();
     updateGuide();
   }
-  var last = performance.now();
+  var frameClock = { focused: document.hasFocus() };
+  function resetFrameSampling() {
+    Object.assign(frameClock, { last: null, fps: 0, sampleSeconds: 0, sampleFrames: 0, warmup: 1, qualitySeconds: 0, qualityFrames: 0 });
+  }
+  function sampleFrame(seconds) {
+    frameClock.sampleFrames++;
+    frameClock.sampleSeconds += seconds;
+    if (!frameClock.fps || frameClock.sampleSeconds >= 1) frameClock.fps = frameClock.sampleFrames / frameClock.sampleSeconds;
+    if (frameClock.sampleSeconds >= 1) frameClock.sampleFrames = frameClock.sampleSeconds = 0;
+    if (G.qualityManual || G.quality === "low") return;
+    if (frameClock.warmup > 0) {
+      frameClock.warmup -= seconds;
+      return;
+    }
+    frameClock.qualityFrames++;
+    frameClock.qualitySeconds += seconds;
+    if (frameClock.qualitySeconds < 3.5 || frameClock.qualityFrames < 4) return;
+    const fps = frameClock.qualityFrames / frameClock.qualitySeconds;
+    frameClock.qualityFrames = frameClock.qualitySeconds = 0;
+    if (fps < 28) {
+      const quality = G.quality === "high" ? "med" : "low";
+      applyQuality(quality, t("autoQ", t("q." + quality)));
+    }
+  }
   var tmpV = new THREE.Vector3();
   function frame(now) {
     if (!params.has("manual")) requestAnimationFrame(frame);
-    const dt = Math.min(0.05, Math.max(5e-4, (now - last) / 1e3));
-    last = now;
-    step(dt);
+    if (document.hidden) return;
+    const previous = frameClock.last;
+    const elapsed = previous === null ? 0 : (now - previous) / 1e3;
+    frameClock.last = now;
+    if (frameClock.focused && elapsed > 0) sampleFrame(elapsed);
+    step(previous === null ? 1 / 60 : Math.min(0.05, Math.max(5e-4, elapsed)));
     render();
   }
   function step(dt) {
     G.t += dt;
-    G.fpsAvg = (G.fpsAvg || 60) * 0.95 + 1 / Math.max(dt, 1e-3) * 0.05;
     const time = G.t;
     const kr = 1.9 * dt, kp = 1.3 * dt;
     if (keys.has("a") || keys.has("ArrowLeft")) rig.rotate(kr, 0);
@@ -10899,18 +10928,6 @@ void main() {
       G.guideText = null;
       ui.setGuide(null);
     }
-    if (!G.qualityManual && G.fps && G.t > G.fps.start && G.quality !== "low") {
-      G.fps.acc += dt;
-      G.fps.n++;
-      if (G.fps.acc > 3.5) {
-        const fps = G.fps.n / G.fps.acc;
-        if (fps < 28) {
-          const q = G.quality === "high" ? "med" : "low";
-          applyQuality(q, t("autoQ", t("q." + q)));
-          G.fps = { acc: 0, n: 0, start: G.t + 1 };
-        } else G.fps = null;
-      }
-    }
   }
   function updateHover() {
     const m = G.mouse;
@@ -11004,6 +11021,7 @@ void main() {
     }
   }
   function render() {
+    renderer.info.reset();
     if (G.quality === "low" || !composer) renderer.render(scene, camera);
     else composer.render();
   }
@@ -11030,7 +11048,8 @@ void main() {
         settled: allSettled() && !G.solveIt && beams.allGrown,
         open: G.res ? [...G.res.open] : [],
         reasons: G.reasonLabels.map((r) => r.seg.why),
-        fps: Math.round(G.fpsAvg || 0),
+        fps: Math.round(frameClock.fps),
+        simulationSeconds: G.t,
         hover: G.hover,
         why: { views: [...G.views.values()].filter((v) => !v.settled || v.arc > 0).map((v) => ({ id: v.id, arc: v.arc, y: +(v.pos.y.x - v.pos.y.t).toFixed(4), vy: +v.pos.y.v.toFixed(4), yaw: +(v.yaw.x - v.yaw.t).toFixed(4), vyaw: +v.yaw.v.toFixed(4) })), solving: !!G.solveIt, growing: beams.segs.filter((s) => !s.dying && s.shown < s.len - 1e-3).map((s) => s.key + " " + s.shown.toFixed(2) + "/" + s.len.toFixed(2)) }
       };

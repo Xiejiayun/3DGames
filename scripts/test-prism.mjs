@@ -59,6 +59,12 @@ try {
   await page.keyboard.press('r');
   assert.equal((await step()).complete, true, 'rotating the mirror lights the first core');
   assert.match(await guide.textContent(), /4\/4.*core/i);
+  await page.setViewportSize({ width: 768, height: 600 });
+  const scoreOwnsSpace = async () => {
+    assert.ok(await page.locator('#solved').isVisible());
+    assert.equal(await page.locator('#guide').evaluate(panel => panel.getClientRects().length), 0, 'the scorecard replaces the lesson instead of overlapping or reserving its space');
+  };
+  await scoreOwnsSpace();
   const switchLanguage = async () => {
     const menu = page.locator('#tl .lvl');
     if (await menu.getAttribute('aria-expanded') === 'false') await menu.click();
@@ -73,12 +79,18 @@ try {
   assert.deepEqual(await board(), solvedBoard, 'translation preserves the solved board and undo stack');
   assert.match(await guide.textContent(), /核心/);
   assert.equal(await page.locator('#solved .sv-t').textContent(), '已解开');
+  await scoreOwnsSpace();
   assert.equal(await page.locator('#guide .gx').getAttribute('aria-label'), '关闭引导');
   await page.locator('[data-a="help"]').click();
   await page.getByRole('dialog', { name: '操作' }).getByRole('button', { name: '关闭' }).click();
   await page.locator('[data-s="stay"]').click();
+  assert.ok(await guide.isVisible(), 'staying restores the final lesson');
+  assert.doesNotMatch(await guide.innerText(), /下一关/, 'no direction to a dismissed button');
   await switchLanguage();
   assert.equal(await page.locator('#solved').isVisible(), false, 'switching does not reopen a dismissed scorecard');
+  assert.match(await guide.innerText(), /4\/4.*core/i);
+  assert.doesNotMatch(await guide.innerText(), /Next vault/i);
+  await page.setViewportSize({ width: 1280, height: 800 });
   assert.equal(await page.locator('#guide .gx').getAttribute('aria-label'), 'Dismiss tutorial');
   await page.keyboard.press('Control+z');
   assert.equal((await step()).lit, 0, 'undo restores the unlit core');
@@ -167,6 +179,7 @@ try {
   await touch.locator('[data-c="rotate"]').tap();
   await settleTouch();
   assert.match(await touch.locator('#guide .gt').textContent(), /4\/4.*核心/);
+  assert.equal(await touch.locator('#guide').evaluate(panel => panel.getClientRects().length), 0, 'the compact scorecard also frees the lesson area');
   assert.equal(await touch.locator('#guide-socket').isVisible(), false);
   await touch.locator('[data-s="next"]').tap();
   await touch.waitForFunction(() => PRISM.state().level === 2);

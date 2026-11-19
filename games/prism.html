@@ -7668,7 +7668,7 @@ void main(){
   vec2 c = vUv - 0.5;
   float a = atan(c.x, -c.y) / 6.2831853 + 0.5;
   float r = length(c) * 2.0;
-  float band = smoothstep(0.86, 0.9, r) * smoothstep(1.0, 0.96, r);
+  float band = smoothstep(0.86, 0.9, r) * (1.0 - smoothstep(0.96, 1.0, r));
   float fill = step(a, uP);
   float track = 0.18 + 0.1 * sin(a * 6.2831853 * 24.0) * 0.5;
   float glow = mix(track * 0.25, 1.6 + uDone * 1.8, fill);
@@ -7677,6 +7677,29 @@ void main(){
   #include <colorspace_fragment>
 }`
   );
+  function cutCoreGem(sides) {
+    const profile = [[0, -0.54, 0], [0.35, -0.14, 0.5], [0.44, 0.05, 0], [0.32, 0.31, 0.5], [0.15, 0.43, 0], [0, 0.43, 0]];
+    const rings = profile.map(([radius, height, offset]) => Array.from({ length: sides }, (_, index) => {
+      const angle = 2 * Math.PI * (index + offset) / sides;
+      return [radius * Math.cos(angle), height, radius * Math.sin(angle)];
+    }));
+    const vertices = [];
+    for (let band = 0; band < rings.length - 1; band++) {
+      const lower = rings[band], upper = rings[band + 1];
+      for (let side = 0; side < sides; side++) {
+        const next = (side + 1) % sides;
+        if (profile[band][0]) vertices.push(...lower[side], ...upper[side], ...lower[next]);
+        if (profile[band + 1][0]) vertices.push(...upper[side], ...upper[next], ...lower[next]);
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.computeVertexNormals();
+    return geometry;
+  }
+  function channelCount(mask) {
+    return (mask & 1) + ((mask >> 1) & 1) + ((mask >> 2) & 1);
+  }
   var CoreView = class {
     constructor(c, open, quality) {
       this.c = c;
@@ -7686,29 +7709,38 @@ void main(){
       const g = this.group;
       const col = maskColor(c.need);
       this.color = col;
-      g.add(mesh(lathe([[0.48, 0], [0.74, 0], [0.76, 0.05], [0.74, 0.16], [0.66, 0.2], [0.48, 0.2]], 48), MAT.trim));
-      if (!open) g.add(mesh(lathe([[1e-3, 0.13], [0.49, 0.13], [0.49, 0.19], [1e-3, 0.19]], 40), MAT.brassDark));
-      const ring = new THREE.TorusGeometry(0.6, 0.04, 12, 64);
+      g.add(mesh(lathe([[0.48, 0], [0.76, 0], [0.81, 0.07], [0.78, 0.14], [0.7, 0.18], [0.48, 0.18]], 12, true), MAT.trim));
+      g.add(mesh(lathe([[0.48, 0.15], [0.72, 0.15], [0.74, 0.21], [0.67, 0.27], [0.49, 0.27], [0.48, 0.15]], 12, true), MAT.brassDark));
+      if (!open) g.add(mesh(lathe([[0, 0.12], [0.5, 0.12], [0.5, 0.17], [0, 0.17]], 24), MAT.brassDark));
+      const ring = new THREE.TorusGeometry(0.62, 0.035, 8, 48);
       ring.rotateX(Math.PI / 2);
-      g.add(mesh(ring, MAT.brassPolished, 0, 0.21, 0));
+      g.add(mesh(ring, MAT.brassPolished, 0, 0.28, 0));
+      for (let index = 0; index < 12; index++) {
+        const major = index % 3 === 0;
+        const mark = new THREE.BoxGeometry(major ? 0.045 : 0.023, 0.012, major ? 0.13 : 0.075);
+        mark.translate(0, 0.273, 0.57);
+        mark.rotateY(index * Math.PI / 6);
+        g.add(mesh(mark, MAT.brassPolished, 0, 0, 0, false));
+      }
       for (let i = 0; i < 4; i++) {
         const a = Math.PI / 4 + i * Math.PI / 2;
         const curve = new THREE.CubicBezierCurve3(
-          new THREE.Vector3(0.6, 0.22, 0),
-          new THREE.Vector3(0.82, 0.62, 0),
-          new THREE.Vector3(0.66, 1, 0),
-          new THREE.Vector3(0.42, 1.24, 0)
+          new THREE.Vector3(0.57, 0.26, 0),
+          new THREE.Vector3(0.83, 0.54, 0),
+          new THREE.Vector3(0.78, 1.03, 0),
+          new THREE.Vector3(0.48, 1.26, 0)
         );
-        const tube = new THREE.TubeGeometry(curve, 24, 0.032, 8, false);
+        const tube = new THREE.TubeGeometry(curve, 14, 0.044, 6, false);
         tube.rotateY(a);
         g.add(mesh(tube, MAT.brass));
-        const tip = new THREE.SphereGeometry(0.045, 12, 10);
-        tip.translate(Math.cos(a) * 0.42, 1.24, -Math.sin(a) * 0.42);
+        const tip = new THREE.OctahedronGeometry(0.08);
+        tip.scale(1, 1.7, 1);
+        tip.translate(Math.cos(a) * 0.48, 1.28, -Math.sin(a) * 0.48);
         g.add(mesh(tip, MAT.brassPolished));
       }
-      const multi = [1, 2, 4].filter((m) => c.need & m).length > 1;
-      const geo = multi ? new THREE.DodecahedronGeometry(0.36, 0) : new THREE.OctahedronGeometry(0.38, 0);
-      this.pair = glassPair(12897494, 11187908, { ior: 1.62, thickness: 0.9, transmission: 0.75, roughness: 0.08, lowOpacity: 0.6 });
+      this.channels = channelCount(c.need);
+      const geo = cutCoreGem(this.channels > 1 ? 8 : 6);
+      this.pair = glassPair(0xa6c0cd, 0x7390a0, { ior: 1.56, thickness: 0.64, transmission: 0.66, roughness: 0.14, lowOpacity: 0.52 });
       this.pair.high.emissive = new THREE.Color(0, 0, 0);
       this.pair.low.emissive = new THREE.Color(0, 0, 0);
       this.pair.high.flatShading = true;
@@ -7717,10 +7749,11 @@ void main(){
       this.crystal = mesh(geo, this.pair.high, 0, 1, 0, false);
       registerGlass(this.crystal, this.pair, quality);
       g.add(this.crystal);
-      this.innerMat = perLevel(new THREE.MeshBasicMaterial({ color: col.clone(), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
-      this.inner = mesh(new THREE.IcosahedronGeometry(0.16, 1), this.innerMat, 0, 1, 0, false);
+      this.cold = new THREE.Color(0x263d4a);
+      this.innerMat = perLevel(new THREE.MeshStandardMaterial({ color: this.cold, metalness: 0.3, roughness: 0.28, flatShading: true }));
+      this.inner = mesh(new THREE.OctahedronGeometry(0.31), this.innerMat, 0, 1, 0, false);
       g.add(this.inner);
-      const hint2 = new THREE.TorusGeometry(0.88, 0.016, 8, 96);
+      const hint2 = new THREE.TorusGeometry(0.88, 0.021, 6, 48);
       hint2.rotateX(Math.PI / 2);
       this.hintMat = perLevel(new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(0.9), transparent: true, opacity: 0.85 }));
       g.add(mesh(hint2, this.hintMat, 0, 0.62, 0, false));
@@ -7748,6 +7781,7 @@ void main(){
         this.ripples.push(r);
       }
       this.charge = 0;
+      this.dial = 0;
       this.match = false;
       this.got = 0;
       this.spin = 0.4;
@@ -7760,22 +7794,26 @@ void main(){
       mergeStatic(g);
     }
     update(dt, t2, settled) {
-      const target = this.match ? 1 : 0;
       if (this.match && settled) this.charge = Math.min(1, this.charge + dt / 0.9);
       else if (!this.match) this.charge = Math.max(0, this.charge - dt / 0.35);
       const k = this.charge;
       this.spin += ((this.match ? 2.6 : this.got ? 0.9 : 0.35) - this.spin) * Math.min(1, dt * 3);
       this.spinAngle += this.spin * dt;
-      this.crystal.rotation.set(0.35, this.spinAngle, 0.2);
-      this.crystal.position.y = 1 + Math.sin(t2 * 1.4 + this.c.x) * 0.03;
+      const fraction = channelCount(this.got & this.need) / this.channels;
+      const target = this.match ? 0.75 + 0.25 * k : fraction * 0.72;
+      this.dial = k === 1 && this.match ? 1 : this.dial + (target - this.dial) * Math.min(1, dt * 7);
+      this.crystal.rotation.set(0.09, this.spinAngle, 0.04);
+      this.crystal.position.y = 0.95 + 0.25 * this.dial + Math.sin(t2 * 1.4 + this.c.x) * 0.023;
       this.inner.position.y = this.crystal.position.y;
-      const col = this.color;
-      const partial = this.got && !this.match ? 0.25 : 0;
-      for (const m of [this.pair.high, this.pair.low]) m.emissive.copy(col).multiplyScalar(k * 1.8 + partial * 0.4);
-      this.innerMat.opacity = Math.min(1, k * 1.1 + partial * 0.5);
-      this.innerMat.color.copy(col).multiplyScalar(1.5 + k * 3);
-      this.inner.scale.setScalar(0.7 + k * 0.7 + Math.sin(t2 * 6) * 0.05 * k);
-      this.progMat.uniforms.uP.value = k;
+      this.inner.rotation.y = -0.55 * this.spinAngle;
+      this.inner.scale.set(0.93, 1.23 + 0.16 * this.dial, 0.93);
+      const light = this.got ? maskColor(this.got) : this.cold;
+      const shellLight = this.got ? 0.04 + 0.22 * k : 0;
+      this.pair.high.emissive.copy(light).multiplyScalar(shellLight);
+      this.pair.low.emissive.copy(this.pair.high.emissive);
+      this.innerMat.color.copy(this.cold).lerp(light, this.got ? 0.48 : 0);
+      this.innerMat.emissive.copy(light).multiplyScalar(this.got ? 0.18 + 0.43 * k : 0);
+      this.progMat.uniforms.uP.value = this.dial;
       this.progMat.uniforms.uDone.value = k >= 1 ? 1 : 0;
       this.hintMat.opacity = 0.55 + 0.3 * Math.sin(t2 * 2 + this.c.z) * (1 - k);
       for (const r of this.ripples) {

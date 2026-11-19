@@ -5903,11 +5903,16 @@ void main() {
     t2.colorSpace = THREE.SRGBColorSpace;
     return t2;
   }
-  function mirrorEtchTexture() {
+  function mirrorEtchTexture(silvered = false) {
     const c = document.createElement("canvas");
     c.width = c.height = 256;
     const g = c.getContext("2d");
     g.fillStyle = "#000";
+    if (silvered) {
+      const coating = g.createLinearGradient(0, 0, 256, 200);
+      for (const [stop, value] of [[0, "#424242"], [0.26, "#292929"], [0.49, "#898989"], [0.54, "#919191"], [0.67, "#383838"], [1, "#1c1c1c"]]) coating.addColorStop(stop, value);
+      g.fillStyle = coating;
+    }
     g.fillRect(0, 0, 256, 256);
     g.strokeStyle = "#fff";
     g.lineWidth = 2.2;
@@ -6062,6 +6067,10 @@ void main() {
       emissiveIntensity: 0.55,
       emissiveMap: mirrorEtchTexture()
     }), 2.2);
+    MAT.flatSilver = shiny(MAT.silver.clone(), 2.2);
+    MAT.flatSilver.emissive.setHex(0xc7e4f0);
+    MAT.flatSilver.emissiveIntensity = 0.48;
+    MAT.flatSilver.emissiveMap = mirrorEtchTexture(true);
     MAT.water = shiny(new THREE.MeshStandardMaterial({ color: 4033940, metalness: 0.3, roughness: 0.06, transparent: true, opacity: 0.84, normalMap: rippleNormalTexture(), normalScale: new THREE.Vector2(0.35, 0.35) }), 1.5);
     MAT.socketWell = new THREE.MeshStandardMaterial({ color: 9075298, roughness: 0.75, metalness: 0.1 });
     return MAT;
@@ -7015,28 +7024,34 @@ void main() {
   }
   function socketGeoms(open, depth) {
     const out = [];
-    const prof = open ? [[0.75, -0.075], [0.56, -0.075], [0.56, -depth + 2e-3], [0.75, -depth + 2e-3]] : [[0.75, -0.075], [0.6, -0.075], [0.6, -0.15]];
-    const seat = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r, y)), 48);
-    out.push(["trim", seat]);
+    const bottom = open ? -depth + 2e-3 : -0.16;
+    out.push(["trim", lathe([[0.75, -0.11], [0.56, -0.11], [0.56, bottom], [0.75, bottom]], 48)]);
+    out.push(["ink", lathe([[0.75, -0.08], [0.75, 0.008], [0.736, 0.023], [0.709, 0.023], [0.704, 0.009]], 48)]);
+    out.push(["brassPolished", lathe([[0.71, 0.009], [0.7, 0.021], [0.623, 0.021], [0.599, 0.006]], 48)]);
+    out.push(["brass", lathe([[0.599, 0.006], [0.564, -0.039], [0.56, -0.11]], 48)]);
     if (!open) {
-      const well = new THREE.CircleGeometry(0.6, 40);
+      const well = new THREE.CircleGeometry(0.562, 48);
       well.rotateX(-Math.PI / 2);
-      well.translate(0, -0.15, 0);
+      well.translate(0, bottom, 0);
       out.push(["socketWell", well]);
+      out.push(["brass", lathe([[0.265, bottom], [0.235, -0.098], [0.165, -0.098], [0.141, bottom]], 8, true)]);
+      const keyway = new THREE.CircleGeometry(0.143, 8);
+      keyway.rotateX(-Math.PI / 2);
+      keyway.translate(0, bottom + 0.002, 0);
+      out.push(["ink", keyway]);
       const cap = new THREE.CircleGeometry(0.76, 40);
       cap.rotateX(Math.PI / 2);
       cap.translate(0, -depth + 2e-3, 0);
       out.push(["trim", cap]);
     }
-    const ring = new THREE.LatheGeometry([[0.735, -0.075], [0.735, -0.042], [0.728, -0.035], [0.592, -0.035], [0.585, -0.042], [0.585, -0.075]].map(([r, y]) => new THREE.Vector2(r, y)), 64);
-    out.push(["brassPolished", ring]);
-    for (let i = 0; i < 48; i++) {
-      const major = i % 12 === 0, mid = i % 4 === 0;
-      const len = major ? 0.11 : mid ? 0.07 : 0.04;
-      const t2 = new THREE.BoxGeometry(major ? 0.014 : 8e-3, 4e-3, len);
-      t2.translate(0, -0.034, 0.728 - len / 2 - 6e-3);
-      t2.rotateY(i / 48 * Math.PI * 2);
-      out.push(["ink", t2]);
+    for (let index = 0; index < 12; index++) {
+      const cardinal = index % 3 === 0;
+      const length = cardinal ? 0.073 : 0.039;
+      const mark = new THREE.PlaneGeometry(cardinal ? 0.034 : 0.018, length);
+      mark.rotateX(-Math.PI / 2);
+      mark.translate(0, 0.022, 0.697 - length / 2);
+      mark.rotateY(index * Math.PI / 6);
+      out.push(["ink", mark]);
     }
     const tri = new THREE.Shape();
     tri.moveTo(-0.07, 0);
@@ -7375,20 +7390,41 @@ void main() {
       return g;
     }
     buildFlat() {
-      const t2 = this.turn;
-      const w = 1.08, h = 1;
-      const pl = this.plate(w, h);
-      pl.position.y = 1;
-      t2.add(pl);
-      for (const s of [-1, 1]) {
-        t2.add(mesh(rb(0.08, 1.52, 0.08, 0.025), MAT.brass, 0, 0.84, s * 0.64));
-        const pin = new THREE.CylinderGeometry(0.035, 0.035, 0.1, 12);
-        pin.rotateX(Math.PI / 2);
-        t2.add(mesh(pin, MAT.brassPolished, 0, 1, s * 0.6));
-        const fin = new THREE.SphereGeometry(0.055, 16, 12);
-        t2.add(mesh(fin, MAT.brassPolished, 0, 1.63, s * 0.64));
-        t2.add(mesh(rb(0.16, 0.06, 0.16, 0.02), MAT.brassDark, 0, 0.11, s * 0.64));
+      const mount = this.turn;
+      const blank = (width, height, corner, thickness, material, offset) => {
+        const halfW = width / 2, halfH = height / 2;
+        const outline = new THREE.Shape([
+          [-halfW + corner, -halfH], [halfW - corner, -halfH], [halfW, -halfH + corner], [halfW, halfH - corner],
+          [halfW - corner, halfH], [-halfW + corner, halfH], [-halfW, halfH - corner], [-halfW, -halfH + corner]
+        ].map(([across, up]) => new THREE.Vector2(across, up)));
+        const bevel = 0.012;
+        const geometry = new THREE.ExtrudeGeometry(outline, { depth: thickness - bevel * 2, bevelThickness: bevel, bevelSize: bevel, bevelOffset: -bevel, bevelSegments: 1 });
+        const { position, uv } = geometry.attributes;
+        for (let vertex = 0; vertex < position.count; vertex++) uv.setXY(vertex, position.getX(vertex) / width + 0.5, position.getY(vertex) / height + 0.5);
+        geometry.translate(0, 0, bevel - thickness / 2);
+        geometry.rotateY(Math.PI / 2);
+        mount.add(mesh(geometry, material, offset, 1, 0));
+      };
+      blank(1.19, 1.13, 0.15, 0.112, MAT.brass, 0);
+      blank(1.087, 1.027, 0.122, 0.032, MAT.flatSilver, 0.067);
+      blank(1.082, 1.022, 0.119, 0.037, MAT.bronze, -0.068);
+      for (const side of [-1, 1]) {
+        const brace = rb(0.084, 0.128, 1.12, 0.029, 1);
+        brace.rotateX(side * 0.71);
+        mount.add(mesh(brace, MAT.brass, -0.108, 1, 0));
+        const fork = new THREE.CylinderGeometry(0.072, 0.123, 0.85, 8);
+        mount.add(mesh(fork, MAT.brassDark, 0, 0.566, side * 0.632));
+        mount.add(mesh(rb(0.27, 0.095, 0.23, 0.03, 1), MAT.brass, 0, 0.13, side * 0.613));
+        const bearing = new THREE.CylinderGeometry(0.112, 0.112, 0.134, 16);
+        bearing.rotateX(Math.PI / 2);
+        mount.add(mesh(bearing, MAT.brassPolished, 0, 1, side * 0.632));
       }
+      const collar = new THREE.CylinderGeometry(0.17, 0.147, 0.09, 8);
+      collar.rotateZ(Math.PI / 2);
+      mount.add(mesh(collar, MAT.brassPolished, -0.168, 1, 0));
+      const spindle = new THREE.CylinderGeometry(0.082, 0.082, 0.024, 6);
+      spindle.rotateZ(Math.PI / 2);
+      mount.add(mesh(spindle, MAT.bronze, -0.219, 1, 0));
       this.portArrows = [];
       for (const s of [-1, 1]) {
         const a = mesh(chevron(0.13, 0.02), arrowMat(5913096), 0, 0, 0, false);
@@ -7397,7 +7433,7 @@ void main() {
         holder.add(a);
         a.position.set(0.56, 0.1, 0);
         holder.rotation.y = s * Math.PI / 4;
-        t2.add(holder);
+        mount.add(holder);
         this.portArrows.push(a);
       }
     }

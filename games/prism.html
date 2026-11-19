@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8"><meta name="MSRAI_Label_dbd012e0-e600-4c3e-83b7-7d3141c15efc_AI_Disclosure" content="Made with AI">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>PRISM VAULT · 棱镜密室</title>
 <meta name="description" content="3D 立体光学空间解谜 · A 3D optical spatial puzzle">
 <style>
@@ -31,7 +31,9 @@ kbd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-siz
 #tl .brand { display: flex; align-items: baseline; gap: 10px; }
 #tl .b1 { font-size: 11px; letter-spacing: .34em; font-weight: 600; color: var(--gold); }
 #tl .b2 { font-size: 12px; letter-spacing: .3em; color: var(--ink2); }
-#tl .lvl { margin-top: 6px; display: flex; align-items: baseline; gap: 10px; }
+#tl .lvl { margin-top: 6px; display: flex; align-items: baseline; gap: 10px; width: 100%; padding: 0; border: 0; background: none; text-align: left; }
+#tl .lvl::after { content: '▴'; font-size: 13px; color: var(--ink2); margin-left: auto; }
+#tl .lvl:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 4px; }
 #tl .num { font-size: 26px; font-weight: 300; letter-spacing: .04em; font-variant-numeric: tabular-nums; color: var(--gold); }
 #tl .name { font-size: 17px; font-weight: 600; letter-spacing: .06em; }
 #tl .sub { font-size: 11px; letter-spacing: .14em; color: var(--ink2); margin-top: 1px; }
@@ -41,12 +43,7 @@ kbd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-siz
 #tl.mini .brand, #tl.mini .sub, #tl.mini .menu { display: none; }
 #tl.mini .lvl { margin-top: 0; }
 #tl.mini .num { font-size: 20px; } #tl.mini .name { font-size: 14px; }
-#tl.mini::after { content: '☰'; margin-left: 10px; font-size: 13px; color: var(--ink2); }
-#tl.mini { display: flex; align-items: center; }
-#tl.mini:is(:hover, :focus-within, .dialog-source) { display: block; min-width: 250px; padding: 12px 16px 10px; }
-#tl.mini:is(:hover, :focus-within, .dialog-source)::after { content: none; }
-#tl.mini:is(:hover, :focus-within, .dialog-source) .brand, #tl.mini:is(:hover, :focus-within, .dialog-source) .menu { display: flex; } #tl.mini:is(:hover, :focus-within, .dialog-source) .sub { display: block; }
-#tl.mini:is(:hover, :focus-within, .dialog-source) .lvl { margin-top: 6px; } #tl.mini:is(:hover, :focus-within, .dialog-source) .num { font-size: 26px; } #tl.mini:is(:hover, :focus-within, .dialog-source) .name { font-size: 17px; }
+#tl.mini .lvl::after { content: '☰'; }
 .mbtn { border: 1px solid var(--line); background: rgba(255, 255, 255, .08); border-radius: 999px; padding: 3px 10px; font-size: 11px; letter-spacing: .06em; color: var(--ink2); transition: all .18s; }
 .mbtn:hover { color: var(--ink); border-color: var(--gold); background: rgba(228, 194, 122, .16); }
 
@@ -70,6 +67,11 @@ kbd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-siz
 #guide { position: absolute; left: 50%; top: 162px; transform: translateX(-50%); padding: 9px 38px 9px 18px; font-size: 13px; letter-spacing: .03em; max-width: min(720px, 80vw); line-height: 1.5; }
 #guide .gx { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: 0; background: none; font-size: 18px; color: var(--ink2); }
 #guide.flash { animation: gin .5s ease-out; }
+#guide-socket { width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 0; background: none; visibility: hidden; translate: 0 42%; }
+#guide-socket span { display: grid; place-items: center; position: relative; top: -5px; width: 22px; height: 22px; border: 2px solid #fff3d4; border-radius: 50%; background: #29444a; color: white; font: 700 12px/1 var(--font); box-shadow: 0 1px 5px #332916aa; }
+#guide-socket span::after { content: ''; position: absolute; top: 100%; border: 4px solid transparent; border-top-color: #fff3d4; }
+#guide-socket:focus-visible { outline: 2px solid #29444a; border-radius: 50%; }
+#hud[data-lesson="take"] [data-key="flat"], #hud[data-lesson="rotate"] [data-c="rotate"] { outline: 2px solid var(--gold); outline-offset: -2px; }
 @keyframes gin { from { opacity: 0; transform: translate(-50%, -6px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 #bottom { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
@@ -188,6 +190,39 @@ ul.rules { margin: 14px 0 6px; padding-left: 18px; font-size: 12.5px; line-heigh
 #selftest .ok { color: #8ef0a8; } #selftest .no { color: #ff8a7a; }
 #selftest small { color: #b8ad98; }
 @media (max-width: 900px) { .card { width: 84px; } .card .nm { font-size: 11px; } #tl { min-width: 0; } }
+@media (max-width: 700px), (max-height: 520px) {
+  #hud { --edge-l: max(8px, env(safe-area-inset-left)); --edge-r: max(8px, env(safe-area-inset-right)); --edge-t: max(8px, env(safe-area-inset-top)); --edge-b: max(8px, env(safe-area-inset-bottom)); }
+  #tl, #tl.mini { left: var(--edge-l); top: var(--edge-t); min-width: 0; max-width: calc(100% - var(--edge-l) - var(--edge-r) - 128px); padding: 0; z-index: 3; }
+  #tl .brand, #tl .sub { display: none; }
+  #tl .lvl, #tl.mini .lvl { align-items: center; gap: 7px; height: 44px; margin: 0; padding: 0 10px; }
+  #tl .lvl .num { font-size: 19px; } #tl .lvl .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+  #tl .menu { position: absolute; top: calc(100% + 5px); left: -1px; min-width: min(250px, 85vw); margin: 0; padding: 6px; gap: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--glass2); box-shadow: var(--shadow); }
+  #tl .mbtn { flex: 1 1 auto; min-height: 38px; color: var(--ink); }
+  #lit { left: auto; right: var(--edge-r); top: var(--edge-t); transform: none; min-width: 0; height: 44px; display: flex; align-items: center; gap: 6px; padding: 0 9px; }
+  #lit .k { font-size: 10px; letter-spacing: .03em; } #lit .v { font-size: 18px; } #lit .sl { margin: 0 2px; } #lit .pips { display: none; }
+  #guide { top: calc(var(--edge-t) + 52px); width: min(540px, calc(100% - var(--edge-l) - var(--edge-r))); max-width: none; padding: 7px 40px 7px 12px; font-size: 12px; }
+  #guide .gx { right: 0; width: 38px; height: 100%; } #tl:not(.mini) ~ #guide { visibility: hidden; }
+  #hud[data-lesson="lit"]:has(#solved:not(.hidden)) #guide { visibility: hidden; }
+  #bottom { left: var(--edge-l); right: var(--edge-r); bottom: var(--edge-b); transform: none; gap: 4px; }
+  #trayWrap { width: 100%; max-width: 480px; display: grid; gap: 4px; padding: 4px; }
+  #tray { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; }
+  #bottom kbd, #trayWrap .sep, #tray .recallTip { display: none; }
+  .card { width: 100%; min-width: 0; height: 55px; padding: 3px; justify-content: center; }
+  .card .ico { width: 26px; height: 26px; flex-shrink: 0; } .card .nm { white-space: normal; line-height: 1.05; font-size: 11px; } .card .ct { top: 2px; right: 4px; font-size: 10px; }
+  #acts { gap: 4px; } .act { flex: 1; min-height: 40px; flex-direction: row; gap: 5px; }
+  #ctx { max-width: 100%; flex-wrap: wrap; justify-content: center; padding: 4px 6px; gap: 4px; }
+  #ctx .ci { flex-basis: 100%; text-align: center; margin: 0; } #ctx .ci b, #ctx .ci small { white-space: normal; }
+  #ctx button { min-height: 36px; } #floors { left: var(--edge-l); padding: 3px; gap: 3px; } #floors .fl { width: 36px; height: 36px; padding: 0 2px; white-space: nowrap; }
+  #toast { width: max-content; max-width: 90%; white-space: normal; text-align: center; bottom: calc(var(--edge-b) + 195px); }
+  #solved { top: calc(var(--edge-t) + 52px); right: var(--edge-r); max-width: calc(100% - var(--edge-l) - var(--edge-r)); } #solved button { min-height: 38px; }
+  #overlay .ov { padding: 12px; } .ovx { min-height: 38px; } .lvls { grid-template-columns: 1fr; }
+}
+@media (max-height: 520px) and (min-width: 550px) {
+  #trayWrap { display: flex; width: max-content; max-width: 100%; align-items: stretch; }
+  #tray { grid-auto-columns: minmax(70px, 90px); } .card { height: 44px; } .card .ico { height: 22px; }
+  #acts .act { width: 52px; flex: none; flex-direction: column; padding: 2px 4px; gap: 0; white-space: nowrap; } #ctx .ci { flex-basis: auto; } #ctx .ci small { display: none; }
+  #floors { top: 52%; transform: translateY(-50%); } #guide { left: auto; right: var(--edge-r); transform: none; width: clamp(140px, 21vw, 220px); } #guide.flash { animation: none; } .lvls { grid-template-columns: repeat(2, 1fr); }
+}
 </style>
 </head>
 <body>
@@ -7668,7 +7703,7 @@ void main(){
   vec2 c = vUv - 0.5;
   float a = atan(c.x, -c.y) / 6.2831853 + 0.5;
   float r = length(c) * 2.0;
-  float band = smoothstep(0.86, 0.9, r) * smoothstep(1.0, 0.96, r);
+  float band = smoothstep(0.86, 0.9, r) * (1.0 - smoothstep(0.96, 1.0, r));
   float fill = step(a, uP);
   float track = 0.18 + 0.1 * sin(a * 6.2831853 * 24.0) * 0.5;
   float glow = mix(track * 0.25, 1.6 + uDone * 1.8, fill);
@@ -7677,6 +7712,29 @@ void main(){
   #include <colorspace_fragment>
 }`
   );
+  function cutCoreGem(sides) {
+    const profile = [[0, -0.54, 0], [0.35, -0.14, 0.5], [0.44, 0.05, 0], [0.32, 0.31, 0.5], [0.15, 0.43, 0], [0, 0.43, 0]];
+    const rings = profile.map(([radius, height, offset]) => Array.from({ length: sides }, (_, index) => {
+      const angle = 2 * Math.PI * (index + offset) / sides;
+      return [radius * Math.cos(angle), height, radius * Math.sin(angle)];
+    }));
+    const vertices = [];
+    for (let band = 0; band < rings.length - 1; band++) {
+      const lower = rings[band], upper = rings[band + 1];
+      for (let side = 0; side < sides; side++) {
+        const next = (side + 1) % sides;
+        if (profile[band][0]) vertices.push(...lower[side], ...upper[side], ...lower[next]);
+        if (profile[band + 1][0]) vertices.push(...upper[side], ...upper[next], ...lower[next]);
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.computeVertexNormals();
+    return geometry;
+  }
+  function channelCount(mask) {
+    return (mask & 1) + ((mask >> 1) & 1) + ((mask >> 2) & 1);
+  }
   var CoreView = class {
     constructor(c, open, quality) {
       this.c = c;
@@ -7686,29 +7744,38 @@ void main(){
       const g = this.group;
       const col = maskColor(c.need);
       this.color = col;
-      g.add(mesh(lathe([[0.48, 0], [0.74, 0], [0.76, 0.05], [0.74, 0.16], [0.66, 0.2], [0.48, 0.2]], 48), MAT.trim));
-      if (!open) g.add(mesh(lathe([[1e-3, 0.13], [0.49, 0.13], [0.49, 0.19], [1e-3, 0.19]], 40), MAT.brassDark));
-      const ring = new THREE.TorusGeometry(0.6, 0.04, 12, 64);
+      g.add(mesh(lathe([[0.48, 0], [0.76, 0], [0.81, 0.07], [0.78, 0.14], [0.7, 0.18], [0.48, 0.18]], 12, true), MAT.trim));
+      g.add(mesh(lathe([[0.48, 0.15], [0.72, 0.15], [0.74, 0.21], [0.67, 0.27], [0.49, 0.27], [0.48, 0.15]], 12, true), MAT.brassDark));
+      if (!open) g.add(mesh(lathe([[0, 0.12], [0.5, 0.12], [0.5, 0.17], [0, 0.17]], 24), MAT.brassDark));
+      const ring = new THREE.TorusGeometry(0.62, 0.035, 8, 48);
       ring.rotateX(Math.PI / 2);
-      g.add(mesh(ring, MAT.brassPolished, 0, 0.21, 0));
+      g.add(mesh(ring, MAT.brassPolished, 0, 0.28, 0));
+      for (let index = 0; index < 12; index++) {
+        const major = index % 3 === 0;
+        const mark = new THREE.BoxGeometry(major ? 0.045 : 0.023, 0.012, major ? 0.13 : 0.075);
+        mark.translate(0, 0.273, 0.57);
+        mark.rotateY(index * Math.PI / 6);
+        g.add(mesh(mark, MAT.brassPolished, 0, 0, 0, false));
+      }
       for (let i = 0; i < 4; i++) {
         const a = Math.PI / 4 + i * Math.PI / 2;
         const curve = new THREE.CubicBezierCurve3(
-          new THREE.Vector3(0.6, 0.22, 0),
-          new THREE.Vector3(0.82, 0.62, 0),
-          new THREE.Vector3(0.66, 1, 0),
-          new THREE.Vector3(0.42, 1.24, 0)
+          new THREE.Vector3(0.57, 0.26, 0),
+          new THREE.Vector3(0.83, 0.54, 0),
+          new THREE.Vector3(0.78, 1.03, 0),
+          new THREE.Vector3(0.48, 1.26, 0)
         );
-        const tube = new THREE.TubeGeometry(curve, 24, 0.032, 8, false);
+        const tube = new THREE.TubeGeometry(curve, 14, 0.044, 6, false);
         tube.rotateY(a);
         g.add(mesh(tube, MAT.brass));
-        const tip = new THREE.SphereGeometry(0.045, 12, 10);
-        tip.translate(Math.cos(a) * 0.42, 1.24, -Math.sin(a) * 0.42);
+        const tip = new THREE.OctahedronGeometry(0.08);
+        tip.scale(1, 1.7, 1);
+        tip.translate(Math.cos(a) * 0.48, 1.28, -Math.sin(a) * 0.48);
         g.add(mesh(tip, MAT.brassPolished));
       }
-      const multi = [1, 2, 4].filter((m) => c.need & m).length > 1;
-      const geo = multi ? new THREE.DodecahedronGeometry(0.36, 0) : new THREE.OctahedronGeometry(0.38, 0);
-      this.pair = glassPair(12897494, 11187908, { ior: 1.62, thickness: 0.9, transmission: 0.75, roughness: 0.08, lowOpacity: 0.6 });
+      this.channels = channelCount(c.need);
+      const geo = cutCoreGem(this.channels > 1 ? 8 : 6);
+      this.pair = glassPair(0xa6c0cd, 0x7390a0, { ior: 1.56, thickness: 0.64, transmission: 0.66, roughness: 0.14, lowOpacity: 0.52 });
       this.pair.high.emissive = new THREE.Color(0, 0, 0);
       this.pair.low.emissive = new THREE.Color(0, 0, 0);
       this.pair.high.flatShading = true;
@@ -7717,10 +7784,11 @@ void main(){
       this.crystal = mesh(geo, this.pair.high, 0, 1, 0, false);
       registerGlass(this.crystal, this.pair, quality);
       g.add(this.crystal);
-      this.innerMat = perLevel(new THREE.MeshBasicMaterial({ color: col.clone(), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
-      this.inner = mesh(new THREE.IcosahedronGeometry(0.16, 1), this.innerMat, 0, 1, 0, false);
+      this.cold = new THREE.Color(0x263d4a);
+      this.innerMat = perLevel(new THREE.MeshStandardMaterial({ color: this.cold, metalness: 0.3, roughness: 0.28, flatShading: true }));
+      this.inner = mesh(new THREE.OctahedronGeometry(0.31), this.innerMat, 0, 1, 0, false);
       g.add(this.inner);
-      const hint2 = new THREE.TorusGeometry(0.88, 0.016, 8, 96);
+      const hint2 = new THREE.TorusGeometry(0.88, 0.021, 6, 48);
       hint2.rotateX(Math.PI / 2);
       this.hintMat = perLevel(new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(0.9), transparent: true, opacity: 0.85 }));
       g.add(mesh(hint2, this.hintMat, 0, 0.62, 0, false));
@@ -7748,6 +7816,7 @@ void main(){
         this.ripples.push(r);
       }
       this.charge = 0;
+      this.dial = 0;
       this.match = false;
       this.got = 0;
       this.spin = 0.4;
@@ -7760,22 +7829,26 @@ void main(){
       mergeStatic(g);
     }
     update(dt, t2, settled) {
-      const target = this.match ? 1 : 0;
       if (this.match && settled) this.charge = Math.min(1, this.charge + dt / 0.9);
       else if (!this.match) this.charge = Math.max(0, this.charge - dt / 0.35);
       const k = this.charge;
       this.spin += ((this.match ? 2.6 : this.got ? 0.9 : 0.35) - this.spin) * Math.min(1, dt * 3);
       this.spinAngle += this.spin * dt;
-      this.crystal.rotation.set(0.35, this.spinAngle, 0.2);
-      this.crystal.position.y = 1 + Math.sin(t2 * 1.4 + this.c.x) * 0.03;
+      const fraction = channelCount(this.got & this.need) / this.channels;
+      const target = this.match ? 0.75 + 0.25 * k : fraction * 0.72;
+      this.dial = k === 1 && this.match ? 1 : this.dial + (target - this.dial) * Math.min(1, dt * 7);
+      this.crystal.rotation.set(0.09, this.spinAngle, 0.04);
+      this.crystal.position.y = 0.95 + 0.25 * this.dial + Math.sin(t2 * 1.4 + this.c.x) * 0.023;
       this.inner.position.y = this.crystal.position.y;
-      const col = this.color;
-      const partial = this.got && !this.match ? 0.25 : 0;
-      for (const m of [this.pair.high, this.pair.low]) m.emissive.copy(col).multiplyScalar(k * 1.8 + partial * 0.4);
-      this.innerMat.opacity = Math.min(1, k * 1.1 + partial * 0.5);
-      this.innerMat.color.copy(col).multiplyScalar(1.5 + k * 3);
-      this.inner.scale.setScalar(0.7 + k * 0.7 + Math.sin(t2 * 6) * 0.05 * k);
-      this.progMat.uniforms.uP.value = k;
+      this.inner.rotation.y = -0.55 * this.spinAngle;
+      this.inner.scale.set(0.93, 1.23 + 0.16 * this.dial, 0.93);
+      const light = this.got ? maskColor(this.got) : this.cold;
+      const shellLight = this.got ? 0.04 + 0.22 * k : 0;
+      this.pair.high.emissive.copy(light).multiplyScalar(shellLight);
+      this.pair.low.emissive.copy(this.pair.high.emissive);
+      this.innerMat.color.copy(this.cold).lerp(light, this.got ? 0.48 : 0);
+      this.innerMat.emissive.copy(light).multiplyScalar(this.got ? 0.18 + 0.43 * k : 0);
+      this.progMat.uniforms.uP.value = this.dial;
       this.progMat.uniforms.uDone.value = k >= 1 ? 1 : 0;
       this.hintMat.opacity = 0.55 + 0.3 * Math.sin(t2 * 2 + this.c.z) * (1 - k);
       for (const r of this.ripples) {
@@ -8300,8 +8373,10 @@ void main() {
     refit() {
       if (!this.fit) return;
       const f = this.fit, W = innerWidth, H = innerHeight;
-      const safe = { l: -1 + 2 * 96 / W, r: 1 - 2 * 40 / W, b: -1 + 2 * 128 / H, t: 1 - 2 * 104 / H };
-      this.home.dist = this.fitDistance(f.box, this.home.yaw, this.home.pitch, this.home.target, safe) * (f.zoom || 1);
+      const narrow = W <= 700, short = H <= 520;
+      const safe = { l: -1 + 2 * (narrow ? 22 : short ? 48 : 96) / W, r: 1 - 2 * (narrow ? 18 : 40) / W, b: -1 + 2 * (short ? 68 : 128) / H, t: 1 - 2 * (short ? 70 : 104) / H };
+      const zoom = narrow && H > W ? Math.max(1, f.zoom || 1) : f.zoom || 1;
+      this.home.dist = this.fitDistance(f.box, this.home.yaw, this.home.pitch, this.home.target, safe) * zoom;
       this.limits.distMax = Math.max(40, this.home.dist * 2.4);
       this.limits.distMin = Math.max(7, this.home.dist * 0.32);
     }
@@ -8602,6 +8677,7 @@ void main() {
       reset: "重置",
       hint: "提示",
       levels: "选关",
+      chamberMenu: (name) => name + " · 密室菜单",
       help: "操作",
       sound: "音效",
       soundOn: "音效 开",
@@ -8609,6 +8685,9 @@ void main() {
       quality: "画质",
       q: { high: "高", med: "中", low: "低" },
       lang: "EN",
+      switchLang: "切换到英语",
+      dismissGuide: "关闭引导",
+      noWebGL: "本设备不支持 WebGL。请使用支持 WebGL 2 的浏览器。",
       langName: "中文",
       trayRecall: "点托盘：收回选中的元件",
       held: () => "点空槽放下 · R / F 可先转好方向",
@@ -8676,6 +8755,7 @@ void main() {
       est: "预计",
       sec: "秒",
       close: "关闭",
+      guideSlot: "A 槽位",
       controlsTitle: "操作",
       controls: [
         ["右键拖拽 / WASD", "360° 审视石殿"],
@@ -8695,14 +8775,22 @@ void main() {
         "机关只要收到所需通道就开闸；断光后闸门落下。"
       ],
       guide: {
-        1: ["点托盘里的「水平镜」，再点光路上的槽位。", "按 R 转一格：让墙上的光斑走进核心。", "外圈闭合，第一道光已入库。"],
+        1: {
+          take: "1/4 · 点下方的「水平镜」取镜，也可以按 1。",
+          place: "2/4 · 点光路尽头的 A 槽位，放下镜子。",
+          move: "2/4 · 这个槽没有对准核心。点 A，把选中的镜子移过去。",
+          recover: "2/4 · 先点一下放错位置的镜子，选中后就能移动它。",
+          select: "3/4 · 点 A 选中镜子，就会出现「旋转」按钮。",
+          rotate: "3/4 · 点「旋转」或按 R，直到反射光照进核心。",
+          lit: "4/4 · 核心外圈闭合了！点「下一关」继续。"
+        },
         3: ["只有一面升降镜。先试 B：它把光朝上打。", "光停在楼板下面——那块楼板是实心的。点左侧「L1」只看底层，或转到侧面看看。", "把同一面镜移到 A（点 A 即可移动）：那里的楼板开了天井。"]
       },
       loading: "正在雕刻石殿…",
       selftest: "自检"
     },
     en: {
-      title: "棱镜密室",
+      title: "Prism Vault",
       brand: "PRISM VAULT",
       lit: "Cores lit",
       floorAll: "All",
@@ -8722,6 +8810,7 @@ void main() {
       reset: "Reset",
       hint: "Hint",
       levels: "Levels",
+      chamberMenu: (name) => name + " · Chamber menu",
       help: "Controls",
       sound: "Sound",
       soundOn: "Sound on",
@@ -8729,6 +8818,9 @@ void main() {
       quality: "Quality",
       q: { high: "High", med: "Med", low: "Low" },
       lang: "中",
+      switchLang: "Switch to Chinese",
+      dismissGuide: "Dismiss tutorial",
+      noWebGL: "WebGL is unavailable. Use a browser with WebGL 2 support.",
       langName: "English",
       trayRecall: "Click the tray to recall the selected piece",
       held: () => "Click an empty slot · R / F to pre-turn",
@@ -8796,6 +8888,7 @@ void main() {
       est: "about",
       sec: "s",
       close: "Close",
+      guideSlot: "Slot A",
       controlsTitle: "Controls",
       controls: [
         ["Right-drag / WASD", "Orbit the hall 360°"],
@@ -8815,7 +8908,15 @@ void main() {
         "A sensor opens its gate while it holds the channels it needs; cut the light and the gate drops."
       ],
       guide: {
-        1: ["Click the Flat Mirror in the tray, then a slot on the beam.", "Press R once — walk the spot off the wall and into the core.", "The ring is closed: the first light is in the vault."],
+        1: {
+          take: "1/4 · Choose the Flat Mirror in the tray, or press 1.",
+          place: "2/4 · Tap slot A at the far end of the beam to place the mirror.",
+          move: "2/4 · This slot is out of line with the core. Move the mirror by tapping A.",
+          recover: "2/4 · Select the mirror you placed so you can move it.",
+          select: "3/4 · Tap A to select the mirror and reveal Rotate.",
+          rotate: "3/4 · Tap Rotate or press R until the beam reaches the core.",
+          lit: "4/4 · The core’s ring is closed! Choose Next vault to continue."
+        },
         3: ["One elevation mirror. Try B first: it throws the light upward.", "The light stops under the slab — that slab is solid. Click “L1” on the left to see the ground floor alone, or turn to the side.", "Move the same mirror to A (just click A): the slab above it is open."]
       },
       loading: "Carving the vault…",
@@ -8823,9 +8924,20 @@ void main() {
     }
   };
   var lang = "zh";
-  function setLang(l) {
-    lang = STR[l] ? l : "zh";
+  function supportedLang(value) {
+    const base = typeof value === "string" && value.toLowerCase().split("-")[0];
+    return base === "zh" || base === "en" ? base : null;
+  }
+  function setLang(language) {
+    lang = language;
     document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+    document.title = t("title");
+    const boot = document.querySelector("#boot .bt");
+    if (boot) {
+      boot.querySelector("b").classList.toggle("hidden", lang === "en");
+      boot.querySelector("span").textContent = t("title");
+      boot.querySelector("i").textContent = t("loading");
+    }
   }
   function getLang() {
     return lang;
@@ -8858,16 +8970,17 @@ void main() {
       hud.innerHTML = DEFS + `
       <div id="tl" class="panel">
         <div class="brand"><span class="b1">PRISM VAULT</span><span class="b2"></span></div>
-        <div class="lvl"><span class="num"></span><span class="name"></span></div>
+        <button class="lvl" type="button" aria-controls="chamber-menu" aria-expanded="true"><span class="num"></span><span class="name"></span></button>
         <div class="sub"></div>
-        <div class="menu">
+        <div class="menu" id="chamber-menu">
           <button data-a="levels" class="mbtn" aria-haspopup="dialog"></button><button data-a="help" class="mbtn" aria-haspopup="dialog"></button>
           <button data-a="lang" class="mbtn"></button><button data-a="quality" class="mbtn"></button><button data-a="mute" class="mbtn"></button>
         </div>
       </div>
       <div id="lit" class="panel"><div class="k"></div><div class="v"><b class="n">0</b><span class="sl">/</span><span class="t">0</span></div><div class="pips"></div></div>
       <div id="floors" class="panel"></div>
-      <div id="guide" class="panel hidden"><span class="gt"></span><button class="gx" aria-label="close">×</button></div>
+      <button type="button" id="guide-socket" class="lab hidden"><span aria-hidden="true">A</span></button>
+      <div id="guide" class="panel hidden"><span class="gt" role="status"></span><button type="button" class="gx">×</button></div>
       <div id="bottom">
         <div id="ctx" class="panel hidden"></div>
         <div id="trayWrap" class="panel">
@@ -8885,19 +8998,21 @@ void main() {
       <div id="labels"></div>
       <dialog id="overlay" aria-labelledby="overlay-title"><div class="ov panel"></div></dialog>`;
       this.el = (s) => hud.querySelector(s);
+      this.el("#tl .lvl").addEventListener("click", () => this.h.onMenuToggle());
       hud.querySelectorAll("button").forEach((b) => b.addEventListener("mousedown", (e) => e.preventDefault()));
       hud.querySelectorAll("[data-a]").forEach((b) => b.addEventListener("click", (e) => {
         e.stopPropagation();
         this.h.onAction(b.dataset.a);
       }));
-      this.el("#guide .gx").addEventListener("click", () => this.setGuide(null));
+      this.el("#guide .gx").addEventListener("click", () => this.h.onDismissGuide());
+      this.guideSocket = this.el("#guide-socket");
+      this.guideSocket.addEventListener("click", () => this.h.onGuideSocket());
       this.el("#trayWrap").addEventListener("click", (e) => {
         if (!e.target.closest(".card") && !e.target.closest(".act")) this.h.onTrayArea();
       });
       this.el("#overlay").addEventListener("click", (e) => {
         if (e.target.id === "overlay") this.closeOverlay();
       });
-      this.el("#overlay").addEventListener("close", () => this.el("#tl").classList.remove("dialog-source"));
       this.el("#overlay").addEventListener("keydown", (event) => {
         if (event.key !== "Tab") return;
         const buttons = this.el("#overlay").querySelectorAll("button:enabled");
@@ -8915,14 +9030,17 @@ void main() {
     // the title card shrinks to a chip during play (normal play keeps the HUD minimal)
     setMini(on) {
       this.el("#tl").classList.toggle("mini", !!on);
+      this.el("#tl .lvl").setAttribute("aria-expanded", String(!on));
     }
     texts(state) {
-      this.el(".brand .b2").textContent = t("title");
+      this.el(".brand .b2").textContent = getLang() === "zh" ? t("title") : "";
       this.el("#lit .k").textContent = t("lit");
       const m = (a) => this.el(`[data-a="${a}"]`);
       m("levels").textContent = t("levels");
       m("help").textContent = t("help");
       m("lang").textContent = t("lang");
+      m("lang").setAttribute("aria-label", t("switchLang"));
+      this.el("#guide .gx").setAttribute("aria-label", t("dismissGuide"));
       m("quality").textContent = t("quality") + " · " + t("q." + state.quality);
       m("mute").textContent = state.muted ? t("soundOff") : t("soundOn");
       this.el('[data-a="undo"] .al').textContent = t("undo");
@@ -8934,6 +9052,7 @@ void main() {
       this.el(".lvl .num").textContent = String(def.n).padStart(2, "0");
       const zh = getLang() === "zh";
       this.el(".lvl .name").textContent = zh ? def.name.zh + " · " + def.name.en : def.name.en;
+      this.el("#tl .lvl").setAttribute("aria-label", t("chamberMenu", this.el(".lvl .name").textContent));
       this.el("#tl .sub").textContent = zh ? chapter.zh + " · " + chapter.en : chapter.en;
     }
     setLit(n, total) {
@@ -9028,6 +9147,7 @@ void main() {
       this.toastTimer = setTimeout(() => el.classList.add("hidden"), ms);
     }
     showSolved(s) {
+      this.solvedStats = s;
       const el = this.el("#solved");
       const stars = [1, 2, 3].map((i) => `<i class="${i <= s.stars ? "on" : ""}">★</i>`).join("");
       el.innerHTML = `
@@ -9050,6 +9170,7 @@ void main() {
       });
     }
     hideSolved() {
+      this.solvedStats = null;
       this.el("#solved").classList.add("hidden");
     }
     get overlayOpen() {
@@ -9057,7 +9178,6 @@ void main() {
     }
     showOverlay(action) {
       this.h.onOverlayOpen();
-      this.el("#tl").classList.add("dialog-source");
       this.el(`[data-a="${action}"]`).focus({ preventScroll: true });
       this.el("#overlay").showModal();
     }
@@ -9291,16 +9411,20 @@ void main() {
     reasonLabels: [],
     fades: /* @__PURE__ */ new Map()
   };
-  setLang(params.get("lang") || store.lang || ((navigator.language || "zh").startsWith("zh") ? "zh" : "en"));
+  setLang(supportedLang(params.get("lang")) || supportedLang(store.lang) ||
+    navigator.languages?.map(supportedLang).find(Boolean) || supportedLang(navigator.language) || "en");
   var canvas = document.getElementById("gl");
   var renderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance", stencil: false });
   } catch (e) {
-    document.getElementById("boot").innerHTML = '<div class="bt">WebGL is not available on this device.<br>本设备不支持 WebGL。</div>';
+    const message = document.querySelector("#boot .bt i");
+    message.textContent = t("noWebGL");
+    message.setAttribute("role", "alert");
     throw e;
   }
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.info.autoReset = false;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -9386,6 +9510,7 @@ void main() {
   }
   function applyQuality(q, announce) {
     G.quality = q;
+    resetFrameSampling();
     document.body.classList.toggle("lowfx", q === "low");
     const dpr = Math.min(window.devicePixelRatio || 1, q === "high" ? 2 : q === "med" ? 1.5 : 1);
     renderer.setPixelRatio(dpr);
@@ -9430,8 +9555,15 @@ void main() {
     if (announce) ui.toast(announce);
   }
   var ui = null;
+  var compactHUD = matchMedia("(max-width: 700px), (max-height: 520px)");
   ui = new UI({
     onAction: (a) => act(a),
+    onDismissGuide: () => { G.guideDismissed = true; updateGuide(); },
+    onGuideSocket: () => { if (G.guideSocketPos) slotClick(G.L.ref[0].key); },
+    onMenuToggle: () => {
+      G.miniDone = true;
+      ui.setMini(!ui.el("#tl").classList.contains("mini"));
+    },
     onOverlayOpen: () => {
       keys.clear();
       ptr.down = false;
@@ -9507,7 +9639,7 @@ void main() {
     disposeLevel();
     const def = LEVELS[n - 1];
     const L = parseLevel(def), F = makeFrame(L);
-    Object.assign(G, { def, L, F, puzzle: new Puzzle(L), res: null, solveIt: null, held: null, selectedId: null, hover: null, floorSel: "all", hint: { stage: 0, key: null }, complete: false, lastLit: 0, guideStage: -1, levelStart: G.t, fadeY: /* @__PURE__ */ new Map(), dirty: true, lastEditT: -10, shownSolvedVersion: -1 });
+    Object.assign(G, { def, L, F, puzzle: new Puzzle(L), res: null, solveIt: null, held: null, selectedId: null, hover: null, floorSel: "all", hint: { stage: 0, key: null }, complete: false, lastLit: 0, guideDismissed: false, levelStart: G.t, fadeY: /* @__PURE__ */ new Map(), dirty: true, lastEditT: -10, shownSolvedVersion: -1 });
     const arch = buildArchitecture(L, F, { seed: n });
     G.arch = arch;
     levelRoot.add(arch.root);
@@ -9578,8 +9710,8 @@ void main() {
       G.labels.push({ el, pos: info.pos.clone().add(new THREE.Vector3(0, 0.05, 1.05)), kind: "tag", layerY: info.slot.y });
     }
     ui.setLevel(def, CHAPTERS[def.chapter]);
-    ui.setMini(false);
-    G.miniDone = false;
+    ui.setMini(compactHUD.matches);
+    G.miniDone = compactHUD.matches;
     ui.hideSolved();
     ui.setGuide(null);
     refreshUI();
@@ -9591,7 +9723,7 @@ void main() {
       u.searchParams.set("lvl", n);
       history.replaceState(null, "", u);
     }
-    G.fps = { acc: 0, n: 0, start: G.t + 1 };
+    resetFrameSampling();
     warmUp();
   }
   function warmUp() {
@@ -10108,6 +10240,7 @@ void main() {
       ui.setContext({ mode: "selected", name: t("selName", pieceName(p)), text: t("selected"), canRotate: p.type !== "filter", canFlip: p.type === "elev" });
     } else ui.setContext(null);
     updateCursor();
+    updateGuide();
   }
   function trayClick(key) {
     sound.ensure();
@@ -10294,6 +10427,9 @@ void main() {
         return;
       case "lang": {
         setLang(getLang() === "zh" ? "en" : "zh");
+        const url = new URL(location.href);
+        url.searchParams.set("lang", getLang());
+        history.replaceState(null, "", url);
         store.lang = getLang();
         saveStore();
         ui.setLevel(G.def, CHAPTERS[G.def.chapter]);
@@ -10301,7 +10437,7 @@ void main() {
         updateBadges();
         rebuildReasonLabels(beams.segs.filter((s) => !s.dying));
         updateGuide(true);
-        if (G.complete) showSolvedCard(G.lastStars || 1, false);
+        if (ui.solvedStats) ui.showSolved(ui.solvedStats);
         return;
       }
       case "quality": {
@@ -10566,7 +10702,15 @@ void main() {
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     keys.delete(k);
   });
-  window.addEventListener("blur", () => keys.clear());
+  window.addEventListener("blur", () => { keys.clear(); frameClock.focused = false; resetFrameSampling(); });
+  window.addEventListener("focus", () => { frameClock.focused = true; resetFrameSampling(); });
+  document.addEventListener("visibilitychange", resetFrameSampling);
+  compactHUD.addEventListener("change", () => {
+    if (compactHUD.matches && !ui.overlayOpen) {
+      ui.setMini(true);
+      G.miniDone = true;
+    }
+  });
   window.addEventListener("resize", () => {
     camera.aspect = innerWidth / innerHeight;
     camera.updateProjectionMatrix();
@@ -10580,17 +10724,32 @@ void main() {
     }
     if (dust) dust.mat.uniforms.uScale.value = innerHeight * 0.55 * renderer.getPixelRatio();
   });
+  function firstMirrorStep() {
+    if (!G.solveIt && G.res?.solved) return "lit";
+    const target = G.puzzle.layout.get(G.L.ref[0].key);
+    if (target) return G.selectedId === target.id ? "rotate" : "select";
+    if (G.puzzle.count) return G.selectedId != null ? "move" : "recover";
+    return G.held ? "place" : "take";
+  }
   function updateGuide(force) {
     const n = G.def.n, P = G.puzzle;
-    const lines = t("guide")[n];
-    let text = null;
+    const lines = !G.guideDismissed && t("guide")[n];
+    let text = null, lesson = "";
     if (lines) {
-      if (n === 1) text = G.res && G.res.solved ? lines[2] : P.count ? lines[1] : lines[0];
+      if (n === 1) {
+        lesson = firstMirrorStep();
+        text = lines[lesson];
+      }
       if (n === 3) {
         const atB = P.layout.has("1,0,1"), atA = P.layout.has("2,0,1");
         text = G.res && G.res.solved ? null : atB ? lines[1] : atA ? lines[2] : lines[0];
       }
-    } else if (G.t - G.levelStart < 12 || force) text = G.def.brief[getLang()];
+    } else if (!G.guideDismissed && (G.t - G.levelStart < 12 || force)) text = G.def.brief[getLang()];
+    const markSocket = ["place", "move", "select"].includes(lesson);
+    G.guideSocketPos = markSocket ? G.arch.slotInfo.get(G.L.ref[0].key).pos : null;
+    ui.guideSocket.classList.toggle("hidden", !markSocket);
+    if (markSocket) ui.guideSocket.setAttribute("aria-label", t("guideSlot"));
+    document.getElementById("hud").dataset.lesson = lesson;
     if (force || text !== G.guideText) {
       G.guideText = text;
       ui.setGuide(text);
@@ -10609,24 +10768,48 @@ void main() {
       store.best[G.def.id] = stars;
       saveStore();
     }
-    G.lastStars = stars;
     showSolvedCard(stars, isNew && prev > 0);
     sound.play("solved");
     clearHint();
     updateGuide();
   }
-  var last = performance.now();
+  var frameClock = { focused: document.hasFocus() };
+  function resetFrameSampling() {
+    Object.assign(frameClock, { last: null, fps: 0, sampleSeconds: 0, sampleFrames: 0, warmup: 1, qualitySeconds: 0, qualityFrames: 0 });
+  }
+  function sampleFrame(seconds) {
+    frameClock.sampleFrames++;
+    frameClock.sampleSeconds += seconds;
+    if (!frameClock.fps || frameClock.sampleSeconds >= 1) frameClock.fps = frameClock.sampleFrames / frameClock.sampleSeconds;
+    if (frameClock.sampleSeconds >= 1) frameClock.sampleFrames = frameClock.sampleSeconds = 0;
+    if (G.qualityManual || G.quality === "low") return;
+    if (frameClock.warmup > 0) {
+      frameClock.warmup -= seconds;
+      return;
+    }
+    frameClock.qualityFrames++;
+    frameClock.qualitySeconds += seconds;
+    if (frameClock.qualitySeconds < 3.5 || frameClock.qualityFrames < 4) return;
+    const fps = frameClock.qualityFrames / frameClock.qualitySeconds;
+    frameClock.qualityFrames = frameClock.qualitySeconds = 0;
+    if (fps < 28) {
+      const quality = G.quality === "high" ? "med" : "low";
+      applyQuality(quality, t("autoQ", t("q." + quality)));
+    }
+  }
   var tmpV = new THREE.Vector3();
   function frame(now) {
     if (!params.has("manual")) requestAnimationFrame(frame);
-    const dt = Math.min(0.05, Math.max(5e-4, (now - last) / 1e3));
-    last = now;
-    step(dt);
+    if (document.hidden) return;
+    const previous = frameClock.last;
+    const elapsed = previous === null ? 0 : (now - previous) / 1e3;
+    frameClock.last = now;
+    if (frameClock.focused && elapsed > 0) sampleFrame(elapsed);
+    step(previous === null ? 1 / 60 : Math.min(0.05, Math.max(5e-4, elapsed)));
     render();
   }
   function step(dt) {
     G.t += dt;
-    G.fpsAvg = (G.fpsAvg || 60) * 0.95 + 1 / Math.max(dt, 1e-3) * 0.05;
     const time = G.t;
     const kr = 1.9 * dt, kp = 1.3 * dt;
     if (keys.has("a") || keys.has("ArrowLeft")) rig.rotate(kr, 0);
@@ -10737,25 +10920,13 @@ void main() {
       if (a > 3.8) G.outline.visible = false;
     }
     updateLabels();
-    if (!G.miniDone && G.t - G.levelStart > 7) {
+    if (!G.miniDone && G.t - G.levelStart > 7 && !ui.overlayOpen && !ui.el("#tl").contains(document.activeElement)) {
       G.miniDone = true;
       ui.setMini(true);
     }
     if (!t("guide")[G.def.n] && G.guideText && G.t - G.levelStart > 12) {
       G.guideText = null;
       ui.setGuide(null);
-    }
-    if (!G.qualityManual && G.fps && G.t > G.fps.start && G.quality !== "low") {
-      G.fps.acc += dt;
-      G.fps.n++;
-      if (G.fps.acc > 3.5) {
-        const fps = G.fps.n / G.fps.acc;
-        if (fps < 28) {
-          const q = G.quality === "high" ? "med" : "low";
-          applyQuality(q, t("autoQ", t("q." + q)));
-          G.fps = { acc: 0, n: 0, start: G.t + 1 };
-        } else G.fps = null;
-      }
     }
   }
   function updateHover() {
@@ -10822,9 +10993,17 @@ void main() {
       }
       const x = (proj.x * 0.5 + 0.5) * W, y = (-proj.y * 0.5 + 0.5) * H;
       const inHud = rects.some((r) => x > r.left - 40 && x < r.right + 40 && y > r.top - 6 && y < r.bottom + 30);
-      el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
+      if (x < 0 || x > W || y < 0 || y > H) {
+        el.style.opacity = 0;
+        return;
+      }
+      el.style.transform = compactHUD.matches
+        ? `translate(clamp(4px, calc(${x.toFixed(1)}px - 50%), calc(${W - 4}px - 100%)), calc(${y.toFixed(1)}px - 100%))`
+        : `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
       el.style.opacity = inHud ? 0 : alpha;
+      return !inHud;
     };
+    if (G.guideSocketPos) ui.guideSocket.style.visibility = place(ui.guideSocket, G.guideSocketPos, 1) ? "visible" : "hidden";
     const fadeA = (y) => {
       if (y == null) return 1;
       let a = 1;
@@ -10842,6 +11021,7 @@ void main() {
     }
   }
   function render() {
+    renderer.info.reset();
     if (G.quality === "low" || !composer) renderer.render(scene, camera);
     else composer.render();
   }
@@ -10868,7 +11048,8 @@ void main() {
         settled: allSettled() && !G.solveIt && beams.allGrown,
         open: G.res ? [...G.res.open] : [],
         reasons: G.reasonLabels.map((r) => r.seg.why),
-        fps: Math.round(G.fpsAvg || 0),
+        fps: Math.round(frameClock.fps),
+        simulationSeconds: G.t,
         hover: G.hover,
         why: { views: [...G.views.values()].filter((v) => !v.settled || v.arc > 0).map((v) => ({ id: v.id, arc: v.arc, y: +(v.pos.y.x - v.pos.y.t).toFixed(4), vy: +v.pos.y.v.toFixed(4), yaw: +(v.yaw.x - v.yaw.t).toFixed(4), vyaw: +v.yaw.v.toFixed(4) })), solving: !!G.solveIt, growing: beams.segs.filter((s) => !s.dying && s.shown < s.len - 1e-3).map((s) => s.key + " " + s.shown.toFixed(2) + "/" + s.len.toFixed(2)) }
       };

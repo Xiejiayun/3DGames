@@ -39,7 +39,7 @@
 └── package.json
 ```
 
-首页每张游戏卡片顶部提供可点击的实机截图，并支持中英文图片说明。`assets/previews/` 中的图片来自对应游戏的实际 Three.js 渲染画面，统一为 960 × 540 的 WebP；游戏页面本身不依赖这些首页预览图。更新截图时需将图片加入 Git，构建才会收集它们。
+首页在常见桌面、平板及手机尺寸下首屏展示全部七款游戏：桌面用两排海报，小屏幕改用横向缩略卡。每张卡都有完整的实机截图、名称、简短玩法和开始按钮；点击截图或按钮都能进入游戏，也可以用 Tab 和 Enter 选择。页面文案、按钮和图片说明均支持中英文。`assets/previews/` 中的图片来自实际游戏画面，统一为 960 × 540 的 WebP；更新截图时需将图片加入 Git，构建才会收集它们。
 
 ## 自动部署到 Cloudflare
 
@@ -82,6 +82,6 @@ npm run test:skyhold
 npx cf deploy --prebuilt --mode production --dry-run
 ```
 
-以上命令无需 Cloudflare 凭据，也不会上传文件。首页检查需要先运行 `npx playwright install chromium`，会验证构建产物中的截图、中英文切换、游戏入口及桌面/平板/手机布局。依赖版本由 `package-lock.json` 固定。
+以上命令无需 Cloudflare 凭据，也不会上传文件。首页检查需要先运行 `npx playwright install chromium`；默认测试本地构建产物，也可设置 `HOME_URL` 对已部署的站点做相同的只读验证。检查覆盖七张卡片及按钮的首屏可见性、中英文切换、真实入口、键盘操作和手机横竖屏。设置 `HOME_SCREENSHOTS` 可保存各尺寸的截图。依赖版本由 `package-lock.json` 固定。
 
 如需回滚，在 Cloudflare 控制台打开该 Worker 的 **Deployments**，选择上一版本回滚；同时回退 GitHub 上对应变更，避免下一次推送再次发布问题版本。

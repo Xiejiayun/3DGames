@@ -19,6 +19,6 @@
     "test": "node --test scripts/test-cs.mjs",
     "test:cs:browser": "node scripts/check-cs-browser.mjs",
     "test:flappy": "node scripts/test-flappy.mjs",
-    "test:ace": "node scripts/test-ace.mjs"
+    "test:ace": "node --test --test-concurrency=1 \"scripts/test-ace*.mjs\""
   }
 }

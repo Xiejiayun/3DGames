@@ -11,15 +11,36 @@ const { version } = JSON.parse(await readFile(resolve(threeRoot, 'package.json')
 const threePrefix = `https://unpkg.com/three@${version}/`;
 const output = process.env.ACE_SCREENSHOTS;
 if (output) await mkdir(output, { recursive: true });
+
+function measureParticleBudget() {
+  const place = camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(20).add(camera.position);
+  const still = new THREE.Vector3();
+  renderer.shadowMap.enabled = false;
+  const renderPassStats = () => {
+    renderer.info.reset();
+    renderer.render(scene, camera);
+    const { calls, triangles } = renderer.info.render;
+    return { calls, triangles };
+  };
+  const before = renderPassStats();
+  for (let index = 0; index < 200; index++) spawnParticle(place, still, 0xffdba8, 0.15, 1, 1, index % 2 === 0);
+  updateProjectilesAndFX(0);
+  const after = renderPassStats();
+  return { calls: after.calls - before.calls, triangles: after.triangles - before.triangles, count: particles.length };
+}
+
 const server = createServer(async (req, res) => {
   try {
-    const pathname = new URL(req.url, 'http://localhost').pathname;
+    const { pathname, search } = new URL(req.url, 'http://localhost');
     const file = resolve(root, '.' + decodeURIComponent(pathname));
     if (!file.startsWith(root + sep)) { res.writeHead(403).end(); return; }
     const data = await readFile(file);
     const ext = extname(file);
     res.setHeader('content-type', ext === '.webp' ? 'image/webp' : ext === '.js' ? 'application/javascript' : 'text/html; charset=utf-8');
-    res.end(data);
+    if (pathname === '/games/ace.html' && search === '?fx-budget') {
+      res.end(data.toString('utf8').replace(/<\/script>(\s*<\/body>)/,
+        () => `window.measureParticleBudget = ${measureParticleBudget.toString()};</script></body>`));
+    } else res.end(data);
   } catch {
     res.writeHead(404).end();
   }
@@ -206,9 +227,15 @@ try {
   assert.equal((await state()).mode, 'playing');
   await capture('narrow-sortie');
 
+  await page.goto(`${origin}/games/ace.html?fx-budget`);
+  await page.waitForFunction(() => window.__ACE_DEBUG__?.getState().frameCount >= 3);
+  const budget = await page.evaluate(() => window.measureParticleBudget());
+  assert.deepEqual(budget, { calls: 2, triangles: 400, count: 200 }, '200 visible quads must render in two color draws');
+
   assert.deepEqual(errors, [], `Expected zero runtime/console errors, got: ${errors.join('; ')}`);
   console.log('PASS Ace: 3 jets, 3 distinct rendered missions, 1P/3P, batched flares & reset, quality, pause, narrow layout, ZH/EN; zero errors');
   console.log('Same-aircraft GPU samples:', memory, 'mission RGB:', { daylight, sunset, storm });
+  console.log('Fixed FX workload (additional color draws, triangles, particles):', budget);
 } finally {
   await browser?.close();
   server.closeAllConnections();

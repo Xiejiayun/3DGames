@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <title>ACE ARCHIPELAGO · 王牌群岛 — 3D Air Combat</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23071324'/%3E%3Cpath d='M32 7L38 25L57 35L55 41L38 37L36 50L44 55L44 59L32 55L20 59L20 55L28 50L26 37L9 41L7 35L26 25Z' fill='%2364d8ff' stroke='%23e8f7ff' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E">
@@ -20,16 +20,17 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
   font-family:var(--font);user-select:none;-webkit-user-select:none;-webkit-font-smoothing:antialiased}
 button{font-family:inherit;color:inherit;cursor:pointer}
 canvas{display:block}
-#gl{position:fixed;inset:0;width:100%;height:100%}
+#gl{position:fixed;inset:0;width:100%;height:100%;touch-action:none;outline:0}
 #hudCanvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
 .hidden{display:none!important}
 
 /* ---------- Top utility bar ---------- */
 #topBar{
-  position:fixed;top:14px;left:16px;right:16px;z-index:20;
+  position:fixed;top:max(8px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));z-index:20;
   display:flex;justify-content:space-between;align-items:center;pointer-events:none;
 }
 .bar-group{display:flex;gap:8px;align-items:center;pointer-events:auto}
+#topBar.in-flight{justify-content:flex-end}
 .pill-btn{
   display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;
   background:var(--panel);border:1px solid var(--line);color:var(--fg);font-size:12px;font-weight:700;
@@ -41,19 +42,19 @@ canvas{display:block}
 
 /* ---------- Hangar / Main Menu ---------- */
 #hangar{
-  position:fixed;inset:0;z-index:12;display:flex;flex-direction:column;justify-content:space-between;
-  padding:58px 28px 24px;pointer-events:none;
+  position:fixed;inset:calc(48px + env(safe-area-inset-top)) 0 0;z-index:12;display:flex;flex-direction:column;
+  padding:8px max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));overflow-y:auto;overscroll-behavior:contain;
   background:linear-gradient(90deg,rgba(4,10,18,.82) 0%,rgba(4,10,18,.28) 44%,rgba(4,10,18,.18) 65%,rgba(4,10,18,.78) 100%);
 }
-.hangar-head{pointer-events:none;max-width:560px}
+.hangar-head{pointer-events:none;max-width:560px;text-shadow:0 1px 3px #071321}
 .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:var(--cyan);font-weight:700}
 .game-title{font-size:clamp(30px,4.4vw,52px);font-weight:900;letter-spacing:.04em;line-height:1.06;margin-top:4px;
   text-shadow:0 6px 32px rgba(0,0,0,.65)}
 .game-title span{color:var(--amber)}
-.game-sub{margin-top:6px;font-size:13.5px;color:var(--dim);max-width:480px;line-height:1.5}
+.game-sub{margin-top:6px;font-size:13.5px;color:var(--fg);max-width:480px;line-height:1.5}
 
 .hangar-main{
-  display:grid;grid-template-columns:340px 1fr 340px;gap:20px;align-items:end;flex:1;min-height:0;padding:12px 0;
+  display:grid;grid-template-columns:340px 1fr 340px;gap:20px;align-items:end;flex:1 0 auto;padding:12px 0;
 }
 .panel-box{
   pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;
@@ -84,8 +85,10 @@ canvas{display:block}
 .stat-val{font-family:var(--mono);font-size:11px;text-align:right;color:var(--fg)}
 
 .hangar-foot{
-  display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;pointer-events:auto;
+  position:sticky;bottom:0;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;
 }
+.flight-help summary{width:fit-content;cursor:pointer;font-size:13px;font-weight:700;color:var(--cyan);background:var(--panel-hi);border:1px solid var(--line);border-radius:8px;padding:9px}
+.hangar-foot .controls-strip{position:absolute;bottom:100%;left:0;width:min(410px,100%);max-height:48dvh;overflow-y:auto;background:var(--panel-hi)}
 .controls-strip{
   display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:10px 14px;border-radius:10px;
   background:var(--panel);border:1px solid var(--line);font-size:12px;color:var(--dim);
@@ -105,9 +108,9 @@ canvas{display:block}
 .sortie-btn:active{transform:translateY(1px)}
 
 /* ---------- In-Game HUD DOM Layer ---------- */
-#hud{position:fixed;inset:0;z-index:5;pointer-events:none;font-family:var(--mono)}
+#hud{--dock:0px;position:fixed;inset:0;z-index:5;pointer-events:none;font-family:var(--mono)}
+#missionHud{position:fixed;top:max(8px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:max-content;max-width:min(500px,60%);display:grid;justify-items:center;gap:4px}
 #objBox{
-  position:fixed;top:14px;left:50%;transform:translateX(-50%);
   background:rgba(5,14,24,.62);border:1px solid rgba(86,245,164,.35);border-radius:10px;
   padding:7px 18px;text-align:center;min-width:290px;backdrop-filter:blur(6px);
 }
@@ -116,16 +119,15 @@ canvas{display:block}
 #objStats{font-size:11px;color:var(--hud);margin-top:2px;display:flex;justify-content:center;gap:14px}
 
 #radioBox{
-  position:fixed;top:88px;left:50%;transform:translateX(-50%);
   padding:6px 16px;border-radius:8px;background:rgba(5,16,28,.75);border-left:3px solid var(--cyan);
   font-family:var(--font);font-size:13px;font-weight:600;color:#d9f4ff;opacity:0;transition:opacity .3s;
-  max-width:min(540px,88vw);text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.45);
+  text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.45);
 }
+#radioBox:not(.show){display:none}
 #radioBox.show{opacity:1}
 #radioBox.warn{border-left-color:var(--danger);color:#ffd2d2}
 
 #alertBanner{
-  position:fixed;top:138px;left:50%;transform:translateX(-50%);
   padding:5px 16px;border-radius:6px;background:rgba(180,18,18,.78);border:1px solid #ff7a7a;
   color:#fff;font-size:13px;font-weight:900;letter-spacing:.2em;display:none;
   animation:blink .35s infinite alternate;
@@ -133,7 +135,7 @@ canvas{display:block}
 @keyframes blink{from{opacity:.45}to{opacity:1}}
 
 #weaponPanel{
-  position:fixed;right:18px;bottom:18px;width:236px;
+  position:fixed;right:max(10px,env(safe-area-inset-right));bottom:calc(max(10px,env(safe-area-inset-bottom)) + var(--dock));width:214px;
   background:rgba(5,14,24,.68);border:1px solid rgba(86,245,164,.32);border-radius:12px;
   padding:11px 13px;backdrop-filter:blur(6px);display:flex;flex-direction:column;gap:8px;
 }
@@ -148,14 +150,18 @@ canvas{display:block}
 #flareFill{height:100%;width:100%;background:linear-gradient(90deg,#ffb23e,#ffe28a);transition:width .1s}
 
 #radarWrap{
-  position:fixed;left:18px;bottom:18px;width:154px;height:154px;border-radius:50%;
+  position:fixed;left:max(10px,env(safe-area-inset-left));bottom:calc(max(10px,env(safe-area-inset-bottom)) + var(--dock));width:144px;height:144px;border-radius:50%;
   background:radial-gradient(circle,rgba(8,28,36,.78),rgba(4,12,20,.88));
   border:1.5px solid rgba(86,245,164,.45);box-shadow:0 0 24px rgba(0,0,0,.55);overflow:hidden;
 }
 #radarCanvas{width:100%;height:100%;display:block}
 #camBadge{
-  position:fixed;left:184px;bottom:20px;padding:4px 10px;border-radius:6px;
+  position:fixed;left:166px;bottom:12px;padding:4px 10px;border-radius:6px;
   background:rgba(5,14,24,.66);border:1px solid rgba(100,216,255,.35);font-size:11px;color:var(--cyan);
+}
+#flightKeys{display:none}
+@media (min-width:1080px) and (min-height:521px){
+  html:not(.touch-flight) #flightKeys{display:block;position:fixed;bottom:12px;left:50%;transform:translateX(-50%);padding:5px 10px;border-radius:6px;background:var(--panel-hi);color:var(--fg);font-size:11px}
 }
 
 /* ---------- Modal Overlays (Pause / Debrief) ---------- */
@@ -164,7 +170,7 @@ canvas{display:block}
   background:rgba(3,8,16,.72);backdrop-filter:blur(8px);padding:20px;
 }
 .modal-card{
-  width:min(460px,100%);background:rgba(9,18,32,.94);border:1px solid var(--line-hi);
+  width:min(460px,100%);max-height:100%;overflow:auto;overscroll-behavior:contain;background:rgba(9,18,32,.94);border:1px solid var(--line-hi);
   border-radius:16px;padding:24px 26px;box-shadow:0 24px 64px rgba(0,0,0,.65);
   display:flex;flex-direction:column;gap:16px;
 }
@@ -195,6 +201,19 @@ canvas{display:block}
   font-weight:700;font-size:13px;color:var(--fg);
 }
 .btn-ghost:hover{border-color:var(--line-hi)}
+#pauseUtilities #qualBtn{display:none}
+#telemetry{display:flex;justify-content:space-between;gap:4px;color:var(--hud);font-size:11px}
+#touchControls,#stickBase{display:none}
+.touch-flight #hud{--dock:98px}
+.touch-flight #camBadge{display:none}
+.touch-flight #touchControls{position:fixed;display:flex;align-items:center;justify-content:space-between;gap:4px;left:max(6px,env(safe-area-inset-left));right:max(6px,env(safe-area-inset-right));bottom:max(4px,env(safe-area-inset-bottom))}
+.touch-bank{display:grid;grid-auto-columns:minmax(44px,auto);grid-template-rows:repeat(2,44px);grid-auto-flow:column;gap:3px}
+.touch-bank button{pointer-events:auto;touch-action:none;padding:0 3px;border:1px solid var(--line-hi);border-radius:8px;background:var(--panel-hi);color:var(--cyan);font:700 11px var(--font);-webkit-touch-callout:none}
+.touch-bank button.held{background:var(--cyan);color:var(--bg)}
+.touch-bank [data-flight="cannon"],.touch-bank [data-flight="launch"]{color:var(--amber);border-color:var(--amber)}
+#touchHint{max-width:92px;text-align:center;font:700 11px var(--font);color:var(--fg);text-shadow:0 1px 3px #000;background:var(--panel);padding:3px;border-radius:4px}
+#stickBase.active{position:fixed;display:grid;place-items:center;width:84px;height:84px;margin:-42px;border-radius:50%;border:1px solid var(--cyan);background:rgba(4,16,24,.24)}
+#stickKnob{width:18px;height:18px;border-radius:50%;background:var(--cyan)}
 
 #bootErr{
   position:fixed;inset:0;z-index:99;display:none;align-items:center;justify-content:center;
@@ -206,13 +225,25 @@ canvas{display:block}
   .hangar-spacer{display:none}
 }
 @media (max-width:740px){
-  #hangar{padding:54px 14px 14px;overflow-y:auto}
   .hangar-main{grid-template-columns:1fr}
-  .controls-strip{display:none}
-  #radarWrap{width:118px;height:118px;left:10px;bottom:10px}
-  #weaponPanel{width:196px;right:10px;bottom:10px;padding:8px 10px}
+  .hangar-foot{background:var(--bg);box-shadow:0 -4px 12px var(--bg)}
+  .sortie-btn{padding:11px 16px;font-size:14px}
+  #missionHud{left:max(6px,env(safe-area-inset-left));right:calc(86px + env(safe-area-inset-right));max-width:none;transform:none;width:auto;justify-items:start}
+  #objBox{min-width:0;text-align:left;padding:4px 7px}
+  #objStats{justify-content:flex-start;gap:8px}
+  #objText,#radioBox,#alertBanner{font-size:12px}
+}
+@media (max-width:740px),(max-height:520px){
+  #radarWrap{width:clamp(64px,18vmin,92px);height:clamp(64px,18vmin,92px)}
+  #weaponPanel{width:156px;padding:5px 7px;gap:3px}
+  .wp-row{font-size:11px;padding:1px 3px}
+  #wpGun,.bar-track{display:none}
   #camBadge{display:none}
 }
+@media (max-height:460px){#radioBox{display:none}.modal{padding:8px}.modal-card{gap:9px;padding:12px 16px}}
+@media (max-width:410px){.pill-btn{font-size:11px;padding:7px}.bar-group{gap:4px}.modal{padding:10px}}
+@media (pointer:coarse){.pill-btn{min-height:40px}.flight-help summary{min-height:44px}}
+@media (prefers-reduced-motion:reduce){#alertBanner{animation:none}}
 </style>
 <script type="importmap">
 {
@@ -224,7 +255,7 @@ canvas{display:block}
 </script>
 </head>
 <body>
-<canvas id="gl"></canvas>
+<canvas id="gl" tabindex="-1"></canvas>
 <canvas id="hudCanvas"></canvas>
 <div id="bootErr"></div>
 
@@ -233,7 +264,7 @@ canvas{display:block}
     <a class="pill-btn" href="../index.html" id="backHome">← <span data-i18n="home">游戏合集</span></a>
     <button class="pill-btn hidden" id="pauseBtn">❚❚ <span data-i18n="pause">暂停</span></button>
   </div>
-  <div class="bar-group">
+  <div class="bar-group" id="utilities">
     <button class="pill-btn" id="qualBtn">HQ: HIGH</button>
     <button class="pill-btn" id="muteBtn">🔊 <span data-i18n="soundOn">音效</span></button>
     <button class="pill-btn" id="langBtn">EN / 中文</button>
@@ -264,31 +295,35 @@ canvas{display:block}
   </div>
 
   <div class="hangar-foot">
-    <div class="controls-strip" id="controlsStrip"></div>
+    <details class="flight-help"><summary data-i18n="flightHelp">操作指南</summary><div class="controls-strip" data-i18n-html="controls"></div></details>
     <button class="sortie-btn" id="sortieBtn" data-i18n="sortie">立即出击 · SORTIE</button>
   </div>
 </section>
 
 <!-- IN-GAME HUD -->
 <section id="hud" class="hidden">
-  <div id="objBox">
-    <div id="objMission">MISSION 01</div>
-    <div id="objText">—</div>
-    <div id="objStats">
-      <span id="hudTargets">TGT 0/0</span>
-      <span id="hudScore">SCORE 0</span>
-      <span id="hudTime">00:00</span>
+  <div id="missionHud">
+    <div id="objBox">
+      <div id="objMission">MISSION 01</div>
+      <div id="objText">—</div>
+      <div id="objStats">
+        <span id="hudTargets">TGT 0/0</span>
+        <span id="hudScore">SCORE 0</span>
+        <span id="hudTime">00:00</span>
+      </div>
     </div>
+    <div id="alertBanner"></div>
+    <div id="radioBox"></div>
   </div>
-  <div id="radioBox"></div>
-  <div id="alertBanner">MISSILE ALERT</div>
 
   <div id="radarWrap"><canvas id="radarCanvas" width="160" height="160"></canvas></div>
   <div id="camBadge">3RD PERSON [V]</div>
+  <div id="flightKeys" data-i18n="flightKeys"></div>
 
   <div id="weaponPanel">
-    <div class="wp-row on" id="wpGun"><span>GUN · 20MM</span><span class="k">LMB · ∞</span></div>
-    <div class="wp-row on" id="wpMsl"><span>MSL · AIM-9X</span><span id="mslCount">2 / 2</span></div>
+    <div id="telemetry"><span id="hudSpeed"></span><span id="hudAltitude"></span></div>
+    <div class="wp-row" id="wpGun"><span data-i18n="cannon">机炮</span><span class="k">∞</span></div>
+    <div class="wp-row on" id="wpMsl"><span>MSL</span><span id="mslCount">2 / 2</span></div>
     <div class="wp-row" id="wpSpw"><span id="spwName">SPW · 4AAM</span><span id="spwCount">16</span></div>
     <div class="bar-wrap">
       <div class="bar-lbl"><span data-i18n="flare">FLARES [F]</span><span id="flareTxt">READY</span></div>
@@ -299,14 +334,28 @@ canvas{display:block}
       <div class="bar-track"><div id="hpFill"></div></div>
     </div>
   </div>
+  <div id="stickBase"><span id="stickKnob"></span></div>
+  <div id="touchControls">
+    <div class="touch-bank">
+      <button data-flight="boost" data-i18n="boost">加速</button><button data-flight="brake" data-i18n="brake">减速</button>
+      <button data-flight="rollLeft" data-i18n="rollLeft">左滚</button><button data-flight="rollRight" data-i18n="rollRight">右滚</button>
+    </div>
+    <span id="touchHint" data-i18n="touchHint">拖动天空转向</span>
+    <div class="touch-bank">
+      <button data-flight="target" data-i18n="target">目标</button><button data-flight="view" data-i18n="view">视角</button>
+      <button data-flight="swap" data-i18n="swap">切换</button><button data-flight="flare" data-i18n="flare">热诱弹</button>
+      <button data-flight="cannon" data-i18n="cannon">机炮</button><button data-flight="launch" data-i18n="launch">发射</button>
+    </div>
+  </div>
 </section>
 
 <!-- PAUSE MODAL -->
-<div id="pauseModal" class="modal hidden">
+<div id="pauseModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
   <div class="modal-card">
-    <div class="modal-title" data-i18n="paused">战术暂停</div>
+    <div class="modal-title" id="pauseTitle" data-i18n="paused">战术暂停</div>
+    <div id="pauseUtilities"></div>
     <div class="opt-row">
-      <span data-i18n="sens">鼠标灵敏度</span>
+      <label data-i18n="sens" for="sensSlider">转向灵敏度</label>
       <input type="range" id="sensSlider" min="0.5" max="1.8" step="0.1" value="1.0">
     </div>
     <div class="opt-row">
@@ -317,6 +366,7 @@ canvas{display:block}
       <span data-i18n="quality">渲染画质</span>
       <button class="btn-ghost" id="pauseQualBtn">HIGH</button>
     </div>
+    <details class="flight-help"><summary data-i18n="flightHelp">操作指南</summary><div class="controls-strip" data-i18n-html="controls"></div></details>
     <div class="btn-grid">
       <button class="btn-ghost" id="btnHangar" data-i18n="toHangar">返回机库</button>
       <button class="btn-ghost" id="btnRestart" data-i18n="restart">重新出击</button>
@@ -326,7 +376,7 @@ canvas{display:block}
 </div>
 
 <!-- DEBRIEF MODAL -->
-<div id="debriefModal" class="modal hidden">
+<div id="debriefModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="debriefTitle">
   <div class="modal-card">
     <div class="modal-title" id="debriefTitle">MISSION ACCOMPLISHED</div>
     <div class="modal-sub" id="debriefSub">—</div>
@@ -362,28 +412,31 @@ const I18N = {
     title:'王牌<span>群岛</span> · ACE',
     subtitle:'驾驶隐身战机穿梭晴空群岛、黄昏峡湾与雷暴航母编队——体验鼠标引导空战、多目标导弹齐射与 3D 座舱双视角。',
     selectJet:'战机机库', selectMission:'战役任务', sortie:'立即出击 · SORTIE',
-    flare:'热诱弹 [F]', hull:'机身装甲', paused:'战术暂停',
-    sens:'鼠标灵敏度', invertY:'反转俯仰 Y 轴', quality:'渲染画质',
+    flare:'热诱弹', hull:'装甲', paused:'战术暂停',
+    sens:'转向灵敏度', invertY:'反转俯仰 Y 轴', quality:'渲染画质',
     toHangar:'返回机库', restart:'重新出击', resume:'继续战斗',
     dKills:'击毁目标', dTime:'任务耗时', dHull:'剩余装甲', dScore:'战役积分',
     retry:'再战一次', nextMission:'下一关',
     statSpd:'极速', statMob:'机动', statArm:'装甲',
     cam3p:'第三人称 [V]', cam1p:'3D 座舱 [V]',
     ready:'就绪', reloading:'装填中',
-    alertMissile:'导弹来袭 · 按 F 释放热诱弹', alertPullUp:'高度过低 · PULL UP',
-    controls:'<span><kbd>鼠标</kbd>引导转向</span><span><kbd>W/S</kbd>加力/减速</span><span><kbd>A/D</kbd>滚转</span><span><kbd>左键</kbd>机炮</span><span><kbd>右键/空格</kbd>导弹</span><span><kbd>Q</kbd>切特武</span><span><kbd>F</kbd>热诱弹</span><span><kbd>V</kbd>座舱视角</span>',
+    alertMissile:'导弹来袭 · 释放热诱弹', alertPullUp:'高度过低 · 拉起',
+    flightHelp:'操作指南', touchHint:'拖动天空转向', boost:'加速', brake:'减速', rollLeft:'左滚', rollRight:'右滚', target:'目标', view:'视角', swap:'换装', cannon:'机炮', launch:'发射',
+    flightKeys:'↑↓←→ 转向 · J 机炮 · 空格 发射 · E 目标',
+    targets:'目标', score:'积分', speed:'速度', altitude:'高度', on:'开', off:'关',
+    controls:'<span><kbd>鼠标 / 方向键</kbd>转向</span><span><kbd>W/S</kbd>加速/减速</span><span><kbd>A/D</kbd>滚转</span><span><kbd>左键 / J</kbd>按住机炮</span><span><kbd>右键 / 空格</kbd>发射</span><span><kbd>Q / Tab</kbd>换装</span><span><kbd>E</kbd>切换目标</span><span><kbd>F / Shift</kbd>热诱弹</span><span><kbd>V / C</kbd>视角</span><span><kbd>Esc / P</kbd>暂停</span><span>触屏：在天空中拖动转向，松开回中；另一只手可同时按住机炮或点按动作键。</span>',
     winTitle:'任务完成 · MISSION CLEAR', failTitle:'战机坠毁 · MISSION FAILED',
     winSub:'空域已肃清，干得漂亮，王牌！', failSub:'机身结构解体，调整战术再次出击。',
     radioLaunch:'AWACS 预警机：弹射起飞完成，全频段雷达已上线，祝武运昌隆！',
     radioM1W2:'AWACS：敌方重型轰炸机编队进入群岛空域，优先拦截！',
-    radioM2Start:'AWACS：保持低空利用峡湾岩壁掩护，摧毁所有雷达站与防空阵地！',
+    radioM2Start:'AWACS：峡湾共有十个目标。切换目标可查看下一个标记。',
     radioM3Start:'AWACS：发现敌方航母打击群！摧毁驱逐舰护航并瘫痪航母！',
     radioAce:'CRIMSON-1：竟敢闯入风暴眼……让我看看你的本事吧！',
     radioSplash:'AWACS：目标确认击毁！Splash one!',
     radioFlare:'热诱弹已释放，成功甩开敌方导弹！',
-    objM1:'拦截敌方截击机与轰炸机编队',
+    objM1:'第 1/2 波 · 清除截击机', objM1Final:'第 2/2 波 · 清除轰炸机与护航机',
     objM2:'摧毁高地雷达站、防空阵地与拦截机',
-    objM3:'击沉护航驱逐舰、航空母舰并击落王牌「绯红一号」',
+    objM3:'第 1/2 阶段 · 清除舰队与护航机', objM3Final:'第 2/2 阶段 · 挑战绯红一号', campaignClear:'战役通关 · 群岛制霸',
   },
   en: {
     home:'Games Hub', pause:'Pause', soundOn:'Audio', soundOff:'Muted',
@@ -391,28 +444,31 @@ const I18N = {
     title:'ACE <span>ARCHIPELAGO</span>',
     subtitle:'Pilot stealth fighters across sunlit volcanic islands, sunset fjords, and stormy carrier fleets with mouse-aim flight, multi-lock missiles & 3D cockpit.',
     selectJet:'AIRCRAFT HANGAR', selectMission:'CAMPAIGN MISSIONS', sortie:'LAUNCH SORTIE',
-    flare:'FLARES [F]', hull:'HULL', paused:'TACTICAL PAUSE',
-    sens:'Mouse Sensitivity', invertY:'Invert Pitch Y', quality:'Graphics Quality',
+    flare:'Flares', hull:'Hull', paused:'TACTICAL PAUSE',
+    sens:'Steering sensitivity', invertY:'Invert Pitch Y', quality:'Graphics Quality',
     toHangar:'Hangar', restart:'Restart', resume:'Resume',
     dKills:'Targets Destroyed', dTime:'Mission Time', dHull:'Hull Integrity', dScore:'Mission Score',
     retry:'Retry Mission', nextMission:'Next Mission',
     statSpd:'SPEED', statMob:'AGILITY', statArm:'ARMOR',
     cam3p:'3RD PERSON [V]', cam1p:'3D COCKPIT [V]',
     ready:'READY', reloading:'RELOAD',
-    alertMissile:'MISSILE ALERT · PRESS F FOR FLARES', alertPullUp:'LOW ALTITUDE · PULL UP',
-    controls:'<span><kbd>Mouse</kbd>Steer</span><span><kbd>W/S</kbd>Afterburner/Brake</span><span><kbd>A/D</kbd>Roll</span><span><kbd>LMB</kbd>Cannon</span><span><kbd>RMB/Space</kbd>Missile</span><span><kbd>Q</kbd>Special</span><span><kbd>F</kbd>Flares</span><span><kbd>V</kbd>Cockpit</span>',
+    alertMissile:'INCOMING · USE FLARES', alertPullUp:'LOW ALTITUDE · PULL UP',
+    flightHelp:'Flight controls', touchHint:'Drag sky to steer', boost:'Boost', brake:'Brake', rollLeft:'Roll L', rollRight:'Roll R', target:'Target', view:'View', swap:'Swap', cannon:'Cannon', launch:'Launch',
+    flightKeys:'↑↓←→ Steer · J Cannon · Space Launch · E Target',
+    targets:'TGT', score:'Score', speed:'SPD', altitude:'ALT', on:'On', off:'Off',
+    controls:'<span><kbd>Mouse / Arrows</kbd>Steer</span><span><kbd>W/S</kbd>Boost/Brake</span><span><kbd>A/D</kbd>Roll</span><span><kbd>LMB / J</kbd>Hold cannon</span><span><kbd>RMB / Space</kbd>Launch</span><span><kbd>Q / Tab</kbd>Swap</span><span><kbd>E</kbd>Cycle target</span><span><kbd>F / Shift</kbd>Flares</span><span><kbd>V / C</kbd>View</span><span><kbd>Esc / P</kbd>Pause</span><span>Touch: drag the sky to steer; release to center. Hold Cannon or tap actions with your other thumb.</span>',
     winTitle:'MISSION ACCOMPLISHED', failTitle:'AIRCRAFT DESTROYED',
     winSub:'Airspace secured. Outstanding flying, Ace!', failSub:'Airframe lost. Regroup and sortie again.',
     radioLaunch:'AWACS: Launch confirmed. All tactical sensors online. Good hunting!',
-    radioM1W2:'AWACS: Enemy heavy bomber flight inbound! Intercept before they reach base!',
-    radioM2Start:'AWACS: Use the fjord cliffs for cover and neutralize all radar domes & SAM sites!',
+    radioM1W2:'AWACS: Second wave over the archipelago. Clear the bombers and their escorts!',
+    radioM2Start:'AWACS: Ten contacts in the fjord. Cycle targets to highlight another marker.',
     radioM3Start:'AWACS: Enemy Carrier Strike Group sighted in the storm! Sink the fleet!',
     radioAce:'CRIMSON-1: Entering my storm? Let us see if you deserve your wings!',
     radioSplash:'AWACS: Direct hit! Target destroyed!',
     radioFlare:'Flares deployed — enemy missile spoofed!',
-    objM1:'Intercept enemy fighters & heavy bomber flight',
+    objM1:'Wave 1/2 · Clear the interceptors', objM1Final:'Wave 2/2 · Clear bombers & escorts',
     objM2:'Destroy coastal radar domes, SAM sites & interceptors',
-    objM3:'Sink the destroyers, carrier & defeat Ace "Crimson-1"',
+    objM3:'Stage 1/2 · Clear fleet & escorts', objM3Final:'Stage 2/2 · Defeat Crimson-1', campaignClear:'CAMPAIGN COMPLETE',
   }
 };
 
@@ -1616,6 +1672,7 @@ const player = {
   yawRate: 0,
   rollRate: 0,
   gunCd: 0,
+  terrainGrace: 0,
   mslAmmo: 2,
   mslReload: 0,
   spwAmmo: 16,
@@ -1625,14 +1682,18 @@ const player = {
   flareMaxCd: 7.0,
   lockedTargets: [],
   primaryTarget: null,
+  targetPinned: false,
   lockProgress: 0,
   alive: true,
   wingTrails: []
 };
 
 // Input state
-const keys = {};
-const mouse = { x: 0, y: 0, downL: false, downR: false }; // normalized -1..1
+const heldInputs = new Map();
+const capturedPointers = new Map();
+const aim = { x:0, y:0 };
+const stick = { x:0, y:0 };
+let steerDrag = null;
 
 // Reusable math temporaries
 const _v1 = new THREE.Vector3();
@@ -1846,14 +1907,19 @@ function loadMissionScene(mIdx, previewOnly = false) {
   missionTimer = 0; missionScore = 0; missionKills = 0;
   m1Wave2Spawned = false; m3AceSpawned = false;
   timeScale = 1.0; slowMoTimer = 0; shakeAmt = 0;
+  hitMarkerTimer = 0;
+  document.getElementById('alertBanner').style.display = 'none';
 
   player.pos.set(0, 250, 1650);
   player.quat.identity();
   player.speed = JETS[selJetIdx].cruiseSpeed;
   player.throttle = 0.55;
   player.alive = true;
+  player.pitchRate = 0; player.yawRate = 0; player.rollRate = 0;
+  player.gunCd = 0; player.terrainGrace = 0;
   player.lockedTargets = [];
   player.primaryTarget = null;
+  player.targetPinned = false;
   player.lockProgress = 0;
   buildPlayerAircraft();
 
@@ -2033,8 +2099,8 @@ function damagePlayer(dmg) {
 }
 
 function checkMissionProgression() {
-  const aliveCount = enemies.filter(e => e.alive).length;
-  if (selMissionIdx === 0 && !m1Wave2Spawned && aliveCount <= 1) {
+  if (mode !== 'playing' || enemies.some(enemy => enemy.alive)) return;
+  if (selMissionIdx === 0 && !m1Wave2Spawned) {
     m1Wave2Spawned = true;
     for (let i = 0; i < 3; i++) {
       spawnEnemy('bomber', new THREE.Vector3(-260 + i * 260, 320, -1450 - i * 80));
@@ -2045,35 +2111,30 @@ function checkMissionProgression() {
     showRadio(I18N[lang].radioM1W2, true, 4.5);
     return;
   }
-  if (selMissionIdx === 2 && !m3AceSpawned && aliveCount <= 3) {
+  if (selMissionIdx === 2 && !m3AceSpawned) {
     m3AceSpawned = true;
     spawnEnemy('ace', new THREE.Vector3(0, 440, -1350));
     showRadio(I18N[lang].radioAce, true, 5.0);
     return;
   }
-  if (aliveCount === 0) {
-    endMission(true);
-  }
+  endMission(true);
 }
 
 function endMission(won) {
-  mode = 'debrief';
-  sfx.updateEngine(false, 0);
-  document.getElementById('hud').classList.add('hidden');
-  document.getElementById('pauseBtn').classList.add('hidden');
-  const modal = document.getElementById('debriefModal');
-  modal.classList.remove('hidden');
-
+  if (mode !== 'playing') return;
+  setScreen('debrief');
+  const lastMission = selMissionIdx === MISSIONS.length - 1;
   const hpPct = Math.round((player.hp / player.maxHp) * 100);
   const rank = !won ? 'D' : (hpPct >= 75 && missionTimer < 220) ? 'S' : hpPct >= 45 ? 'A' : 'B';
-  document.getElementById('debriefTitle').textContent = won ? I18N[lang].winTitle : I18N[lang].failTitle;
+  document.getElementById('debriefTitle').textContent = I18N[lang][won ? (lastMission ? 'campaignClear' : 'winTitle') : 'failTitle'];
   document.getElementById('debriefSub').textContent = won ? I18N[lang].winSub : I18N[lang].failSub;
   document.getElementById('debriefRank').textContent = rank;
   document.getElementById('dKills').textContent = `${missionKills} / ${totalMissionTargets}`;
   document.getElementById('dTime').textContent = formatTime(missionTimer);
   document.getElementById('dHull').textContent = `${hpPct}%`;
   document.getElementById('dScore').textContent = missionScore + (won ? hpPct * 15 : 0);
-  document.getElementById('dBtnNext').classList.toggle('hidden', !won || selMissionIdx >= MISSIONS.length - 1);
+  document.getElementById('dBtnNext').classList.toggle('hidden', !won || lastMission);
+  document.getElementById(!won ? 'dBtnRetry' : lastMission ? 'dBtnHangar' : 'dBtnNext').focus({ preventScroll:true });
 }
 
 // ============================================================================
@@ -2083,17 +2144,19 @@ function updatePlayer(dt, rawDt) {
   const spec = JETS[selJetIdx];
   // Throttle & Afterburner
   let targetThrottle = 0.52;
-  if (keys['KeyW']) targetThrottle = 1.0;
-  else if (keys['KeyS']) targetThrottle = 0.08;
+  if (isHeld('boost')) targetThrottle = 1.0;
+  else if (isHeld('brake')) targetThrottle = 0.08;
   player.throttle += (targetThrottle - player.throttle) * Math.min(1, dt * 4.0);
   const targetSpd = spec.minSpeed + (spec.maxSpeed - spec.minSpeed) * player.throttle;
   player.speed += (targetSpd - player.speed) * Math.min(1, dt * 2.4);
 
   // Arcade Mouse-Aim Flight Control (smooth banking + pitch/yaw)
-  const mx = THREE.MathUtils.clamp(mouse.x * mouseSens, -1, 1);
-  const my = THREE.MathUtils.clamp((invertY ? -mouse.y : mouse.y) * mouseSens, -1, 1);
+  stick.x = Number(isHeld('right')) - Number(isHeld('left')) || aim.x;
+  stick.y = Number(isHeld('down')) - Number(isHeld('up')) || aim.y;
+  const mx = THREE.MathUtils.clamp(stick.x * mouseSens, -1, 1);
+  const my = THREE.MathUtils.clamp((invertY ? -stick.y : stick.y) * mouseSens, -1, 1);
 
-  const manualRoll = (keys['KeyA'] ? 1 : 0) - (keys['KeyD'] ? 1 : 0);
+  const manualRoll = Number(isHeld('rollLeft')) - Number(isHeld('rollRight'));
   const desiredPitch = -my * spec.turnRate * 1.15;
   const desiredYaw = -mx * spec.turnRate * 0.92;
 
@@ -2127,12 +2190,18 @@ function updatePlayer(dt, rawDt) {
 
   // Ocean & Terrain Collision Protection
   const terrH = Math.max(4, sampleTerrainHeight(player.pos.x, player.pos.z) + 10);
+  player.terrainGrace = Math.max(0, player.terrainGrace - dt);
   if (player.pos.y < terrH) {
     player.pos.y = terrH + 14;
-    // Level pitch upward
-    const upQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.32, 0, 0));
-    player.quat.multiply(upQ).normalize();
-    damagePlayer(18);
+    euler.setFromQuaternion(player.quat, 'YXZ');
+    euler.x = Math.max(0.22, euler.x);
+    player.quat.setFromEuler(euler);
+    player.pitchRate = Math.max(0, player.pitchRate);
+    if (player.terrainGrace === 0) {
+      player.terrainGrace = 1;
+      damagePlayer(18);
+      if (!player.alive) return;
+    }
   }
 
   // Update jet mesh, control surfaces & afterburner flames
@@ -2175,8 +2244,7 @@ function updatePlayer(dt, rawDt) {
   }
   if (player.spwReload > 0) player.spwReload = Math.max(0, player.spwReload - dt);
 
-  if (mouse.downL) fireCannon();
-  if (mouse.downR) { mouse.downR = false; fireMissile(); }
+  if (isHeld('cannon')) fireCannon();
 
   // Target Acquisition & Multi-Lock System
   updateLockOn(dt);
@@ -2201,33 +2269,31 @@ function updateLockOn(dt) {
   }
   candidates.sort((a, b) => a.score - b.score);
 
-  if (!player.primaryTarget || !player.primaryTarget.alive) {
-    player.primaryTarget = candidates[0]?.e || enemies.find(e => e.alive) || null;
+  if (!player.primaryTarget?.alive) {
+    player.primaryTarget = null;
+    player.targetPinned = false;
   }
-
-  if (isSpw) {
-    player.lockedTargets = candidates.slice(0, spec.spw.maxLocks).map(c => c.e);
-    if (player.lockedTargets.length > 0) {
-      player.lockProgress = Math.min(1, player.lockProgress + dt * 1.6);
-      sfx.playLock(player.lockProgress >= 0.99, performance.now() / 1000);
-    } else {
-      player.lockProgress = 0;
-    }
-  } else {
-    const inCone = candidates.find(c => c.e === player.primaryTarget) || candidates[0];
-    if (inCone) {
-      player.primaryTarget = inCone.e;
-      player.lockedTargets = [inCone.e];
-      player.lockProgress = Math.min(1, player.lockProgress + dt * 1.45);
-      sfx.playLock(player.lockProgress >= 0.99, performance.now() / 1000);
-    } else {
-      player.lockedTargets = [];
-      player.lockProgress = Math.max(0, player.lockProgress - dt * 2.0);
-    }
+  const available = candidates.map(candidate => candidate.e);
+  if (!player.targetPinned && !available.includes(player.primaryTarget)) {
+    player.primaryTarget = available[0] || player.primaryTarget || enemies.find(enemy => enemy.alive) || null;
+  }
+  const primary = player.primaryTarget;
+  const previous = player.lockedTargets[0];
+  const selected = available.includes(primary) ? [primary] : [];
+  if (isSpw) selected.push(...available.filter(enemy => enemy !== primary));
+  player.lockedTargets = selected.slice(0, isSpw ? spec.spw.maxLocks : 1);
+  if (previous !== player.lockedTargets[0] || !player.lockedTargets.length) player.lockProgress = 0;
+  if (player.lockedTargets.length) {
+    player.lockProgress = Math.min(1, player.lockProgress + dt * (isSpw ? 1.6 : 1.45));
+    sfx.playLock(player.lockProgress >= 0.99, performance.now() / 1000);
   }
 }
 
+const bomberCircuit = [new THREE.Vector3(0, 320, 1050), new THREE.Vector3(950, 340, -240), new THREE.Vector3(-650, 310, -1250)];
+const fleetPatrolRadius = 320;
+
 function updateEnemies(dt) {
+  if (mode !== 'playing') return;
   let wakeIdx = 0;
   for (const e of enemies) {
     if (!e.alive) continue;
@@ -2238,9 +2304,9 @@ function updateEnemies(dt) {
       let desiredDir;
 
       if (e.type === 'bomber') {
-        // Steady approach toward allied airbase / island center
-        desiredDir = _v2.set(0, 300, 1250).sub(e.pos).normalize();
-        if (e.pos.z > 1100) desiredDir.set(Math.cos(missionTimer * 0.2), 0, -Math.sin(missionTimer * 0.2)).normalize();
+        e.waypoint ??= 0;
+        if (e.pos.distanceToSquared(bomberCircuit[e.waypoint]) < 160 ** 2) e.waypoint = (e.waypoint + 1) % bomberCircuit.length;
+        desiredDir = _v2.subVectors(bomberCircuit[e.waypoint], e.pos).normalize();
       } else {
         // Fighter & Crimson-1 Ace tactical dogfighting
         if (e.evadeTimer > 0) {
@@ -2286,13 +2352,14 @@ function updateEnemies(dt) {
     } else {
       // Ground & Naval Units
       if (e.type === 'carrier' || e.type === 'destroyer') {
+        e.heading += e.speed * dt / fleetPatrolRadius;
         const fwdX = Math.sin(e.heading), fwdZ = Math.cos(e.heading);
         e.pos.x += fwdX * e.speed * dt;
         e.pos.z += fwdZ * e.speed * dt;
         e.mesh.position.copy(e.pos);
         e.mesh.rotation.y = e.heading;
         if (e.mesh.userData.radarDish) e.mesh.userData.radarDish.rotation.y += dt * 1.4;
-        if (wakeIdx < 4) {
+        if (wakeIdx < wakeUniformData.length) {
           wakeUniformData[wakeIdx++].set(e.pos.x, e.pos.z, e.heading, e.type === 'carrier' ? 560 : 280);
         }
       }
@@ -2321,6 +2388,7 @@ function updateEnemies(dt) {
       }
     }
   }
+  for (; wakeIdx < wakeUniformData.length; wakeIdx++) wakeUniformData[wakeIdx].set(99999, 99999, 0, 0);
 }
 
 function updateProjectilesAndFX(dt) {
@@ -2484,6 +2552,11 @@ function updateCamera(dt) {
 // ============================================================================
 // 9. TACTICAL HUD CANVAS & RADAR MINIMAP
 // ============================================================================
+function strokeHUD(color, width) {
+  hudCtx.strokeStyle = 'rgba(5,18,29,.82)'; hudCtx.lineWidth = width + 2; hudCtx.stroke();
+  hudCtx.strokeStyle = color; hudCtx.lineWidth = width; hudCtx.stroke();
+}
+
 function drawHUD() {
   const w = hudCanvas.width, h = hudCanvas.height;
   hudCtx.clearRect(0, 0, w, h);
@@ -2493,21 +2566,18 @@ function drawHUD() {
   hudCtx.save();
 
   // Mouse-aim steering ring
-  const mx = cx + mouse.x * (w * 0.42);
-  const my = cy + mouse.y * (h * 0.42);
-  hudCtx.strokeStyle = 'rgba(100,216,255,0.75)';
-  hudCtx.lineWidth = 1.6;
-  hudCtx.beginPath(); hudCtx.arc(mx, my, 15, 0, Math.PI * 2); hudCtx.stroke();
-  hudCtx.beginPath(); hudCtx.moveTo(mx - 22, my); hudCtx.lineTo(mx - 12, my); hudCtx.moveTo(mx + 12, my); hudCtx.lineTo(mx + 22, my); hudCtx.stroke();
+  const mx = cx + stick.x * (w * 0.42);
+  const my = cy + stick.y * (h * 0.42);
+  hudCtx.beginPath(); hudCtx.arc(mx, my, 15, 0, Math.PI * 2);
+  hudCtx.moveTo(mx - 22, my); hudCtx.lineTo(mx - 12, my); hudCtx.moveTo(mx + 12, my); hudCtx.lineTo(mx + 22, my);
+  strokeHUD('#8ee4ff', 1.5);
 
   // Center aircraft boresight crosshair & Pitch Ladder
-  hudCtx.strokeStyle = 'rgba(86,245,164,0.85)';
-  hudCtx.lineWidth = 1.8;
   hudCtx.beginPath();
   hudCtx.moveTo(cx - 18, cy); hudCtx.lineTo(cx - 6, cy);
   hudCtx.moveTo(cx + 6, cy); hudCtx.lineTo(cx + 18, cy);
   hudCtx.moveTo(cx, cy - 12); hudCtx.lineTo(cx, cy - 4);
-  hudCtx.stroke();
+  strokeHUD('#86f8b8', 1.8);
 
   // Hit marker flash
   if (hitMarkerTimer > 0) {
@@ -2540,26 +2610,8 @@ function drawHUD() {
   }
   hudCtx.restore();
 
-  // Left Speed & Right Altitude Tactical Brackets
-  const kt = Math.round(player.speed * 2.1);
-  const alt = Math.round(player.pos.y);
-  hudCtx.font = 'bold 14px Consolas, monospace';
-  hudCtx.fillStyle = '#56f5a4';
-  hudCtx.textAlign = 'right';
-  hudCtx.fillText(`SPD ${kt} KT`, cx - 155, cy + 5);
-  hudCtx.fillStyle = player.throttle > 0.85 ? '#ffb23e' : 'rgba(86,245,164,0.75)';
-  hudCtx.font = '11px Consolas, monospace';
-  hudCtx.fillText(player.throttle > 0.85 ? 'AFTERBURNER' : `THR ${Math.round(player.throttle*100)}%`, cx - 155, cy + 21);
-
-  hudCtx.textAlign = 'left';
-  hudCtx.font = 'bold 14px Consolas, monospace';
-  hudCtx.fillStyle = alt < 45 ? '#ff4949' : '#56f5a4';
-  hudCtx.fillText(`ALT ${alt} M`, cx + 155, cy + 5);
-  hudCtx.font = '11px Consolas, monospace';
-  hudCtx.fillStyle = 'rgba(86,245,164,0.75)';
-  hudCtx.fillText(`MACH ${(player.speed / 230).toFixed(2)}`, cx + 155, cy + 21);
-
   // Enemy Target Boxes, Multi-Lock Diamonds & Dynamic Cannon Lead Reticle
+  let selectedTag = null;
   for (const e of enemies) {
     if (!e.alive) continue;
     const p3 = e.pos.clone().project(camera);
@@ -2571,11 +2623,10 @@ function drawHUD() {
     const isPrimary = e === player.primaryTarget;
 
     if (inFront && sx > 20 && sx < w - 20 && sy > 20 && sy < h - 20) {
-      const boxCol = isLocked && player.lockProgress >= 0.99 ? '#ff4949' : e.isBoss ? '#ffb23e' : isPrimary ? '#56f5a4' : 'rgba(100,216,255,0.72)';
-      hudCtx.strokeStyle = boxCol;
-      hudCtx.lineWidth = isPrimary || isLocked ? 2 : 1.2;
-      const sz = isPrimary ? 16 : 12;
-      hudCtx.strokeRect(sx - sz, sy - sz, sz * 2, sz * 2);
+      const boxCol = isLocked && player.lockProgress >= 0.99 ? '#ff766c' : e.isBoss ? '#ffbe5a' : isPrimary ? '#76ffaf' : '#9ae4ff';
+      const sz = isPrimary ? 15 : 8;
+      hudCtx.beginPath(); hudCtx.rect(sx - sz, sy - sz, sz * 2, sz * 2);
+      strokeHUD(boxCol, isPrimary || isLocked ? 2 : 1);
 
       // Rotating Lock-on Diamond
       if (isLocked) {
@@ -2583,17 +2634,13 @@ function drawHUD() {
         const dsz = 18 + (1 - player.lockProgress) * 18;
         hudCtx.save();
         hudCtx.translate(sx, sy); hudCtx.rotate(Math.PI / 4 + rot);
-        hudCtx.strokeStyle = player.lockProgress >= 0.99 ? '#ff4949' : '#ffb23e';
-        hudCtx.lineWidth = 2;
-        hudCtx.strokeRect(-dsz / 2, -dsz / 2, dsz, dsz);
+        hudCtx.beginPath(); hudCtx.rect(-dsz / 2, -dsz / 2, dsz, dsz);
+        strokeHUD(player.lockProgress >= 0.99 ? '#ff766c' : '#ffbe5a', 2);
         hudCtx.restore();
       }
 
       // Label + Distance + HP mini bar
-      hudCtx.fillStyle = boxCol;
-      hudCtx.font = 'bold 10.5px Consolas, monospace';
-      hudCtx.textAlign = 'center';
-      hudCtx.fillText(`${e.label} ${dist}m`, sx, sy - sz - 5);
+      if (isPrimary) selectedTag = { sx, sy, sz, color:boxCol, text:`${e.label} ${dist}m` };
       if (e.hp < e.maxHp) {
         hudCtx.fillStyle = 'rgba(0,0,0,0.5)'; hudCtx.fillRect(sx - 18, sy + sz + 4, 36, 4);
         hudCtx.fillStyle = boxCol; hudCtx.fillRect(sx - 18, sy + sz + 4, 36 * (e.hp / e.maxHp), 4);
@@ -2623,8 +2670,20 @@ function drawHUD() {
       hudCtx.translate(ax, ay); hudCtx.rotate(ang);
       hudCtx.fillStyle = e.isBoss ? '#ffb23e' : '#56f5a4';
       hudCtx.beginPath(); hudCtx.moveTo(10, 0); hudCtx.lineTo(-6, -6); hudCtx.lineTo(-6, 6); hudCtx.closePath(); hudCtx.fill();
+      hudCtx.strokeStyle = '#10212c'; hudCtx.lineWidth = 1.5; hudCtx.stroke();
       hudCtx.restore();
     }
+  }
+  if (selectedTag) {
+    const { sx, sy, sz, color, text } = selectedTag;
+    hudCtx.font = 'bold 12px Consolas, monospace';
+    const width = Math.ceil(hudCtx.measureText(text).width) + 12;
+    const left = Math.max(4, Math.min(w - width - 4, sx - width / 2));
+    const top = sy > sz + 24 ? sy - sz - 21 : sy + sz + 3;
+    hudCtx.fillStyle = 'rgba(5,18,29,.92)'; hudCtx.fillRect(left, top, width, 18);
+    hudCtx.fillStyle = color; hudCtx.fillRect(left, top, 3, 18);
+    hudCtx.fillStyle = '#f1f8ff'; hudCtx.textAlign = 'left'; hudCtx.textBaseline = 'middle';
+    hudCtx.fillText(text, left + 6, top + 9);
   }
   hudCtx.restore();
 
@@ -2647,7 +2706,7 @@ function drawRadar() {
   const toRadar = (wx, wz) => {
     const dx = wx - player.pos.x, dz = wz - player.pos.z;
     const rx = (dx * cos - dz * sin) * scale;
-    const ry = -(dx * sin + dz * cos) * scale;
+    const ry = (dx * sin + dz * cos) * scale;
     return [c - rx, c - ry];
   };
 
@@ -2692,14 +2751,18 @@ function formatTime(sec) {
 
 function updateWeaponUI() {
   const spec = JETS[selJetIdx];
-  document.getElementById('mslCount').textContent = `${player.mslAmmo} / 2`;
+  document.getElementById('mslCount').textContent = `${player.mslAmmo}/2${player.mslReload > 0 ? ` · ${Math.ceil(player.mslReload)}s` : ''}`;
   document.getElementById('spwName').textContent = `SPW · ${spec.spw.code}`;
-  document.getElementById('spwCount').textContent = player.spwReload > 0 ? I18N[lang].reloading : `${player.spwAmmo}`;
+  document.getElementById('spwCount').textContent = `${player.spwAmmo}${player.spwReload > 0 ? ` · ${Math.ceil(player.spwReload)}s` : ''}`;
+  document.getElementById('wpGun').classList.toggle('on', isHeld('cannon'));
   document.getElementById('wpMsl').classList.toggle('on', player.activeWeapon === 'msl');
   document.getElementById('wpSpw').classList.toggle('on', player.activeWeapon === 'spw');
 }
 
 function updateHUDDom() {
+  const text = I18N[lang];
+  document.getElementById('hudSpeed').textContent = `${text.speed} ${Math.round(player.speed)}`;
+  document.getElementById('hudAltitude').textContent = `${text.altitude} ${Math.round(player.pos.y)}`;
   const hpPct = Math.max(0, Math.round((player.hp / player.maxHp) * 100));
   document.getElementById('hpTxt').textContent = `${hpPct}%`;
   const hpFill = document.getElementById('hpFill');
@@ -2710,11 +2773,11 @@ function updateHUDDom() {
   document.getElementById('flareFill').style.width = `${flPct}%`;
   document.getElementById('flareTxt').textContent = player.flareCd <= 0 ? I18N[lang].ready : `${player.flareCd.toFixed(1)}s`;
 
-  const alive = enemies.filter(e => e.alive).length;
   document.getElementById('objMission').textContent = MISSIONS[selMissionIdx].name[lang];
-  document.getElementById('objText').textContent = I18N[lang][`objM${selMissionIdx + 1}`];
-  document.getElementById('hudTargets').textContent = `TGT ${missionKills}/${totalMissionTargets} (${alive} LIVE)`;
-  document.getElementById('hudScore').textContent = `SCORE ${missionScore}`;
+  const finalStage = (selMissionIdx === 0 && m1Wave2Spawned) || (selMissionIdx === 2 && m3AceSpawned);
+  document.getElementById('objText').textContent = text[`objM${selMissionIdx + 1}${finalStage ? 'Final' : ''}`];
+  document.getElementById('hudTargets').textContent = `${text.targets} ${missionKills}/${totalMissionTargets}`;
+  document.getElementById('hudScore').textContent = `${text.score} ${missionScore}`;
   document.getElementById('hudTime').textContent = formatTime(missionTimer);
   document.getElementById('camBadge').textContent = cameraMode === '1p' ? I18N[lang].cam1p : I18N[lang].cam3p;
   updateWeaponUI();
@@ -2730,19 +2793,22 @@ function renderHangarUI() {
     const k = el.getAttribute('data-i18n-html');
     if (I18N[lang][k]) el.innerHTML = I18N[lang][k];
   });
-  document.getElementById('controlsStrip').innerHTML = I18N[lang].controls;
+  document.getElementById('langBtn').textContent = lang === 'zh' ? 'English' : '中文';
+  document.getElementById('invertBtn').textContent = I18N[lang][invertY ? 'on' : 'off'];
 
   const jList = document.getElementById('jetList');
   jList.innerHTML = JETS.map((j, i) => `
-    <button class="choice-card ${i === selJetIdx ? 'sel' : ''}" data-jet="${i}">
+    <button class="choice-card ${i === selJetIdx ? 'sel' : ''}" aria-pressed="${i === selJetIdx}" data-jet="${i}">
       <div class="c-top"><span class="c-name">${j.name[lang]}</span><span class="c-tag ${j.tagCls}">${j.tag[lang]}</span></div>
       <div class="c-desc">${j.desc[lang]}</div>
     </button>
   `).join('');
   jList.querySelectorAll('[data-jet]').forEach(btn => btn.onclick = () => {
+    if (selJetIdx === Number(btn.dataset.jet)) return;
     selJetIdx = Number(btn.dataset.jet);
     buildPlayerAircraft();
     renderHangarUI();
+    jList.querySelector('[aria-pressed="true"]').focus({ preventScroll:true });
   });
 
   const curJet = JETS[selJetIdx];
@@ -2757,54 +2823,62 @@ function renderHangarUI() {
 
   const mList = document.getElementById('missionList');
   mList.innerHTML = MISSIONS.map((m, i) => `
-    <button class="choice-card ${i === selMissionIdx ? 'sel' : ''}" data-mission="${i}">
+    <button class="choice-card ${i === selMissionIdx ? 'sel' : ''}" aria-pressed="${i === selMissionIdx}" data-mission="${i}">
       <div class="c-top"><span class="c-name">${m.name[lang]}</span><span class="c-tag ${m.tagCls}">${m.tag[lang]}</span></div>
       <div class="c-desc">${m.desc[lang]}</div>
     </button>
   `).join('');
   mList.querySelectorAll('[data-mission]').forEach(btn => btn.onclick = () => {
+    if (selMissionIdx === Number(btn.dataset.mission)) return;
     selMissionIdx = Number(btn.dataset.mission);
     loadMissionScene(selMissionIdx, true);
     renderHangarUI();
+    mList.querySelector('[aria-pressed="true"]').focus({ preventScroll:true });
   });
   document.getElementById('missionCode').textContent = MISSIONS[selMissionIdx].code;
 }
 
+function setScreen(next) {
+  clearFlightInputs();
+  mode = next;
+  const playing = next === 'playing', paused = next === 'paused', hangar = next === 'hangar';
+  const top = document.getElementById('topBar'), utilities = document.getElementById('utilities');
+  (paused ? document.getElementById('pauseUtilities') : top).append(utilities);
+  top.classList.toggle('in-flight', playing);
+  top.classList.toggle('hidden', !playing && !hangar);
+  utilities.classList.toggle('hidden', playing);
+  document.getElementById('backHome').classList.toggle('hidden', !hangar);
+  document.getElementById('pauseBtn').classList.toggle('hidden', !playing);
+  document.getElementById('hud').classList.toggle('hidden', !playing);
+  document.getElementById('hangar').classList.toggle('hidden', !hangar);
+  document.getElementById('pauseModal').classList.toggle('hidden', !paused);
+  document.getElementById('debriefModal').classList.toggle('hidden', next !== 'debrief');
+  document.querySelectorAll('.flight-help[open]').forEach(help => { help.open = false; });
+  if (!playing) sfx.updateEngine(false, 0);
+  if (playing) glCanvas.focus({ preventScroll:true });
+  if (paused || next === 'debrief') document.querySelector('.modal:not(.hidden) .modal-card').scrollTop = 0;
+  if (paused) document.getElementById('btnResume').focus({ preventScroll:true });
+  if (hangar) document.getElementById('sortieBtn').focus({ preventScroll:true });
+}
+
 function startSortie() {
   sfx.init();
-  mode = 'playing';
   cameraMode = '3p';
-  document.getElementById('hangar').classList.add('hidden');
-  document.getElementById('pauseModal').classList.add('hidden');
-  document.getElementById('debriefModal').classList.add('hidden');
-  document.getElementById('hud').classList.remove('hidden');
-  document.getElementById('pauseBtn').classList.remove('hidden');
+  setScreen('playing');
   loadMissionScene(selMissionIdx, false);
   updateHUDDom();
 }
 
 function returnToHangar() {
-  mode = 'hangar';
-  sfx.updateEngine(false, 0);
-  document.getElementById('hud').classList.add('hidden');
-  document.getElementById('pauseBtn').classList.add('hidden');
-  document.getElementById('pauseModal').classList.add('hidden');
-  document.getElementById('debriefModal').classList.add('hidden');
-  document.getElementById('hangar').classList.remove('hidden');
+  setScreen('hangar');
   loadMissionScene(selMissionIdx, true);
   buildPlayerAircraft();
   renderHangarUI();
 }
 
 function togglePause() {
-  if (mode === 'playing') {
-    mode = 'paused';
-    sfx.updateEngine(false, 0);
-    document.getElementById('pauseModal').classList.remove('hidden');
-  } else if (mode === 'paused') {
-    mode = 'playing';
-    document.getElementById('pauseModal').classList.add('hidden');
-  }
+  if (mode === 'playing') setScreen('paused');
+  else if (mode === 'paused') setScreen('playing');
 }
 
 function cycleQuality() {
@@ -2827,15 +2901,19 @@ document.getElementById('btnHangar').onclick = returnToHangar;
 document.getElementById('dBtnHangar').onclick = returnToHangar;
 document.getElementById('dBtnRetry').onclick = startSortie;
 document.getElementById('dBtnNext').onclick = () => {
-  selMissionIdx = Math.min(MISSIONS.length - 1, selMissionIdx + 1);
+  if (mode !== 'debrief' || document.getElementById('dBtnNext').classList.contains('hidden')) return;
+  selMissionIdx++;
   startSortie();
 };
 document.getElementById('qualBtn').onclick = cycleQuality;
 document.getElementById('pauseQualBtn').onclick = cycleQuality;
 document.getElementById('langBtn').onclick = () => {
+  const radio = document.getElementById('radioBox');
+  const message = Object.keys(I18N[lang]).find(key => I18N[lang][key] === radio.textContent);
   lang = lang === 'zh' ? 'en' : 'zh';
   renderHangarUI();
-  if (mode === 'playing') updateHUDDom();
+  if (message) radio.textContent = I18N[lang][message];
+  if (mode === 'playing' || mode === 'paused') updateHUDDom();
 };
 document.getElementById('muteBtn').onclick = () => {
   sfx.init();
@@ -2844,51 +2922,161 @@ document.getElementById('muteBtn').onclick = () => {
 };
 document.getElementById('sensSlider').oninput = e => { mouseSens = parseFloat(e.target.value); };
 document.getElementById('invertBtn').onclick = e => {
-  invertY = !invertY; e.target.textContent = invertY ? 'ON' : 'OFF';
+  invertY = !invertY; e.target.textContent = I18N[lang][invertY ? 'on' : 'off'];
 };
 
-window.addEventListener('mousemove', e => {
-  mouse.x = (e.clientX / innerWidth) * 2 - 1;
-  mouse.y = (e.clientY / innerHeight) * 2 - 1;
-});
-window.addEventListener('mousedown', e => {
-  if (mode !== 'playing') return;
-  sfx.init();
-  if (e.button === 0) mouse.downL = true;
-  if (e.button === 2) mouse.downR = true;
-});
-window.addEventListener('mouseup', e => {
-  if (e.button === 0) mouse.downL = false;
-  if (e.button === 2) mouse.downR = false;
-});
-window.addEventListener('contextmenu', e => { if (mode === 'playing') e.preventDefault(); });
+const flightKeys = {
+  ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right',
+  KeyW:'boost', KeyS:'brake', KeyA:'rollLeft', KeyD:'rollRight', KeyJ:'cannon',
+  Space:'launch', KeyQ:'swap', Tab:'swap', KeyE:'target', KeyV:'view', KeyC:'view',
+  KeyF:'flare', ShiftLeft:'flare', ShiftRight:'flare'
+};
+const touchControls = document.getElementById('touchControls');
+const stickBase = document.getElementById('stickBase'), stickKnob = document.getElementById('stickKnob');
+document.documentElement.classList.toggle('touch-flight', navigator.maxTouchPoints > 0 && matchMedia('(pointer:coarse)').matches);
+window.addEventListener('pointerdown', event => {
+  if (event.pointerType === 'touch' || event.pointerType === 'pen') document.documentElement.classList.add('touch-flight');
+  if (event.pointerType === 'mouse' && !capturedPointers.size && !touchControls.contains(event.target)) document.documentElement.classList.remove('touch-flight');
+}, { capture:true });
 
-window.addEventListener('keydown', e => {
-  keys[e.code] = true;
-  if (e.code === 'Escape' || e.code === 'KeyP') { if (mode === 'playing' || mode === 'paused') togglePause(); }
-  if (mode !== 'playing') return;
-  if (e.code === 'Space') { e.preventDefault(); fireMissile(); }
-  if (e.code === 'KeyQ' || e.code === 'Tab') {
-    e.preventDefault();
+function isHeld(action) {
+  for (const active of heldInputs.values()) if (active === action) return true;
+  return false;
+}
+
+function pressFlight(source, action) {
+  if (mode !== 'playing' || heldInputs.has(source)) return;
+  heldInputs.set(source, action);
+  touchControls.querySelector(`[data-flight="${action}"]`)?.classList.add('held');
+  if (action === 'cannon') fireCannon();
+  if (action === 'launch') fireMissile();
+  if (action === 'flare') deployFlares();
+  if (action === 'swap') {
     player.activeWeapon = player.activeWeapon === 'msl' ? 'spw' : 'msl';
     player.lockProgress = 0;
+    player.lockedTargets = [];
     updateWeaponUI();
   }
-  if (e.code === 'KeyF' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') deployFlares();
-  if (e.code === 'KeyV' || e.code === 'KeyC') {
+  if (action === 'view') {
     cameraMode = cameraMode === '3p' ? '1p' : '3p';
     updateHUDDom();
   }
-  if (e.code === 'KeyE') {
-    const alive = enemies.filter(x => x.alive);
+  if (action === 'target') {
+    const alive = enemies.filter(enemy => enemy.alive);
     if (alive.length) {
-      const idx = alive.indexOf(player.primaryTarget);
-      player.primaryTarget = alive[(idx + 1) % alive.length];
+      player.primaryTarget = alive[(alive.indexOf(player.primaryTarget) + 1) % alive.length];
+      player.targetPinned = true;
       player.lockProgress = 0;
+      player.lockedTargets = [];
     }
   }
+}
+
+function releaseFlight(source) {
+  const action = heldInputs.get(source);
+  if (!action) return;
+  heldInputs.delete(source);
+  if (!isHeld(action)) touchControls.querySelector(`[data-flight="${action}"]`)?.classList.remove('held');
+}
+
+function clearFlightInputs() {
+  heldInputs.clear();
+  touchControls.querySelectorAll('.held').forEach(button => button.classList.remove('held'));
+  steerDrag = null;
+  aim.x = aim.y = stick.x = stick.y = 0;
+  stickBase.classList.remove('active');
+  for (const [pointerId, owner] of capturedPointers) {
+    if (owner.hasPointerCapture(pointerId)) owner.releasePointerCapture(pointerId);
+  }
+  capturedPointers.clear();
+}
+
+function syncMouseButtons(buttons) {
+  if (buttons & 1) pressFlight('mouseLeft', 'cannon'); else releaseFlight('mouseLeft');
+  if (buttons & 2) pressFlight('mouseRight', 'launch'); else releaseFlight('mouseRight');
+}
+
+function capture(event, owner) {
+  event.preventDefault();
+  owner.setPointerCapture(event.pointerId);
+  capturedPointers.set(event.pointerId, owner);
+}
+
+glCanvas.addEventListener('pointerdown', event => {
+  if (mode !== 'playing') return;
+  if (event.pointerType === 'mouse') {
+    capture(event, glCanvas);
+    syncMouseButtons(event.buttons);
+  } else if (!steerDrag) {
+    capture(event, glCanvas);
+    steerDrag = { id:event.pointerId, x:event.clientX, y:event.clientY };
+    aim.x = aim.y = 0;
+    stickBase.style.left = `${event.clientX}px`; stickBase.style.top = `${event.clientY}px`;
+    stickKnob.style.transform = 'none'; stickBase.classList.add('active');
+  }
 });
-window.addEventListener('keyup', e => { keys[e.code] = false; });
+glCanvas.addEventListener('pointermove', event => {
+  if (mode !== 'playing') return;
+  if (event.pointerType === 'mouse' && !steerDrag) {
+    aim.x = event.clientX / innerWidth * 2 - 1; aim.y = event.clientY / innerHeight * 2 - 1;
+    if (capturedPointers.has(event.pointerId)) syncMouseButtons(event.buttons);
+  } else if (steerDrag?.id === event.pointerId) {
+    const dx = event.clientX - steerDrag.x, dy = event.clientY - steerDrag.y;
+    const radius = Math.max(42, Math.hypot(dx, dy));
+    aim.x = dx / radius; aim.y = dy / radius;
+    stickKnob.style.transform = `translate(${aim.x * 32}px,${aim.y * 32}px)`;
+  }
+});
+glCanvas.addEventListener('pointerleave', event => {
+  if (event.pointerType === 'mouse' && !steerDrag && !capturedPointers.has(event.pointerId)) aim.x = aim.y = 0;
+});
+glCanvas.addEventListener('contextmenu', event => { if (mode === 'playing') event.preventDefault(); });
+touchControls.addEventListener('pointerdown', event => {
+  const button = event.target.closest('[data-flight]');
+  if (!button || mode !== 'playing' || event.button !== 0) return;
+  capture(event, button);
+  pressFlight(event.pointerId, button.dataset.flight);
+});
+touchControls.addEventListener('click', event => {
+  const button = event.target.closest('[data-flight]');
+  if (button && event.detail === 0) { pressFlight('activate', button.dataset.flight); releaseFlight('activate'); }
+});
+function releasePointer(event) {
+  const owner = capturedPointers.get(event.pointerId);
+  if (!owner || (event.type === 'lostpointercapture' && owner !== event.target)) return;
+  capturedPointers.delete(event.pointerId);
+  if (owner === glCanvas && event.pointerType === 'mouse') syncMouseButtons(0);
+  if (steerDrag?.id === event.pointerId) {
+    steerDrag = null; aim.x = aim.y = 0; stickBase.classList.remove('active');
+  }
+  releaseFlight(event.pointerId);
+}
+for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) window.addEventListener(type, releasePointer);
+
+window.addEventListener('keydown', event => {
+  if (event.altKey || event.ctrlKey || event.metaKey) return;
+  if ((event.code === 'Escape' || event.code === 'KeyP') && (mode === 'playing' || mode === 'paused')) {
+    event.preventDefault();
+    if (!event.repeat) togglePause();
+    return;
+  }
+  const action = flightKeys[event.code];
+  if (mode !== 'playing' || !action || (event.target !== glCanvas && event.target !== document.body)) return;
+  event.preventDefault();
+  if (!event.repeat) {
+    if (event.code.startsWith('Arrow')) aim.x = aim.y = 0;
+    pressFlight(event.code, action);
+  }
+});
+window.addEventListener('keyup', event => releaseFlight(event.code));
+function interruptFlight() {
+  if (mode === 'playing') setScreen('paused');
+}
+window.addEventListener('blur', interruptFlight);
+window.addEventListener('pagehide', interruptFlight);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) interruptFlight();
+});
 
 function onResize() {
   camera.aspect = innerWidth / innerHeight;

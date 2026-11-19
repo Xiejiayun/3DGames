@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
+import { checkTouchGestures } from './test-prism-touch.mjs';
 
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
@@ -148,6 +149,7 @@ try {
     assert.deepEqual(obstructed, [], `fully visible and tappable: ${selector}`);
   };
   await settleTouch();
+  await checkTouchGestures(touch);
   assert.equal(await menu.getAttribute('aria-expanded'), 'false');
   await touch.locator('#tray [data-key="flat"]').tap();
   await settleTouch();
@@ -182,7 +184,7 @@ try {
     }
   }
   assert.deepEqual(errors, []);
-  console.log(`PASS Prism Vault: ${checks.length} puzzle checks, offline WebGL, dialog input isolation, board controls, preview lifetimes, compact touch controls, first-mirror lesson and language continuity`);
+  console.log(`PASS Prism Vault: ${checks.length} puzzle checks, offline WebGL, dialog input isolation, board controls, preview lifetimes, compact touch controls, pinch and interruption recovery, first-mirror lesson and language continuity`);
 } finally {
   await browser.close();
 }

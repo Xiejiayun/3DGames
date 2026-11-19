@@ -11,6 +11,7 @@
 | **Turbo Kart 3D · 极速卡丁车** | 3D 卡丁车竞速 | [`games/kart.html`](games/kart.html) |
 | **Ace Archipelago · 王牌群岛** | 3D 现代海岛空战（[场景清单与验收](docs/ace-scene-review.md)） | [`games/ace.html`](games/ace.html) |
 | **Prism Vault · 棱镜密室** | 3D 光学解谜：在十间密室中用镜子、棱镜与滤色晶体引导光束 | [`games/prism.html`](games/prism.html) |
+| **Iron Core Arena · 铁核竞技场** | 俯视角机甲生存：三款机甲、八波攻势与波间模块改装 | [`games/ironcore.html`](games/ironcore.html) |
 
 ## 目录结构
 
@@ -27,7 +28,8 @@
 │   ├── flappy.html
 │   ├── kart.html
 │   ├── ace.html
-│   └── prism.html
+│   ├── prism.html
+│   └── ironcore.html
 ├── scripts/             # 静态站点构建脚本
 ├── index.html           # 游戏合集首页
 ├── cloudflare.config.ts # Cloudflare Workers 配置
@@ -73,6 +75,7 @@ npm ci
 npm run build
 npm run test:home
 npm run test:prism
+npm run test:ironcore
 npx cf deploy --prebuilt --mode production --dry-run
 ```
 

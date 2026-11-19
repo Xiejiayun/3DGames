@@ -9613,6 +9613,7 @@ void main() {
     if (dust) {
       fxRoot.remove(dust.points);
       dust.geo.dispose();
+      dust.mat.dispose();
     }
     dust = new Dust(q === "low" ? 150 : 300);
     fxRoot.add(dust.points);

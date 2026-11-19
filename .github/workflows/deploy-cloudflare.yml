@@ -44,7 +44,7 @@ jobs:
   validate:
     name: Validate site
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       CF_SEND_TELEMETRY: "false"
     steps:
@@ -115,6 +115,9 @@ jobs:
 
       - name: Check Iron Core Arena combat and camera
         run: npm run test:ironcore
+
+      - name: Check Skyhold Bastion towers and waves
+        run: npm run test:skyhold
 
       - name: Validate deployment package (dry run, no upload)
         run: npx cf deploy --prebuilt --mode production --dry-run

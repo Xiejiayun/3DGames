@@ -12,6 +12,7 @@
 | **Ace Archipelago · 王牌群岛** | 3D 现代海岛空战（[场景清单与验收](docs/ace-scene-review.md)） | [`games/ace.html`](games/ace.html) |
 | **Prism Vault · 棱镜密室** | 3D 光学解谜：在十间密室中用镜子、棱镜与滤色晶体引导光束 | [`games/prism.html`](games/prism.html) |
 | **Iron Core Arena · 铁核竞技场** | 俯视角机甲生存：三款机甲、八波攻势与波间模块改装 | [`games/ironcore.html`](games/ironcore.html) |
+| **Skyhold Bastion · 浮空要塞** | 3D 塔防：在三座浮岛上搭配五种防御塔，抵御地面与空中攻势 | [`games/skyhold.html`](games/skyhold.html) |
 
 ## 目录结构
 
@@ -29,7 +30,8 @@
 │   ├── kart.html
 │   ├── ace.html
 │   ├── prism.html
-│   └── ironcore.html
+│   ├── ironcore.html
+│   └── skyhold.html
 ├── scripts/             # 静态站点构建脚本
 ├── index.html           # 游戏合集首页
 ├── cloudflare.config.ts # Cloudflare Workers 配置
@@ -76,6 +78,7 @@ npm run build
 npm run test:home
 npm run test:prism
 npm run test:ironcore
+npm run test:skyhold
 npx cf deploy --prebuilt --mode production --dry-run
 ```
 

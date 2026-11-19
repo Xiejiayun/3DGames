@@ -87,8 +87,6 @@ body.lowfx .panel, body.lowfx #toast { backdrop-filter: none; -webkit-backdrop-f
 #ctx button[disabled] { opacity: .35; cursor: default; }
 #trayWrap { display: flex; align-items: stretch; gap: 8px; padding: 8px; }
 #tray { display: flex; gap: 8px; position: relative; }
-#tray.recall { outline: 1.5px dashed var(--gold); outline-offset: 3px; border-radius: 10px; }
-#tray .recallTip { position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translateX(-50%); white-space: nowrap; font-size: 11px; color: var(--gold); letter-spacing: .04em; }
 .card { position: relative; width: 104px; height: 84px; border-radius: 11px; border: 1px solid var(--line); background: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .02)); display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 4px 4px 6px; transition: transform .16s, border-color .16s, box-shadow .16s; }
 .card:hover { transform: translateY(-2px); border-color: var(--gold); }
 .card.held { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(228, 194, 122, .55), 0 0 22px rgba(228, 194, 122, .45); background: linear-gradient(180deg, rgba(228, 194, 122, .34), rgba(228, 194, 122, .08)); }
@@ -206,7 +204,7 @@ ul.rules { margin: 14px 0 6px; padding-left: 18px; font-size: 12.5px; line-heigh
   #bottom { left: var(--edge-l); right: var(--edge-r); bottom: var(--edge-b); transform: none; gap: 4px; }
   #trayWrap { width: 100%; max-width: 480px; display: grid; gap: 4px; padding: 4px; }
   #tray { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; }
-  #bottom kbd, #trayWrap .sep, #tray .recallTip { display: none; }
+  #bottom kbd, #trayWrap .sep { display: none; }
   .card { width: 100%; min-width: 0; height: 55px; padding: 3px; justify-content: center; }
   .card .ico { width: 26px; height: 26px; flex-shrink: 0; } .card .nm { white-space: normal; line-height: 1.05; font-size: 11px; } .card .ct { top: 2px; right: 4px; font-size: 10px; }
   #acts { gap: 4px; } .act { flex: 1; min-height: 40px; flex-direction: row; gap: 5px; }
@@ -8731,10 +8729,9 @@ void main() {
       dismissGuide: "关闭引导",
       noWebGL: "本设备不支持 WebGL。请使用支持 WebGL 2 的浏览器。",
       langName: "中文",
-      trayRecall: "点托盘：收回选中的元件",
       held: () => "点空槽放下 · R / F 可先转好方向",
       heldName: (n) => "已拿起「" + n + "」",
-      selected: () => "点空槽 = 移动 · 点托盘 = 回收",
+      selected: () => "点空槽移动 · 用「回收」取下",
       selName: (n) => "已选中「" + n + "」",
       why: {
         wall: "墙面挡光",
@@ -8803,7 +8800,7 @@ void main() {
         ["单指拖动 / 右键拖拽 / WASD", "环绕查看石殿"],
         ["双指开合 / 滚轮", "拉近或拉远视角"],
         ["Space", "回到初始视角"],
-        ["轻点 / 左键", "选元件，再点目标槽或托盘"],
+        ["轻点 / 左键", "点托盘取件，点空槽放置。要取下元件，选中它再点「回收」。"],
         ["R / F", "水平旋转 90° / 翻转升降镜"],
         ["1 2 3 4", "水平镜 · 升降镜 · 分光棱镜 · 滤色晶体"],
         ["Z / Backspace / H", "撤销 / 重置 / 提示"],
@@ -8865,10 +8862,9 @@ void main() {
       dismissGuide: "Dismiss tutorial",
       noWebGL: "WebGL is unavailable. Use a browser with WebGL 2 support.",
       langName: "English",
-      trayRecall: "Click the tray to recall the selected piece",
       held: () => "Click an empty slot · R / F to pre-turn",
       heldName: (n) => "Holding: " + n,
-      selected: () => "Empty slot = move · tray = recall",
+      selected: () => "Tap an empty slot to move · Recall to remove",
       selName: (n) => "Selected: " + n,
       why: {
         wall: "Blocked by a wall",
@@ -8937,7 +8933,7 @@ void main() {
         ["One-finger drag / Right-drag / WASD", "Orbit the hall"],
         ["Pinch / Wheel", "Zoom in or out"],
         ["Space", "Restore the starting view"],
-        ["Tap / Left click", "Pick an instrument, then a slot or the tray"],
+        ["Tap / Left click", "Pick from the tray, then tap an empty slot. To remove an instrument, select it and choose Recall."],
         ["R / F", "Turn 90° / flip an elevation mirror"],
         ["1 2 3 4", "Flat · Elevation · Splitter · Filter"],
         ["Z / Backspace / H", "Undo / reset / hint"],
@@ -9051,9 +9047,6 @@ void main() {
       this.el("#guide .gx").addEventListener("click", () => this.h.onDismissGuide());
       this.guideSocket = this.el("#guide-socket");
       this.guideSocket.addEventListener("click", () => this.h.onGuideSocket());
-      this.el("#trayWrap").addEventListener("click", (e) => {
-        if (!e.target.closest(".card") && !e.target.closest(".act")) this.h.onTrayArea();
-      });
       this.el("#overlay").addEventListener("click", (e) => {
         if (e.target.id === "overlay") this.closeOverlay();
       });
@@ -9111,11 +9104,10 @@ void main() {
         e.classList.add("pulse");
       }
     }
-    setTray(items, heldKey, recallMode) {
+    setTray(items, heldKey) {
       const tray = this.el("#tray");
-      tray.classList.toggle("recall", !!recallMode);
       tray.innerHTML = items.map((it) => `
-      <button class="card ${it.key === heldKey ? "held" : ""} ${it.left <= 0 ? "empty" : ""}" data-key="${it.key}">
+      <button class="card ${it.key === heldKey ? "held" : ""} ${it.left <= 0 ? "empty" : ""}" data-key="${it.key}" aria-pressed="${it.key === heldKey}">
         <kbd>${it.hot}</kbd><span class="ico">${it.icon}</span>
         <span class="nm">${it.name}</span><span class="ct">×${it.left}</span>
       </button>`).join("");
@@ -9155,7 +9147,7 @@ void main() {
       c.innerHTML = `<span class="ci"><b>${info.name}</b><small>${info.text}</small></span>
       <button data-c="rotate" ${info.canRotate ? "" : "disabled"}><kbd>R</kbd>${t("rotate")}</button>
       <button data-c="flip" ${info.canFlip ? "" : "disabled"}><kbd>F</kbd>${t("flip")}</button>
-      ${info.mode === "selected" ? `<button data-c="recall"><kbd>⇣</kbd>${t("recall")}</button>` : ""}
+      ${info.mode === "selected" ? `<button data-c="recall">${t("recall")}</button>` : ""}
       <button data-c="cancel"><kbd>Esc</kbd>${t("cancel")}</button>`;
       c.querySelectorAll("button").forEach((b) => {
         b.addEventListener("mousedown", (e) => e.preventDefault());
@@ -9616,13 +9608,6 @@ void main() {
       resetGesture();
     },
     onTray: (key) => trayClick(key),
-    onTrayArea: () => {
-      if (G.selectedId != null) act("recall");
-      else if (G.held) {
-        G.held = null;
-        refreshUI();
-      }
-    },
     onFloor: (f) => setFloor(f),
     onLevel: (n) => changeLevel(n),
     onNext: () => {
@@ -10283,7 +10268,7 @@ void main() {
   function refreshUI() {
     if (!G.L) return;
     ui.texts(G);
-    ui.setTray(trayItems(), G.held && G.held.key, G.selectedId != null);
+    ui.setTray(trayItems(), G.held && G.held.key);
     ui.setFloors(levelFloors(), G.floorSel);
     if (G.held) {
       const it = itemFromKey(G.held.key);
@@ -10297,10 +10282,6 @@ void main() {
   }
   function trayClick(key) {
     sound.ensure();
-    if (G.selectedId != null) {
-      act("recall");
-      return;
-    }
     if (G.held && G.held.key === key) {
       G.held = null;
       sound.play("cancel");
@@ -10311,6 +10292,7 @@ void main() {
       ui.toast(t("none"));
       return;
     }
+    G.selectedId = null;
     G.held = { key, k: 0, f: 0, manual: false };
     sound.play("pick");
     refreshUI();

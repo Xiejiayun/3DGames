@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { checkTouchGestures } from './test-prism-touch.mjs';
+import { checkTrayChoices } from './test-prism-tray.mjs';
 
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
@@ -132,6 +133,7 @@ try {
   await switchLanguage();
   await page.reload(); await page.locator('#boot').waitFor({ state: 'detached' });
   assert.equal(await language(), 'zh-CN', 'reload keeps the change even after an explicit language link');
+  await checkTrayChoices(page, false);
   assert.deepEqual(errors, []);
   await page.close();
   const touch = await browser.newPage({ offline: true, hasTouch: true, viewport: { width: 390, height: 844 } });
@@ -183,8 +185,10 @@ try {
       await menu.tap();
     }
   }
+  await touch.setViewportSize({ width: 390, height: 844 });
+  await checkTrayChoices(touch, true);
   assert.deepEqual(errors, []);
-  console.log(`PASS Prism Vault: ${checks.length} puzzle checks, offline WebGL, dialog input isolation, board controls, preview lifetimes, compact touch controls, pinch and interruption recovery, first-mirror lesson and language continuity`);
+  console.log(`PASS Prism Vault: ${checks.length} puzzle checks, offline WebGL, dialog input isolation, board controls, preview lifetimes, compact touch controls, pinch and interruption recovery, first-mirror lesson, safe tray selection and language continuity`);
 } finally {
   await browser.close();
 }

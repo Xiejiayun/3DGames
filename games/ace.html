@@ -2174,6 +2174,7 @@ let comfortSteering = true;
 let leveling = false;
 const steeringDeadZone = 0.08;
 const flightAngles = new THREE.Euler(0, 0, 0, 'YXZ');
+const turnStep = new THREE.Euler(0, 0, 0, 'YXZ');
 
 // Reusable math temporaries
 const _v1 = new THREE.Vector3();
@@ -2755,23 +2756,22 @@ function analogSteeringGain() {
   return travel * (0.5 + 0.5 * travel) / radius;
 }
 
-function updateFlightSteering(dt, spec) {
+function updateFlightSteering(dt, spec, euler) {
   const gain = analogSteeringGain();
   stick.x = Number(isHeld('right')) - Number(isHeld('left')) || aim.x * gain;
   stick.y = Number(isHeld('down')) - Number(isHeld('up')) || aim.y * gain;
   const mx = THREE.MathUtils.clamp(stick.x * mouseSens, -1, 1);
   const my = THREE.MathUtils.clamp((invertY ? -stick.y : stick.y) * mouseSens, -1, 1);
   const manualRoll = Number(isHeld('rollLeft')) - Number(isHeld('rollRight'));
-  flightAngles.setFromQuaternion(player.quat);
   if (mx || my || manualRoll) leveling = false;
   if (leveling) {
     // In YXZ order yaw is the horizontal heading. Only relax pitch and bank.
-    const tilt = Math.max(Math.abs(flightAngles.x), Math.abs(flightAngles.z));
+    const tilt = Math.max(Math.abs(euler.x), Math.abs(euler.z));
     leveling = tilt > 0.002;
     const remaining = leveling ? Math.max(Math.exp(-3.2 * dt), 1 - 2.4 * dt / tilt) : 0;
-    flightAngles.x *= remaining;
-    flightAngles.z *= remaining;
-    player.quat.setFromEuler(flightAngles);
+    euler.x *= remaining;
+    euler.z *= remaining;
+    player.quat.setFromEuler(euler);
     player.pitchRate = player.yawRate = player.rollRate = 0;
     return;
   }
@@ -2782,7 +2782,7 @@ function updateFlightSteering(dt, spec) {
   let desiredRollRate = manualRoll * spec.rollRate;
   if (manualRoll === 0) {
     const targetBank = THREE.MathUtils.clamp(-mx * 1.15, -1.18, 1.18);
-    desiredRollRate = (targetBank - flightAngles.z) * 3.4;
+    desiredRollRate = (targetBank - euler.z) * 3.4;
   }
 
   player.pitchRate += (desiredPitch - player.pitchRate) * Math.min(1, dt * 7.5);
@@ -2790,8 +2790,8 @@ function updateFlightSteering(dt, spec) {
   player.rollRate += (desiredRollRate - player.rollRate) * Math.min(1, dt * 8.0);
 
   // Apply local rotation
-  flightAngles.set(player.pitchRate * dt, player.yawRate * dt, player.rollRate * dt);
-  player.quat.multiply(_q1.setFromEuler(flightAngles)).normalize();
+  turnStep.set(player.pitchRate * dt, player.yawRate * dt, player.rollRate * dt);
+  player.quat.multiply(_q1.setFromEuler(turnStep)).normalize();
 }
 
 function updatePlayer(dt, rawDt) {
@@ -2803,7 +2803,8 @@ function updatePlayer(dt, rawDt) {
   player.throttle += (targetThrottle - player.throttle) * Math.min(1, dt * 4.0);
   const targetSpd = spec.minSpeed + (spec.maxSpeed - spec.minSpeed) * player.throttle;
   player.speed += (targetSpd - player.speed) * Math.min(1, dt * 2.4);
-  updateFlightSteering(dt, spec);
+  const euler = flightAngles.setFromQuaternion(player.quat);
+  updateFlightSteering(dt, spec, euler);
 
   // Move forward
   const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quat);
@@ -2820,9 +2821,9 @@ function updatePlayer(dt, rawDt) {
   player.terrainGrace = Math.max(0, player.terrainGrace - dt);
   if (player.pos.y < terrH) {
     player.pos.y = terrH + 14;
-    flightAngles.setFromQuaternion(player.quat);
-    flightAngles.x = Math.max(0.22, flightAngles.x);
-    player.quat.setFromEuler(flightAngles);
+    euler.setFromQuaternion(player.quat, 'YXZ');
+    euler.x = Math.max(0.22, euler.x);
+    player.quat.setFromEuler(euler);
     player.pitchRate = Math.max(0, player.pitchRate);
     if (player.terrainGrace === 0) {
       player.terrainGrace = 1;

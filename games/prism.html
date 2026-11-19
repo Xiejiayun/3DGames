@@ -67,7 +67,7 @@ kbd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-siz
 #guide { position: absolute; left: 50%; top: 162px; transform: translateX(-50%); padding: 9px 38px 9px 18px; font-size: 13px; letter-spacing: .03em; max-width: min(720px, 80vw); line-height: 1.5; }
 #guide .gx { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: 0; background: none; font-size: 18px; color: var(--ink2); }
 #guide.flash { animation: gin .5s ease-out; }
-#guide-socket { width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 0; background: none; visibility: hidden; translate: 0 42%; }
+#guide-socket { width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 0; background: none; visibility: hidden; translate: 0 42%; touch-action: none; }
 #guide-socket span { display: grid; place-items: center; position: relative; top: -5px; width: 22px; height: 22px; border: 2px solid #fff3d4; border-radius: 50%; background: #29444a; color: white; font: 700 12px/1 var(--font); box-shadow: 0 1px 5px #332916aa; }
 #guide-socket span::after { content: ''; position: absolute; top: 100%; border: 4px solid transparent; border-top-color: #fff3d4; }
 #guide-socket:focus-visible { outline: 2px solid #29444a; border-radius: 50%; }
@@ -8794,9 +8794,10 @@ void main() {
       guideSlot: "A 槽位",
       controlsTitle: "操作",
       controls: [
-        ["右键拖拽 / WASD", "360° 审视石殿"],
-        ["滚轮 / Space", "缩放 / 回到黄金视角"],
-        ["左键", "选元件，再点目标槽或托盘"],
+        ["单指拖动 / 右键拖拽 / WASD", "环绕查看石殿"],
+        ["双指开合 / 滚轮", "拉近或拉远视角"],
+        ["Space", "回到初始视角"],
+        ["轻点 / 左键", "选元件，再点目标槽或托盘"],
         ["R / F", "水平旋转 90° / 翻转升降镜"],
         ["1 2 3 4", "水平镜 · 升降镜 · 分光棱镜 · 滤色晶体"],
         ["Z / Backspace / H", "撤销 / 重置 / 提示"],
@@ -8927,9 +8928,10 @@ void main() {
       guideSlot: "Slot A",
       controlsTitle: "Controls",
       controls: [
-        ["Right-drag / WASD", "Orbit the hall 360°"],
-        ["Wheel / Space", "Zoom / back to the golden view"],
-        ["Left click", "Pick an instrument, then a slot or the tray"],
+        ["One-finger drag / Right-drag / WASD", "Orbit the hall"],
+        ["Pinch / Wheel", "Zoom in or out"],
+        ["Space", "Restore the starting view"],
+        ["Tap / Left click", "Pick an instrument, then a slot or the tray"],
         ["R / F", "Turn 90° / flip an elevation mirror"],
         ["1 2 3 4", "Flat · Elevation · Splitter · Filter"],
         ["Z / Backspace / H", "Undo / reset / hint"],
@@ -9595,17 +9597,14 @@ void main() {
   ui = new UI({
     onAction: (a) => act(a),
     onDismissGuide: () => { G.guideDismissed = true; updateGuide(); },
-    onGuideSocket: () => { if (G.guideSocketPos) slotClick(G.L.ref[0].key); },
+    onGuideSocket: activateGuideSocket,
     onMenuToggle: () => {
       G.miniDone = true;
       ui.setMini(!ui.el("#tl").classList.contains("mini"));
     },
     onOverlayOpen: () => {
       keys.clear();
-      ptr.down = false;
-      G.dragging = rig.dragging = false;
-      rig.fling.yaw = rig.fling.pitch = 0;
-      updateCursor();
+      resetGesture();
     },
     onTray: (key) => trayClick(key),
     onTrayArea: () => {
@@ -9672,6 +9671,7 @@ void main() {
   }
   function loadLevel(n, immediateCam) {
     n = Math.max(1, Math.min(LEVELS.length, n | 0));
+    if (G.L) resetGesture();
     disposeLevel();
     const def = LEVELS[n - 1];
     const L = parseLevel(def), F = makeFrame(L);
@@ -10320,6 +10320,9 @@ void main() {
     sound.play("pick");
     refreshUI();
   }
+  function activateGuideSocket() {
+    if (G.guideSocketPos) slotClick(G.L.ref[0].key);
+  }
   function slotClick(key) {
     const P = G.puzzle;
     const p = P.layout.get(key);
@@ -10605,34 +10608,61 @@ void main() {
     canvas.style.cursor = G.dragging ? "grabbing" : G.hover ? "pointer" : G.held ? "copy" : "default";
   }
   var keys = /* @__PURE__ */ new Set();
-  var ptr = { down: false, btn: 0, x: 0, y: 0, sx: 0, sy: 0, moved: false, vx: 0, vy: 0, lt: 0 };
+  var contacts = new Map();
+  var ptr = { multi: false, span: 0, sx: 0, sy: 0, vx: 0, vy: 0, lt: 0 };
+  function pinchSpan() {
+    if (contacts.size !== 2) return 0;
+    const [first, second] = contacts.values();
+    return first.touch && second.touch ? Math.hypot(first.x - second.x, first.y - second.y) : 0;
+  }
+  function resetGesture() {
+    const captured = [...contacts.keys()];
+    contacts.clear();
+    for (const id of captured) if (canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id);
+    ptr.multi = false;
+    ptr.span = 0;
+    G.mouse = null;
+    G.dragging = rig.dragging = false;
+    rig.fling.yaw = rig.fling.pitch = 0;
+    updateCursor();
+  }
   canvas.addEventListener("contextmenu", (e) => e.preventDefault());
-  canvas.addEventListener("pointerdown", (e) => {
+  function beginContact(e) {
+    if (ui.overlayOpen) return;
     sound.ensure();
-    ptr.down = true;
-    ptr.btn = e.button;
-    ptr.x = ptr.sx = e.clientX;
-    ptr.y = ptr.sy = e.clientY;
-    ptr.moved = false;
+    contacts.set(e.pointerId, { x: e.clientX, y: e.clientY, touch: e.pointerType === "touch", guide: e.currentTarget === ui.guideSocket });
+    canvas.setPointerCapture(e.pointerId);
+    rig.fling.yaw = rig.fling.pitch = 0;
+    if (contacts.size > 1) {
+      ptr.multi = true;
+      ptr.span = pinchSpan();
+      G.mouse = null;
+      G.dragging = rig.dragging = true;
+      updateCursor();
+      return;
+    }
+    ptr.sx = e.clientX;
+    ptr.sy = e.clientY;
     ptr.vx = ptr.vy = 0;
     ptr.lt = performance.now();
-    canvas.setPointerCapture(e.pointerId);
-    if (e.button === 2 || e.button === 1) {
-      G.dragging = true;
-      rig.dragging = true;
-    }
-  });
+    G.dragging = rig.dragging = e.button === 2 || e.button === 1;
+  }
+  canvas.addEventListener("pointerdown", beginContact);
+  ui.guideSocket.addEventListener("pointerdown", beginContact);
   canvas.addEventListener("pointermove", (e) => {
-    G.mouse = { x: e.clientX, y: e.clientY };
-    if (!ptr.down) return;
-    const dx = e.clientX - ptr.x, dy = e.clientY - ptr.y;
-    ptr.x = e.clientX;
-    ptr.y = e.clientY;
-    if (!ptr.moved && Math.hypot(e.clientX - ptr.sx, e.clientY - ptr.sy) > 6) {
-      ptr.moved = true;
-      G.dragging = true;
-      rig.dragging = true;
+    const contact = contacts.get(e.pointerId);
+    if (e.pointerType !== "touch" && !ptr.multi && (!contacts.size || contact)) G.mouse = { x: e.clientX, y: e.clientY };
+    if (!contact) return;
+    const dx = e.clientX - contact.x, dy = e.clientY - contact.y;
+    contact.x = e.clientX;
+    contact.y = e.clientY;
+    if (ptr.multi) {
+      const span = pinchSpan();
+      if (ptr.span >= 8 && span >= 8) rig.zoom(ptr.span / span);
+      ptr.span = span;
+      return;
     }
+    if (Math.hypot(e.clientX - ptr.sx, e.clientY - ptr.sy) > 6) G.dragging = rig.dragging = true;
     if (G.dragging) {
       rig.rotate(-dx * 65e-4, dy * 52e-4);
       const now = performance.now(), dtm = Math.max(1, now - ptr.lt);
@@ -10642,12 +10672,18 @@ void main() {
       updateCursor();
     }
   });
-  canvas.addEventListener("pointerup", (e) => {
-    if (!ptr.down) return;
-    ptr.down = false;
+  function finishContact(e) {
+    const contact = contacts.get(e.pointerId);
+    if (!contact) return;
+    contacts.delete(e.pointerId);
+    if (ptr.multi || e.type !== "pointerup" || !canvas.hasPointerCapture(e.pointerId)) {
+      if (contacts.size) ptr.span = pinchSpan();
+      else resetGesture();
+      return;
+    }
     const wasDrag = G.dragging;
-    G.dragging = false;
-    rig.dragging = false;
+    G.dragging = rig.dragging = false;
+    if (e.pointerType === "touch") G.mouse = null;
     if (wasDrag) {
       if (performance.now() - ptr.lt < 80) {
         rig.fling.yaw = ptr.vx * 0.5;
@@ -10656,7 +10692,8 @@ void main() {
       updateCursor();
       return;
     }
-    if (e.button !== 0 || ui.overlayOpen) return;
+    if (e.button !== 0 || ui.overlayOpen || Math.hypot(e.clientX - ptr.sx, e.clientY - ptr.sy) > 6) return;
+    if (contact.guide) return activateGuideSocket();
     const k = pickSlot(e.clientX, e.clientY);
     if (k) slotClick(k);
     else if (G.held || G.selectedId != null) {
@@ -10665,7 +10702,8 @@ void main() {
       sound.play("cancel");
       refreshUI();
     }
-  });
+  }
+  for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) canvas.addEventListener(event, finishContact);
   canvas.addEventListener("wheel", (e) => {
     e.preventDefault();
     rig.zoom(Math.exp(e.deltaY * 11e-4));
@@ -10738,9 +10776,9 @@ void main() {
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     keys.delete(k);
   });
-  window.addEventListener("blur", () => { keys.clear(); frameClock.focused = false; resetFrameSampling(); });
+  window.addEventListener("blur", () => { keys.clear(); resetGesture(); frameClock.focused = false; resetFrameSampling(); });
   window.addEventListener("focus", () => { frameClock.focused = true; resetFrameSampling(); });
-  document.addEventListener("visibilitychange", resetFrameSampling);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) resetGesture(); resetFrameSampling(); });
   compactHUD.addEventListener("change", () => {
     if (compactHUD.matches && !ui.overlayOpen) {
       ui.setMini(true);

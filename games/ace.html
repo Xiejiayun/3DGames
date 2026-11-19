@@ -115,6 +115,8 @@ canvas{display:block}
   padding:7px 18px;text-align:center;min-width:290px;backdrop-filter:blur(6px);
 }
 #objMission{font-size:10.5px;letter-spacing:.18em;color:var(--cyan);text-transform:uppercase;font-weight:700}
+#contactCue{margin-top:3px;color:#a1ffc9;font:700 12px/1.35 var(--font)}
+#contactCue:not([hidden]) ~ #launchGuide:is([data-state="align"],[data-state="approach"]){display:none}
 #objText{font-family:var(--font);font-size:13.5px;font-weight:700;color:var(--fg);margin-top:2px}
 #objStats{font-size:11px;color:var(--hud);margin-top:2px;display:flex;justify-content:center;gap:14px}
 
@@ -306,6 +308,7 @@ canvas{display:block}
     <div id="objBox">
       <div id="objMission">MISSION 01</div>
       <div id="objText">—</div>
+      <div id="contactCue" role="status" aria-atomic="true" hidden></div>
       <div id="objStats">
         <span id="hudTargets">TGT 0/0</span>
         <span id="hudScore">SCORE 0</span>
@@ -430,6 +433,9 @@ const I18N = {
     radioLaunch:'AWACS 预警机：弹射起飞完成，全频段雷达已上线，祝武运昌隆！',
     radioM1W2:'AWACS：敌方重型轰炸机编队进入群岛空域，优先拦截！',
     radioM2Start:'AWACS：峡湾共有十个目标。切换目标可查看下一个标记。',
+    offscreen:{left:'← 目标在左侧',right:'目标在右侧 →',above:'↑ 目标在上方',below:'↓ 目标在下方',
+      upperLeft:'↖ 目标在左上方',upperRight:'目标在右上方 ↗',lowerLeft:'↙ 目标在左下方',lowerRight:'目标在右下方 ↘',
+      rearLeft:'← 目标在后方 · 向左转',rearRight:'目标在后方 · 向右转 →'},
     radioM3Start:'AWACS：发现敌方航母打击群！摧毁驱逐舰护航并瘫痪航母！',
     radioAce:'CRIMSON-1：竟敢闯入风暴眼……让我看看你的本事吧！',
     radioSplash:'AWACS：目标确认击毁！Splash one!',
@@ -462,6 +468,9 @@ const I18N = {
     radioLaunch:'AWACS: Launch confirmed. All tactical sensors online. Good hunting!',
     radioM1W2:'AWACS: Second wave over the archipelago. Clear the bombers and their escorts!',
     radioM2Start:'AWACS: Ten contacts in the fjord. Cycle targets to highlight another marker.',
+    offscreen:{left:'← Target left',right:'Target right →',above:'↑ Target above',below:'↓ Target below',
+      upperLeft:'↖ Target upper left',upperRight:'Target upper right ↗',lowerLeft:'↙ Target lower left',lowerRight:'Target lower right ↘',
+      rearLeft:'← Target behind · turn left',rearRight:'Target behind · turn right →'},
     radioM3Start:'AWACS: Enemy Carrier Strike Group sighted in the storm! Sink the fleet!',
     radioAce:'CRIMSON-1: Entering my storm? Let us see if you deserve your wings!',
     radioSplash:'AWACS: Direct hit! Target destroyed!',
@@ -3236,6 +3245,7 @@ function drawHUD() {
 
   // Enemy Target Boxes, Multi-Lock Diamonds & Dynamic Cannon Lead Reticle
   let selectedTag = null;
+  let cue = null;
   for (const e of enemies) {
     if (!e.alive) continue;
     const p3 = e.pos.clone().project(camera);
@@ -3246,7 +3256,8 @@ function drawHUD() {
     const isLocked = player.lockedTargets.includes(e);
     const isPrimary = e === player.primaryTarget;
 
-    if (inFront && sx > 20 && sx < w - 20 && sy > 20 && sy < h - 20) {
+    const withinX = sx > 20 && sx < w - 20, withinY = sy > 20 && sy < h - 20;
+    if (inFront && withinX && withinY) {
       const boxCol = isLocked && player.lockProgress >= 0.99 ? '#ff766c' : e.isBoss ? '#ffbe5a' : isPrimary ? '#76ffaf' : '#9ae4ff';
       const sz = isPrimary ? 15 : 8;
       hudCtx.beginPath(); hudCtx.rect(sx - sz, sy - sz, sz * 2, sz * 2);
@@ -3285,9 +3296,20 @@ function drawHUD() {
       }
     } else if (isPrimary || e.isBoss) {
       // Off-screen directional arrow on viewport rim
-      let dx = sx - cx, dy = sy - cy;
-      if (!inFront) { dx = -dx; dy = -dy; }
-      const ang = Math.atan2(dy, dx);
+      const offset = contactOffset.copy(e.pos).applyMatrix4(camera.matrixWorldInverse);
+      let ang = Math.atan2(-offset.y, offset.x);
+      if (isPrimary) {
+        if (inFront && withinX) ang = offset.y > 0 ? -Math.PI / 2 : Math.PI / 2;
+        else if (inFront && withinY) ang = offset.x < 0 ? Math.PI : 0;
+        if (offset.z > Math.max(Math.abs(offset.x), Math.abs(offset.y))) {
+          const left = chooseRearTurn(e, offset);
+          cue = left ? 'rearLeft' : 'rearRight'; ang = left ? Math.PI : 0;
+        } else {
+          cue = compassWords[(Math.round(ang / (Math.PI / 4)) + 8) % 8];
+          lastRearContact = null;
+        }
+        if (h <= 460 && document.documentElement.classList.contains('touch-flight')) continue;
+      }
       const rEdge = Math.min(cx, cy) - 42;
       const ax = cx + Math.cos(ang) * rEdge, ay = cy + Math.sin(ang) * rEdge;
       hudCtx.save();
@@ -3298,6 +3320,7 @@ function drawHUD() {
       hudCtx.restore();
     }
   }
+  showContactCue(cue);
   if (selectedTag) {
     const { sx, sy, sz, color, text } = selectedTag;
     hudCtx.font = 'bold 12px Consolas, monospace';
@@ -3313,6 +3336,29 @@ function drawHUD() {
 
   // Tactical Radar Minimap
   drawRadar();
+}
+
+const contactOffset = new THREE.Vector3();
+const contactCue = document.getElementById('contactCue');
+const compassWords = ['right','lowerRight','below','lowerLeft','left','upperLeft','above','upperRight'];
+let lastRearContact = null, turnLeft = false;
+
+function chooseRearTurn(contact, offset) {
+  // Near dead aft either turn works; don't reverse the instruction on every camera shake.
+  if (contact !== lastRearContact || Math.abs(offset.x) > offset.z * 0.16) turnLeft = offset.x < 0;
+  lastRearContact = contact;
+  return turnLeft;
+}
+
+function showContactCue(direction) {
+  if (!direction) {
+    lastRearContact = null;
+    if (!contactCue.hidden) contactCue.hidden = true;
+    return;
+  }
+  const message = I18N[lang].offscreen[direction];
+  if (contactCue.textContent !== message) contactCue.textContent = message;
+  if (contactCue.hidden) contactCue.hidden = false;
 }
 
 function drawRadar() {
@@ -3474,6 +3520,7 @@ function setScreen(next) {
   document.getElementById('backHome').classList.toggle('hidden', !hangar);
   document.getElementById('pauseBtn').classList.toggle('hidden', !playing);
   document.getElementById('hud').classList.toggle('hidden', !playing);
+  if (!playing) showContactCue(null);
   document.getElementById('hangar').classList.toggle('hidden', !hangar);
   document.getElementById('pauseModal').classList.toggle('hidden', !paused);
   document.getElementById('debriefModal').classList.toggle('hidden', next !== 'debrief');

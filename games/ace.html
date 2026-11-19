@@ -2337,7 +2337,12 @@ function renderParticleLayers() {
   for (const layer of [smokeLayer, glowLayer]) {
     layer.visible = layer.geometry.instanceCount > 0;
     if (layer.visible) {
-      for (const name of ['centerSize', 'tintAlpha', 'spin']) layer.geometry.attributes[name].needsUpdate = true;
+      for (const name of ['centerSize', 'tintAlpha', 'spin']) {
+        const attribute = layer.geometry.attributes[name];
+        attribute.clearUpdateRanges();
+        attribute.addUpdateRange(0, layer.geometry.instanceCount * attribute.itemSize);
+        attribute.needsUpdate = true;
+      }
     }
   }
 }

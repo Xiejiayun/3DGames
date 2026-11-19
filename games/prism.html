@@ -8842,6 +8842,8 @@ void main() {
       placed: "摆放",
       ref: "参考用量",
       next: "下一关",
+      visitVault: (n) => `前往第 ${n} 关`,
+      vaultProgress: (cleared, total) => `已解开 ${cleared} / ${total} 关。`,
       stay: "留在本关",
       best: "最佳",
       again: "可撤销继续摆，尝试更省的解",
@@ -8975,6 +8977,8 @@ void main() {
       placed: "Placed",
       ref: "Reference usage",
       next: "Next vault",
+      visitVault: (n) => `Go to vault ${n}`,
+      vaultProgress: (cleared, total) => `${cleared} / ${total} vaults open.`,
       stay: "Stay here",
       best: "Best",
       again: "Undo and keep trying for a leaner solution",
@@ -9262,12 +9266,14 @@ void main() {
       this.solvedStats = s;
       const el = this.el("#solved");
       const stars = [1, 2, 3].map((i) => `<i class="${i <= s.stars ? "on" : ""}">★</i>`).join("");
+      const note = s.finale ? t("allDone") : s.progress ? t("vaultProgress", s.progress.cleared, s.progress.total) : s.stars < 3 ? t("again") : "";
+      const nextLabel = s.progress ? t("visitVault", s.nextLevel) : t("next");
       el.innerHTML = `
       <div class="sv-t">${t("solved")}${s.newBest ? `<span class="nb">${t("newBest")}</span>` : ""}</div>
       <div class="stars">${stars}</div>
       <div class="sv-m">${t("placed")} <b>${s.count}</b> · ${t("ref")} <b>${s.ref}</b></div>
-      <div class="sv-n">${s.last ? t("allDone") : s.stars < 3 ? t("again") : ""}</div>
-      <div class="sv-b">${s.hasNext ? `<button data-s="next" class="pri">${t("next")} →</button>` : ""}<button data-s="stay">${t("stay")}</button></div>`;
+      <div class="sv-n">${note}</div>
+      <div class="sv-b">${s.nextLevel ? `<button data-s="next" class="pri">${nextLabel} →</button>` : ""}<button data-s="stay">${t("stay")}</button></div>`;
       el.classList.remove("hidden");
       el.classList.remove("in");
       void el.offsetWidth;
@@ -9276,7 +9282,7 @@ void main() {
         b.addEventListener("mousedown", (e) => e.preventDefault());
         b.addEventListener("click", (e) => {
           e.stopPropagation();
-          if (b.dataset.s === "next") this.h.onNext();
+          if (b.dataset.s === "next") this.h.onLevel(s.nextLevel);
           else this.hideSolved();
         });
       });
@@ -9686,10 +9692,7 @@ void main() {
     },
     onTray: (key) => trayClick(key),
     onFloor: (f) => setFloor(f),
-    onLevel: (n) => changeLevel(n),
-    onNext: () => {
-      if (G.def.n < LEVELS.length) changeLevel(G.def.n + 1);
-    }
+    onLevel: (n) => changeLevel(n)
   });
   function levelBox() {
     const F = G.F;
@@ -10906,20 +10909,27 @@ void main() {
       ui.setGuide(text);
     }
   }
-  function showSolvedCard(stars, isNew) {
-    ui.showSolved({ stars, count: G.puzzle.count, ref: G.L.refCount, newBest: isNew, hasNext: G.def.n < LEVELS.length, last: G.def.n === LEVELS.length });
+  function showSolvedCard(stars, previousBest) {
+    const remaining = LEVELS.filter((room) => !(store.best[room.id] >= 1));
+    const lastRoom = G.def.n === LEVELS.length;
+    const finale = !remaining.length && (lastRoom || previousBest < 1);
+    const resume = lastRoom && remaining.length > 0;
+    ui.showSolved({
+      stars, count: G.puzzle.count, ref: G.L.refCount, newBest: previousBest > 0 && stars > previousBest,
+      finale, nextLevel: finale ? null : resume ? remaining[0].n : G.def.n + 1,
+      progress: resume ? { cleared: LEVELS.length - remaining.length, total: LEVELS.length } : null
+    });
   }
   function complete() {
     G.complete = true;
     G.completeCount = G.puzzle.count;
     const stars = starsFor(G.puzzle.count, G.L.refCount);
     const prev = store.best[G.def.id] || 0;
-    const isNew = stars > prev;
-    if (isNew) {
+    if (stars > prev) {
       store.best[G.def.id] = stars;
       saveStore();
     }
-    showSolvedCard(stars, isNew && prev > 0);
+    showSolvedCard(stars, prev);
     sound.play("solved");
     clearHint();
     updateGuide();

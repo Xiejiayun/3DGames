@@ -101,8 +101,9 @@ try {
       `${name}: touch HUD obscures cockpit artwork: ${JSON.stringify(result.panes)}`);
     assert.deepEqual(result.sight, []); assert.deepEqual(result.collisions, [], `${name}: HUD overlap`);
     for (const warning of result.warnings) assert.deepEqual(warning.blocked,[],`${name}: ${warning.key} must not cover other flight information`);
-    assert.ok(result.buttons.length >= 10 && result.buttons.every(rect => rect.owns && rect.fits && rect.width >= 43.9 && rect.height >= 43.9 &&
-      rect.left >= inset-0.1 && rect.top >= 0 && rect.right <= result.width-inset+0.1 && rect.bottom <= result.height-bottom+0.1), `${name}: usable touch targets`);
+    assert.ok(result.buttons.length >= 10);
+    for (const rect of result.buttons) assert.ok(rect.owns && rect.fits && rect.width >= 43.9 && rect.height >= 43.9 &&
+      rect.left >= inset-0.1 && rect.top >= 0 && rect.right <= result.width-inset+0.1 && rect.bottom <= result.height-bottom+0.1, `${name}: unusable ${rect.name}: ${JSON.stringify(rect)}`);
     assert.equal(result.view,'1p');
     assert.ok(result.eyeError < 1e-5 && result.fov >= 69 && result.fov <= 75.01);
     console.log(`PASS ${name}: visible artwork ${result.panes.map(pane=>`${pane.clear}/${pane.total}`).join(', ')}; ${result.buttons.length} touch targets`);

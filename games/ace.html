@@ -237,7 +237,7 @@ canvas{display:block}
 @media (orientation:landscape) and (max-width:740px) and (min-height:300px) and (max-height:440px) and (max-aspect-ratio:2/1){
   .touch-flight #hud{--dock:144px}
   @media (max-height:315px){.touch-flight #radarWrap{width:50px;height:50px}}
-  .touch-flight #touchControls{display:grid;align-items:stretch;grid-template-columns:repeat(2,44px) minmax(0,1fr) repeat(2,44px);grid-template-rows:repeat(3,44px);gap:3px;
+  .touch-flight #touchControls{display:grid;align-items:stretch;grid-template-columns:repeat(2,minmax(44px,max-content)) minmax(0,1fr) repeat(2,minmax(44px,max-content));grid-template-rows:repeat(3,44px);gap:3px;
     grid-template-areas:"hint hint . swap flare" "boost roll-l . target cannon" "brake roll-r . view launch"}
   .touch-flight #touchControls > .touch-bank:first-child,.touch-flight #touchControls > .touch-bank:last-child{display:contents}
   .touch-flight #touchControls > :nth-child(2){grid-area:hint;align-self:center;justify-self:stretch;margin:0;grid-template-columns:repeat(2,minmax(44px,1fr));grid-template-rows:44px}
@@ -252,7 +252,7 @@ canvas{display:block}
   .touch-flight [data-flight="cannon"]{grid-area:cannon}
   .touch-flight [data-flight="launch"]{grid-area:launch}
   @media (max-aspect-ratio:5/3){
-    .touch-flight #touchControls{grid-template-columns:repeat(4,44px) minmax(0,1fr) repeat(4,44px);
+    .touch-flight #touchControls{grid-template-columns:repeat(4,minmax(44px,max-content)) minmax(0,1fr) repeat(4,minmax(44px,max-content));
       grid-template-areas:"hint hint roll-l roll-r . view target swap flare" "boost . . . . . . . cannon" "brake . . . . . . . launch"}
   }
 }

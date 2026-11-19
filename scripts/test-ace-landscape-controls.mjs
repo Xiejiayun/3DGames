@@ -47,12 +47,24 @@ function inspectCockpit() {
     if (!blocker) pane.clear++; else pane.blockedBy[blocker.name] = (pane.blockedBy[blocker.name] ?? 0) + 1;
   }
   const collisions = [];
+  const overlaps = (first,other) => Math.min(first.right,other.right) - Math.max(first.left,other.left) > 1 &&
+    Math.min(first.bottom,other.bottom) - Math.max(first.top,other.top) > 1;
   for (const [index, first] of overlays.entries()) for (const other of overlays.slice(index+1)) {
-    if (Math.min(first.right,other.right) - Math.max(first.left,other.left) > 1 &&
-        Math.min(first.bottom,other.bottom) - Math.max(first.top,other.top) > 1) collisions.push([first.name, other.name]);
+    if (overlaps(first,other)) collisions.push([first.name, other.name]);
   }
+  const banner = document.getElementById('alertBanner'), previous = {display:banner.style.display,text:banner.textContent};
+  const warnings = [];
+  try {
+    banner.style.display = 'block';
+    for (const key of ['alertMissile','alertPullUp']) {
+      banner.textContent = I18N[lang][key];
+      const rect = bounds(banner), blocked = overlays.filter(other => other.name !== 'alertBanner' && overlaps(rect,other)).map(other=>other.name);
+      if (covers(rect,innerWidth/2,innerHeight/2)) blocked.push('sight');
+      warnings.push({key,blocked});
+    }
+  } finally { banner.style.display = previous.display; banner.textContent = previous.text; }
   const sight = overlays.filter(rect => covers(rect, innerWidth/2, innerHeight/2)).map(rect => rect.name);
-  return {id:player.mesh.name, lang, width:innerWidth, height:innerHeight, view:rig.cameraView, panes, buttons, sight, collisions,
+  return {id:player.mesh.name, lang, width:innerWidth, height:innerHeight, view:rig.cameraView, panes, buttons, sight, collisions, warnings,
     inView:box.min.x >= 0 && box.min.y >= 0 && box.max.x <= innerWidth && box.max.y <= innerHeight,
     eyeError:camera.position.distanceTo(rig.cockpit.getWorldPosition(point)), fov:camera.fov, throttle:player.throttle};
 }
@@ -88,6 +100,7 @@ try {
     assert.ok(result.inView && result.panes.every(pane => pane.total > 30 && pane.clear === pane.total),
       `${name}: touch HUD obscures cockpit artwork: ${JSON.stringify(result.panes)}`);
     assert.deepEqual(result.sight, []); assert.deepEqual(result.collisions, [], `${name}: HUD overlap`);
+    for (const warning of result.warnings) assert.deepEqual(warning.blocked,[],`${name}: ${warning.key} must not cover other flight information`);
     assert.ok(result.buttons.length >= 10 && result.buttons.every(rect => rect.owns && rect.fits && rect.width >= 43.9 && rect.height >= 43.9 &&
       rect.left >= inset-0.1 && rect.top >= 0 && rect.right <= result.width-inset+0.1 && rect.bottom <= result.height-bottom+0.1), `${name}: usable touch targets`);
     assert.equal(result.view,'1p');

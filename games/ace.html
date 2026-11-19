@@ -359,6 +359,13 @@ canvas{display:block}
       <input type="range" id="sensSlider" min="0.5" max="1.8" step="0.1" value="1.0">
     </div>
     <div class="opt-row">
+      <label data-i18n="steeringResponse" for="steeringResponse">转向手感</label>
+      <select class="btn-ghost" id="steeringResponse">
+        <option value="comfort" data-i18n="comfortResponse">舒适（平转）</option>
+        <option value="classic" data-i18n="classicResponse">经典（机身轴）</option>
+      </select>
+    </div>
+    <div class="opt-row">
       <span data-i18n="invertY">反转俯仰 Y 轴</span>
       <button class="btn-ghost" id="invertBtn">OFF</button>
     </div>
@@ -413,6 +420,7 @@ const I18N = {
     subtitle:'驾驶隐身战机穿梭晴空群岛、黄昏峡湾与雷暴航母编队——体验鼠标引导空战、多目标导弹齐射与 3D 座舱双视角。',
     selectJet:'战机机库', selectMission:'战役任务', sortie:'立即出击 · SORTIE',
     flare:'热诱弹', hull:'装甲', paused:'战术暂停',
+    steeringResponse:'转向手感', comfortResponse:'舒适（平转）', classicResponse:'经典（机身轴）',
     sens:'转向灵敏度', invertY:'反转俯仰 Y 轴', quality:'渲染画质',
     toHangar:'返回机库', restart:'重新出击', resume:'继续战斗',
     dKills:'击毁目标', dTime:'任务耗时', dHull:'剩余装甲', dScore:'战役积分',
@@ -446,6 +454,7 @@ const I18N = {
     selectJet:'AIRCRAFT HANGAR', selectMission:'CAMPAIGN MISSIONS', sortie:'LAUNCH SORTIE',
     flare:'Flares', hull:'Hull', paused:'TACTICAL PAUSE',
     sens:'Steering sensitivity', invertY:'Invert Pitch Y', quality:'Graphics Quality',
+    steeringResponse:'Steering response', comfortResponse:'Comfort (level turns)', classicResponse:'Classic (body axes)',
     toHangar:'Hangar', restart:'Restart', resume:'Resume',
     dKills:'Targets Destroyed', dTime:'Mission Time', dHull:'Hull Integrity', dScore:'Mission Score',
     retry:'Retry Mission', nextMission:'Next Mission',
@@ -2156,6 +2165,8 @@ const capturedPointers = new Map();
 const aim = { x:0, y:0 };
 const stick = { x:0, y:0 };
 let steerDrag = null;
+let comfortSteering = true;
+const turnStep = new THREE.Euler(0, 0, 0, 'YXZ');
 
 // Reusable math temporaries
 const _v1 = new THREE.Vector3();
@@ -2760,11 +2771,13 @@ function updatePlayer(dt, rawDt) {
   player.yawRate += (desiredYaw - player.yawRate) * Math.min(1, dt * 7.5);
   player.rollRate += (desiredRollRate - player.rollRate) * Math.min(1, dt * 8.0);
 
-  // Apply local rotation
-  const dq = new THREE.Quaternion().setFromEuler(
-    new THREE.Euler(player.pitchRate * dt, player.yawRate * dt, player.rollRate * dt, 'YXZ')
-  );
-  player.quat.multiply(dq).normalize();
+  turnStep.set(player.pitchRate * dt, player.yawRate * dt, player.rollRate * dt);
+  if (comfortSteering && manualRoll === 0) {
+    // Turn the heading about the horizon; bank alone must not point the nose down.
+    player.quat.premultiply(_q1.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, turnStep.y));
+    turnStep.y = 0;
+  }
+  player.quat.multiply(_q1.setFromEuler(turnStep)).normalize();
 
   // Move forward
   const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quat);
@@ -3547,6 +3560,7 @@ document.getElementById('sensSlider').oninput = e => { mouseSens = parseFloat(e.
 document.getElementById('invertBtn').onclick = e => {
   invertY = !invertY; e.target.textContent = I18N[lang][invertY ? 'on' : 'off'];
 };
+document.getElementById('steeringResponse').onchange = e => { comfortSteering = e.target.value === 'comfort'; };
 
 const flightKeys = {
   ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right',

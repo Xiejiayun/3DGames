@@ -14,6 +14,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  ace:
+    name: Validate Ace WebGL
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps --only-shell chromium
+      - run: npm run test:ace
+        env:
+          ACE_SCREENSHOTS: ${{ runner.temp }}/ace-screenshots
+      - name: Save Ace screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ace-3d-screenshots
+          path: ${{ runner.temp }}/ace-screenshots
+          retention-days: 7
+
   validate:
     name: Validate site
     runs-on: ubuntu-latest
@@ -88,7 +111,7 @@ jobs:
 
   deploy:
     name: Deploy production (main only)
-    needs: validate
+    needs: [validate, ace]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 10

@@ -241,6 +241,24 @@ canvas{display:block}
   #camBadge{display:none}
 }
 @media (max-height:460px){#radioBox{display:none}.modal{padding:8px}.modal-card{gap:9px;padding:12px 16px}}
+@media (orientation:landscape){
+  .cockpit-view #touchControls > #touchHint{margin-right:auto}
+}
+@media (orientation:portrait) and (max-width:740px){
+  #hud.cockpit-view{--radar-size:clamp(54px,17vmin,86px)}
+  .cockpit-view #radarWrap,.cockpit-view #weaponPanel{bottom:calc(max(4px,env(safe-area-inset-bottom)) + var(--dock))}
+  .cockpit-view #radarWrap{width:var(--radar-size);height:var(--radar-size)}
+  .cockpit-view #weaponPanel{width:min(286px,calc(100% - var(--radar-size) - max(10px,env(safe-area-inset-left)) - max(10px,env(safe-area-inset-right)) - 8px));display:grid;grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr);gap:1px 6px;padding:4px 6px}
+  .cockpit-view #telemetry{grid-column:1/-1}
+}
+@media (orientation:portrait) and (max-height:550px),(min-aspect-ratio:3/4) and (max-aspect-ratio:1/1) and (max-height:620px){
+  .touch-flight #hud.cockpit-view{display:grid;grid-template-columns:minmax(0,1fr) 68px;grid-template-rows:max-content max-content;align-content:start;align-items:start;gap:4px 6px;padding:max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) 0 max(8px,env(safe-area-inset-left))}
+  .touch-flight .cockpit-view #weaponPanel{position:static;grid-area:1/1;width:100%}
+  .touch-flight .cockpit-view #missionHud{position:static;grid-area:2/1/auto/-1;width:100%;transform:none;grid-template-columns:minmax(0,1fr) 68px;grid-template-rows:minmax(54px,max-content);column-gap:6px}
+  .touch-flight .cockpit-view #objBox{grid-column:1}
+  .touch-flight .cockpit-view :is(#alertBanner,#radioBox){grid-column:1/-1;padding:3px 8px}
+  .touch-flight .cockpit-view #radarWrap{position:static;grid-area:2/2;width:54px;height:54px;justify-self:end}
+}
 @media (max-width:410px){.pill-btn{font-size:11px;padding:7px}.bar-group{gap:4px}.modal{padding:10px}}
 @media (pointer:coarse){.pill-btn{min-height:40px}.flight-help summary{min-height:44px}}
 @media (prefers-reduced-motion:reduce){#alertBanner{animation:none}}
@@ -1345,8 +1363,15 @@ function buildAircraftCockpit(eyeZ, code) {
   const bottom = point => [point[0] * 1.08, -1.18, point[2] + 0.18];
   const crest = point => [point[0] * 0.92, point[1] + 0.035, point[2] - 0.17];
   const deck = point => [point[0] * 0.71, point[1] - 0.19, point[2] - 0.69];
+  const crown = crest(lip[2]);
+  cockpit.userData.coamingCrown = { height:crown[1], depth:-crown[2] };
+  const sill = point => [point[0], point[1] - 0.045, point[2] + 0.035];
+  const lower = point => [point[0], -4.5, point[2] + 0.035];
   for (let idx = 1; idx < lip.length; idx++) {
     const left = lip[idx - 1], right = lip[idx];
+    const footLeft = bottom(left), footRight = bottom(right);
+    shell.face([sill(footLeft), sill(footRight), footRight, footLeft], 0x354652);
+    shell.face([lower(footLeft), lower(footRight), sill(footRight), sill(footLeft)], 0x18252e);
     shell.face([bottom(left), bottom(right), right, left], 0x222e39);
     shell.face([left, right, crest(right), crest(left)], 0x4b575c);
     shell.face([crest(left), crest(right), deck(right), deck(left)], 0x303c45);
@@ -2375,6 +2400,77 @@ function spawnExplosion(pos, scale = 1.0, big = false) {
   }
 }
 
+const cockpitHud = document.getElementById('hud');
+const cabinOverlays = ['weaponPanel', 'radarWrap', 'touchControls'].map(id => document.getElementById(id));
+const cockpitFov = 69;
+let cockpitFitDirty = true;
+const cockpitSizeObserver = new ResizeObserver(() => { cockpitFitDirty = true; });
+for (const element of cabinOverlays) cockpitSizeObserver.observe(element);
+
+function prepareCockpitLayout(cockpit, code) {
+  const interior = new THREE.Group();
+  interior.add(...cockpit.children);
+  cockpit.add(interior);
+  const screen = interior.getObjectByName('Instruments');
+  screen.geometry.computeBoundingBox();
+  screen.updateMatrix();
+  const bounds = screen.geometry.boundingBox.clone().applyMatrix4(screen.matrix);
+  const map = screen.material.map;
+  cockpit.userData.layout = { interior, bounds, map, wide:map.image, code };
+}
+
+function updateCockpitLegends(layout, compact) {
+  let artwork = layout.wide;
+  const redraw = compact && layout.atlasLanguage !== lang;
+  if (compact) {
+    const atlas = layout.atlas ??= document.createElement('canvas');
+    if (redraw) {
+      atlas.width = artwork.width; atlas.height = artwork.height;
+      const ctx = atlas.getContext('2d'), { width, height } = atlas;
+      ctx.drawImage(artwork, 0, 0);
+      ctx.fillStyle = '#0a2028'; ctx.fillRect(0, 0, width, height * 0.34);
+      ctx.font = `bold ${Math.round(height * 0.38)}px system-ui,sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+      const labels = [lang === 'zh' ? '系统' : 'SYS', layout.code, lang === 'zh' ? '推力' : 'THR'];
+      labels.forEach((label, index) => {
+        const center = (index + 0.5) * width / 3;
+        const ink = ctx.measureText(label);
+        const scale = Math.min(1, width * 0.24 / ink.width, height * 0.30 / (ink.actualBoundingBoxAscent + ink.actualBoundingBoxDescent));
+        ctx.save(); ctx.translate(center, height * 0.16); ctx.scale(scale, scale);
+        ctx.fillStyle = '#c9fff1'; ctx.fillText(label, 0, (ink.actualBoundingBoxAscent - ink.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+        ctx.fillStyle = '#4c857e'; ctx.fillRect(center - width * 0.113, height * 0.32, width * 0.226, 2);
+      });
+      layout.atlasLanguage = lang;
+    }
+    artwork = atlas;
+  }
+  if (layout.map.image !== artwork || redraw) { layout.map.image = artwork; layout.map.needsUpdate = true; }
+}
+
+function fitCockpitInstruments(cockpit) {
+  const layout = cockpit.userData.layout, compact = camera.aspect <= 1;
+  updateCockpitLegends(layout, compact);
+  const offset = layout.interior.position;
+  if (!compact) { offset.set(0, 0, 0); return; }
+  const { min, max } = layout.bounds;
+  // Fit the near edge at the tightest cockpit FOV. Move the solid assembly, never the pilot's eye or the world camera.
+  const tangent = Math.tan(THREE.MathUtils.degToRad(cockpitFov / 2));
+  const halfWidth = Math.max(-min.x, max.x);
+  let bottom = innerHeight * 0.94;
+  for (const element of cabinOverlays) {
+    const rect = element.getBoundingClientRect();
+    if (rect.height && rect.bottom > innerHeight / 2) bottom = Math.min(bottom, rect.top - 8);
+  }
+  const bottomSlope = (2 * bottom / innerHeight - 1) * tangent;
+  const sightSlope = 0.15 * Math.tan(THREE.MathUtils.degToRad((cockpitFov + 6) / 2));
+  const crown = cockpit.userData.coamingCrown, front = -max.z;
+  // Both planes must fit: the lowest screen pixel above the meters, the highest brow below the clear sight at full throttle.
+  const verticalSetback = bottomSlope > sightSlope ? (crown.height - min.y + sightSlope * crown.depth - bottomSlope * front) / (bottomSlope - sightSlope) : 0;
+  const setback = Math.max(0, halfWidth / (0.90 * camera.aspect * tangent) - front, verticalSetback);
+  offset.set(0, -bottomSlope * (front + setback) - min.y, -setback);
+}
+
 function buildPlayerAircraft() {
   if (player.mesh) {
     player.mesh.removeFromParent();
@@ -2382,6 +2478,7 @@ function buildPlayerAircraft() {
   }
   const spec = JETS[selJetIdx];
   player.mesh = buildJetMesh(spec, true);
+  prepareCockpitLayout(player.mesh.userData.cockpit, spec.code);
   scene.add(player.mesh);
   player.maxHp = spec.maxHp;
   player.hp = spec.maxHp;
@@ -3111,6 +3208,11 @@ function updateCamera(dt) {
   rig.cameraView = view;
   rig.cockpit.visible = view === '1p';
   rig.exterior.visible = !rig.cockpit.visible;
+  if (cut) { cockpitHud.classList.toggle('cockpit-view', rig.cockpit.visible); cockpitFitDirty = true; }
+  if (cockpitFitDirty && rig.cockpit.visible && mode === 'playing') {
+    fitCockpitInstruments(rig.cockpit);
+    cockpitFitDirty = false;
+  }
   const near = rig.cockpit.visible ? 0.22 : 0.4;
   let fov;
   if (view === 'hangar') {
@@ -3134,7 +3236,7 @@ function updateCamera(dt) {
   } else if (view === '1p') {
     camera.position.copy(rig.cockpit.position).applyQuaternion(player.quat).add(player.pos);
     camera.quaternion.copy(player.quat);
-    fov = 69 + player.throttle * 6;
+    fov = cockpitFov + player.throttle * 6;
   } else {
     // Transport the last up vector through vertical flight; gently recover the horizon away from the poles.
     const forward = _v1.set(0, 0, -1).applyQuaternion(player.quat);
@@ -3464,6 +3566,7 @@ function renderHangarUI() {
 
 function setScreen(next) {
   clearFlightInputs();
+  cockpitFitDirty = true;
   mode = next;
   const playing = next === 'playing', paused = next === 'paused', hangar = next === 'hangar';
   const top = document.getElementById('topBar'), utilities = document.getElementById('utilities');
@@ -3707,6 +3810,7 @@ function onResize() {
   const tier = renderTiers[quality];
   const dpr = Math.min(window.devicePixelRatio || 1, tier.dpr, Math.sqrt(tier.pixels / (width * height)), renderer.capabilities.maxTextureSize / Math.max(width, height));
   camera.aspect = width / height;
+  cockpitFitDirty = true;
   camera.updateProjectionMatrix();
   renderer.setDrawingBufferSize(width, height, dpr);
   const shadow = sunLight.shadow;

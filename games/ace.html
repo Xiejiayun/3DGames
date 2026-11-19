@@ -2246,8 +2246,7 @@ const sharedSphereGeo = new THREE.SphereGeometry(1, 8, 6);
 const sharedTracerGeo = new THREE.BoxGeometry(0.28, 0.28, 12);
 const sharedMissileGeo = new THREE.CylinderGeometry(0.18, 0.24, 3.6, 6);
 sharedMissileGeo.rotateX(Math.PI / 2);
-const sharedShockwaveGeo = makeShockwaveGeometry();
-const sharedEffectGeometry = new Set([sharedSphereGeo, sharedTracerGeo, sharedMissileGeo, sharedShockwaveGeo]);
+const sharedEffectGeometry = new Set([sharedSphereGeo, sharedTracerGeo, sharedMissileGeo]);
 const sharedSceneTextures = new Set([cloudTex, glowTex, carrierDeckTex, runwayTex]);
 
 function releaseSceneResources(root) {
@@ -2266,6 +2265,9 @@ function releaseSceneResources(root) {
   });
   for (const resource of owned) resource.dispose();
 }
+
+const sharedShockwaveGeo = makeShockwaveGeometry();
+sharedEffectGeometry.add(sharedShockwaveGeo);
 
 const particleCapacity = { low: 180, med: 280, high: 420 };
 const flareBurstSize = 8;

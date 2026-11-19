@@ -117,6 +117,12 @@ canvas{display:block}
 #objMission{font-size:10.5px;letter-spacing:.18em;color:var(--cyan);text-transform:uppercase;font-weight:700}
 #objText{font-family:var(--font);font-size:13.5px;font-weight:700;color:var(--fg);margin-top:2px}
 #objStats{font-size:11px;color:var(--hud);margin-top:2px;display:flex;justify-content:center;gap:14px}
+.assist-option{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:700;color:var(--fg)}
+.assist-option input{width:17px;height:17px;accent-color:var(--hud);flex:none}
+.assist-option small{display:block;color:var(--dim);font-weight:400;line-height:1.35}
+#launchGuide{margin-top:4px;padding-top:3px;border-top:1px solid var(--line);font:600 12px/1.35 var(--font);color:var(--fg)}
+#launchGuide[data-state="tracking"]{color:#ffdc91}
+#launchGuide[data-state="ready"],#launchGuide[data-state="hit"]{color:#a1ffc9}
 
 #radioBox{
   padding:6px 16px;border-radius:8px;background:rgba(5,16,28,.75);border-left:3px solid var(--cyan);
@@ -291,6 +297,7 @@ canvas{display:block}
     <div class="panel-box">
       <div class="sec-title"><span data-i18n="selectMission">战役任务</span><span id="missionCode">M-01</span></div>
       <div class="choice-list" id="missionList"></div>
+      <label class="assist-option"><input type="checkbox" id="hangarAssist" checked><span><span data-i18n="assistName">辅助发射</span><small data-i18n="assistHelp">按住发射，锁定后发出一次；松手取消。</small></span></label>
     </div>
   </div>
 
@@ -311,6 +318,7 @@ canvas{display:block}
         <span id="hudScore">SCORE 0</span>
         <span id="hudTime">00:00</span>
       </div>
+      <div id="launchGuide" role="status" aria-atomic="true"></div>
     </div>
     <div id="alertBanner"></div>
     <div id="radioBox"></div>
@@ -354,6 +362,7 @@ canvas{display:block}
   <div class="modal-card">
     <div class="modal-title" id="pauseTitle" data-i18n="paused">战术暂停</div>
     <div id="pauseUtilities"></div>
+    <label class="assist-option"><input type="checkbox" id="pauseAssist" checked><span><span data-i18n="assistName">辅助发射</span><small data-i18n="assistHelp">按住发射，锁定后发出一次；松手取消。</small></span></label>
     <div class="opt-row">
       <label data-i18n="sens" for="sensSlider">转向灵敏度</label>
       <input type="range" id="sensSlider" min="0.5" max="1.8" step="0.1" value="1.0">
@@ -420,6 +429,8 @@ const I18N = {
     statSpd:'极速', statMob:'机动', statArm:'装甲',
     cam3p:'第三人称 [V]', cam1p:'3D 座舱 [V]',
     ready:'就绪', reloading:'装填中',
+    assistName:'辅助发射', assistHelp:'按住发射，锁定后发出一次；松手取消。',
+    guide:{search:'寻找下一个方框', approach:'目标还远，继续接近', align:'转向选中的目标方框', tracking:'保持朝向，正在锁定', ready:'已锁定', sent:'已发射', reload:'正在装填', empty:'特武已用完，切回 MSL', hit:'✓ 已命中', held:'已按住', keyHold:'按住空格', touchHold:'按住「发射」', keyFire:'按空格发射', touchFire:'点「发射」'},
     alertMissile:'导弹来袭 · 释放热诱弹', alertPullUp:'高度过低 · 拉起',
     flightHelp:'操作指南', touchHint:'拖动天空转向', boost:'加速', brake:'减速', rollLeft:'左滚', rollRight:'右滚', target:'目标', view:'视角', swap:'换装', cannon:'机炮', launch:'发射',
     flightKeys:'↑↓←→ 转向 · J 机炮 · 空格 发射 · E 目标',
@@ -452,6 +463,8 @@ const I18N = {
     statSpd:'SPEED', statMob:'AGILITY', statArm:'ARMOR',
     cam3p:'3RD PERSON [V]', cam1p:'3D COCKPIT [V]',
     ready:'READY', reloading:'RELOAD',
+    assistName:'Assisted launch', assistHelp:'Hold to fire once on lock. Release to cancel.',
+    guide:{search:'Find the next marker', approach:'Fly closer', align:'Turn toward the marked target', tracking:'Keep it ahead to lock', ready:'Locked', sent:'Launched', reload:'Reloading', empty:'Special empty; switch to MSL', hit:'✓ Hit confirmed', held:'Holding', keyHold:'Hold Space', touchHold:'Hold Launch', keyFire:'Press Space to fire', touchFire:'Tap Launch'},
     alertMissile:'INCOMING · USE FLARES', alertPullUp:'LOW ALTITUDE · PULL UP',
     flightHelp:'Flight controls', touchHint:'Drag sky to steer', boost:'Boost', brake:'Brake', rollLeft:'Roll L', rollRight:'Roll R', target:'Target', view:'View', swap:'Swap', cannon:'Cannon', launch:'Launch',
     flightKeys:'↑↓←→ Steer · J Cannon · Space Launch · E Target',
@@ -2093,6 +2106,10 @@ let selJetIdx = 0;
 let selMissionIdx = 0;
 let mouseSens = 1.0;
 let invertY = false;
+let assistedLaunch = true;
+let launchPending = false;
+let hitNoticeUntil = 0;
+let launchNoticeUntil = 0;
 let cameraMode = '3p'; // '3p' | '1p'
 
 let islands = [];
@@ -2510,6 +2527,8 @@ function loadMissionScene(mIdx, previewOnly = false) {
   m1Wave2Spawned = false; m3AceSpawned = false;
   timeScale = 1.0; slowMoTimer = 0; shakeAmt = 0;
   hitMarkerTimer = 0;
+  hitNoticeUntil = 0;
+  launchNoticeUntil = 0;
   document.getElementById('alertBanner').style.display = 'none';
 
   player.pos.set(0, 250, 1650);
@@ -2579,6 +2598,28 @@ function fireCannon() {
   bullets.push({ mesh, pos, vel, fromPlayer: true, dmg: 14, life: 1.45 });
 }
 
+function launchRange() {
+  return player.activeWeapon === 'spw' ? JETS[selJetIdx].spw.range : 1250;
+}
+
+function launchState() {
+  const special = player.activeWeapon === 'spw';
+  if (special && player.spwAmmo <= 0) return 'empty';
+  if (special ? player.spwReload > 0 : player.mslAmmo <= 0) return 'reload';
+  const target = player.primaryTarget;
+  if (!target?.alive) return 'search';
+  if (target.pos.distanceToSquared(player.pos) > launchRange() ** 2) return 'approach';
+  if (player.lockedTargets[0] !== target) return 'align';
+  return player.lockProgress >= 0.99 ? 'ready' : 'tracking';
+}
+
+function requestLaunch() {
+  if (!assistedLaunch) return fireMissile();
+  const state = launchState();
+  if (state === 'ready') fireMissile();
+  else launchPending = state !== 'empty';
+}
+
 function fireMissile() {
   const spec = JETS[selJetIdx];
   const isSpw = player.activeWeapon === 'spw';
@@ -2606,6 +2647,7 @@ function fireMissile() {
       offsetSide: (player.mslAmmo % 2 === 0 ? -1.8 : 1.8), color: 0xffb23e
     });
   }
+  launchNoticeUntil = missionTimer + 0.65;
   updateWeaponUI();
 }
 
@@ -2660,6 +2702,7 @@ function damageEnemy(e, dmg) {
   if (!e.alive) return;
   e.hp -= dmg;
   hitMarkerTimer = 0.16;
+  hitNoticeUntil = missionTimer + 1;
   sfx.playHit();
   if (e.hp <= 0) {
     e.alive = false;
@@ -2842,13 +2885,17 @@ function updatePlayer(dt, rawDt) {
 
   // Target Acquisition & Multi-Lock System
   updateLockOn(dt);
+  if (launchPending && launchState() === 'ready') {
+    launchPending = false;
+    fireMissile();
+  }
   sfx.updateEngine(true, player.throttle);
 }
 
 function updateLockOn(dt) {
   const spec = JETS[selJetIdx];
   const isSpw = player.activeWeapon === 'spw';
-  const maxRange = isSpw ? spec.spw.range : 1250;
+  const maxRange = launchRange();
   const maxAngle = isSpw && spec.spw.code === 'QAAM' ? 0.52 : 0.34;
   const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quat);
 
@@ -3383,6 +3430,21 @@ function updateWeaponUI() {
   document.getElementById('wpSpw').classList.toggle('on', player.activeWeapon === 'spw');
 }
 
+const launchGuide = document.getElementById('launchGuide');
+function updateLaunchGuide() {
+  if (!assistedLaunch) return;
+  const state = missionTimer < hitNoticeUntil ? 'hit' : missionTimer < launchNoticeUntil ? 'sent' : launchState();
+  const words = I18N[lang].guide;
+  const touch = document.documentElement.classList.contains('touch-flight');
+  let action = '';
+  if (['approach','align','tracking','ready'].includes(state)) {
+    action = launchPending ? words.held : state === 'ready' ? words[touch ? 'touchFire' : 'keyFire'] : words[touch ? 'touchHold' : 'keyHold'];
+  }
+  const message = action ? `${words[state]} · ${action}` : words[state];
+  if (launchGuide.dataset.state !== state) launchGuide.dataset.state = state;
+  if (launchGuide.textContent !== message) launchGuide.textContent = message;
+}
+
 function updateHUDDom() {
   const text = I18N[lang];
   document.getElementById('hudSpeed').textContent = `${text.speed} ${Math.round(player.speed)}`;
@@ -3403,6 +3465,7 @@ function updateHUDDom() {
   document.getElementById('hudTargets').textContent = `${text.targets} ${missionKills}/${totalMissionTargets}`;
   document.getElementById('hudScore').textContent = `${text.score} ${missionScore}`;
   document.getElementById('hudTime').textContent = formatTime(missionTimer);
+  updateLaunchGuide();
   document.getElementById('camBadge').textContent = cameraMode === '1p' ? I18N[lang].cam1p : I18N[lang].cam3p;
   updateWeaponUI();
 }
@@ -3544,6 +3607,14 @@ document.getElementById('muteBtn').onclick = () => {
   document.getElementById('muteBtn').innerHTML = `${sfx.muted ? '🔇' : '🔊'} <span data-i18n="${sfx.muted ? 'soundOff' : 'soundOn'}">${sfx.muted ? I18N[lang].soundOff : I18N[lang].soundOn}</span>`;
 };
 document.getElementById('sensSlider').oninput = e => { mouseSens = parseFloat(e.target.value); };
+const assistToggles = document.querySelectorAll('.assist-option input');
+for (const toggle of assistToggles) toggle.onchange = () => {
+  assistedLaunch = toggle.checked;
+  launchPending = false;
+  launchGuide.hidden = !assistedLaunch;
+  for (const other of assistToggles) other.checked = assistedLaunch;
+  updateLaunchGuide();
+};
 document.getElementById('invertBtn').onclick = e => {
   invertY = !invertY; e.target.textContent = I18N[lang][invertY ? 'on' : 'off'];
 };
@@ -3569,12 +3640,14 @@ function isHeld(action) {
 
 function pressFlight(source, action) {
   if (mode !== 'playing' || heldInputs.has(source)) return;
+  const alreadyHeld = isHeld(action);
   heldInputs.set(source, action);
   touchControls.querySelector(`[data-flight="${action}"]`)?.classList.add('held');
   if (action === 'cannon') fireCannon();
-  if (action === 'launch') fireMissile();
+  if (action === 'launch' && (!assistedLaunch || !alreadyHeld)) requestLaunch();
   if (action === 'flare') deployFlares();
   if (action === 'swap') {
+    launchPending = false;
     player.activeWeapon = player.activeWeapon === 'msl' ? 'spw' : 'msl';
     player.lockProgress = 0;
     player.lockedTargets = [];
@@ -3585,6 +3658,7 @@ function pressFlight(source, action) {
     updateHUDDom();
   }
   if (action === 'target') {
+    launchPending = false;
     const alive = enemies.filter(enemy => enemy.alive);
     if (alive.length) {
       player.primaryTarget = alive[(alive.indexOf(player.primaryTarget) + 1) % alive.length];
@@ -3599,10 +3673,12 @@ function releaseFlight(source) {
   const action = heldInputs.get(source);
   if (!action) return;
   heldInputs.delete(source);
+  if (action === 'launch' && !isHeld('launch')) launchPending = false;
   if (!isHeld(action)) touchControls.querySelector(`[data-flight="${action}"]`)?.classList.remove('held');
 }
 
 function clearFlightInputs() {
+  launchPending = false;
   heldInputs.clear();
   touchControls.querySelectorAll('.held').forEach(button => button.classList.remove('held'));
   steerDrag = null;

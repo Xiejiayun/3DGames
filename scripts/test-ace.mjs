@@ -134,6 +134,7 @@ try {
   await page.locator('#langBtn').click();
   await page.locator('[data-jet="0"]').click();
   await page.locator('[data-mission="0"]').click();
+  await page.locator('#hangarAssist').uncheck();
   await page.locator('#sortieBtn').click();
 
   await page.mouse.move(640, 360);

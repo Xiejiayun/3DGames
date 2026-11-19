@@ -115,6 +115,60 @@ async function center(page, selector) {
   return { x:Math.round(box.x + box.width / 2), y:Math.round(box.y + box.height / 2) };
 }
 
+async function naturalFirstHit(browser, touchMode) {
+  const context = await browser.newContext(touchMode
+    ? { viewport:{ width:390, height:844 }, deviceScaleFactor:1, isMobile:true, hasTouch:true }
+    : { viewport:{ width:800, height:480 } });
+  try {
+    const page = await context.newPage();
+    await open(page);
+    assert.ok(await page.locator('#hangarAssist').isChecked());
+    const activate = selector => touchMode ? page.locator(selector).tap() : page.locator(selector).click();
+    if (!touchMode) await activate('#langBtn');
+    await activate('#qualBtn'); await activate('#qualBtn');
+    await activate('#sortieBtn'); await modeIs(page, 'playing');
+    const guide = page.locator('#launchGuide');
+    const cue = expected => wait(page, key => document.querySelector('#launchGuide').dataset.state === key, expected);
+    await cue('approach');
+    assert.match(await guide.innerText(), touchMode ? /按住「发射」/ : /Hold Space/);
+    const cdp = touchMode ? await context.newCDPSession(page) : null;
+    const launchButton = '[data-flight="launch"]';
+    const hold = async () => touchMode
+      ? cdp.send('Input.dispatchTouchEvent', { type:'touchStart', touchPoints:[{ id:1, ...await center(page, launchButton) }] })
+      : page.keyboard.down('Space');
+    const release = () => touchMode ? cdp.send('Input.dispatchTouchEvent', { type:'touchEnd', touchPoints:[] }) : page.keyboard.up('Space');
+    await hold();
+    await wait(page, () => /已按住|Holding/.test(document.querySelector('#launchGuide').textContent));
+    assert.equal((await state(page)).mslAmmo, 2, 'An early request spends no ammo');
+    if (touchMode) await cdp.send('Input.dispatchTouchEvent', { type:'touchCancel', touchPoints:[] });
+    else {
+      await page.keyboard.press('p'); await modeIs(page, 'paused');
+      await release(); await activate('#btnResume');
+    }
+    await cue('ready');
+    assert.equal((await state(page)).mslAmmo, 2, 'Canceled input does not fire when a target becomes ready');
+    assert.match(await guide.innerText(), touchMode ? /点「发射」/ : /Press Space/);
+    await activate('#pauseBtn'); await activate('#btnRestart'); await cue('approach');
+    await page.evaluate(() => {
+      const readAmmo = () => window.__ACE_DEBUG__.getState().mslAmmo;
+      window.firstFlightAmmo = [readAmmo()];
+      new MutationObserver(() => {
+        const ammo = readAmmo();
+        if (ammo !== window.firstFlightAmmo.at(-1)) window.firstFlightAmmo.push(ammo);
+      }).observe(document.querySelector('#mslCount'), { childList:true });
+    });
+    await hold(); await cue('tracking'); await cue('sent'); await cue('hit');
+    assert.equal((await state(page)).enemiesAlive, 3, 'A real collision removes one of the four original opponents');
+    assert.match(await page.locator('#hudTargets').innerText(), /1\/9/);
+    const when = await page.locator('#hudTime').innerText();
+    await shot(page, touchMode ? 'natural-touch-first-hit' : 'natural-desktop-first-hit');
+    await wait(page, () => window.__ACE_DEBUG__.getState().mslAmmo === 2);
+    assert.deepEqual(await page.evaluate(() => window.firstFlightAmmo), [2, 1, 2], 'One launch per hold, even through reload');
+    await release();
+    console.log(`PASS ${touchMode ? 'touch' : 'keyboard'}: default spawn, canceled hold, confirmed first hit at ${when}, one shot per hold`);
+  } finally { await context.close(); }
+}
+
 async function touchRun(browser) {
   const context = await browser.newContext({ viewport:{ width:390, height:844 }, deviceScaleFactor:1, isMobile:true, hasTouch:true });
   try {
@@ -143,6 +197,9 @@ async function touchRun(browser) {
     await touch('touchCancel', []);
     await wait(page, () => !document.querySelector('#stickBase.active, #wpGun.on, #touchControls .held'));
 
+    await page.locator('#pauseBtn').tap();
+    await page.locator('#pauseAssist').uncheck();
+    await page.locator('#btnResume').tap();
     for (const action of ['launch', 'swap', 'launch', 'flare', 'target', 'view']) await page.locator(`[data-flight="${action}"]`).tap();
     const after = await state(page);
     assert.equal(after.cameraMode, '1p'); assert.equal(after.activeWeapon, 'spw');
@@ -192,6 +249,7 @@ async function desktopRun(browser) {
     await open(page, true);
     assert.equal(await page.locator('html').evaluate(root => root.classList.contains('touch-flight')), false);
     await page.locator('#langBtn').click(); await page.locator('#qualBtn').click(); await page.locator('#qualBtn').click();
+    await page.locator('#hangarAssist').uncheck();
     await page.locator('#sortieBtn').click();
     await modeIs(page, 'playing');
     assert.equal(await page.locator('#touchControls').isVisible(), false);
@@ -343,8 +401,15 @@ let browser;
 try {
   assert.ok(!(process.argv.includes('--desktop-only') && process.argv.includes('--touch-only')), 'Choose one subset, or neither to run the full suite');
   browser = await chromium.launch({ args:['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-  if (!process.argv.includes('--desktop-only')) await touchRun(browser);
-  if (!process.argv.includes('--touch-only')) await desktopRun(browser);
+  const firstHitOnly = process.argv.includes('--first-hit-only');
+  if (!process.argv.includes('--desktop-only')) {
+    await naturalFirstHit(browser, true);
+    if (!firstHitOnly) await touchRun(browser);
+  }
+  if (!process.argv.includes('--touch-only')) {
+    await naturalFirstHit(browser, false);
+    if (!firstHitOnly) await desktopRun(browser);
+  }
   assert.deepEqual(errors, [], 'Browser runtime/console errors');
   console.log(`PASS zero browser/console errors in ${Math.round((performance.now() - started) / 1000)}s`);
 } catch (error) {

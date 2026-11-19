@@ -110,6 +110,9 @@ jobs:
       - name: Check homepage previews and navigation
         run: npm run test:home
 
+      - name: Check Prism Vault puzzles and controls
+        run: npm run test:prism
+
       - name: Validate deployment package (dry run, no upload)
         run: npx cf deploy --prebuilt --mode production --dry-run
 

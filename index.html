@@ -57,6 +57,8 @@ h1 span{color:var(--accent)}
   linear-gradient(135deg,#102b28,#091418)}
 .banner.ace{background:radial-gradient(circle at 85% 20%,rgba(255,105,82,.26),transparent 60%),
   linear-gradient(135deg,#1f162b,#09111f)}
+.banner.prism{background:radial-gradient(circle at 85% 20%,rgba(197,157,255,.25),transparent 60%),
+  linear-gradient(135deg,#271b38,#12101f)}
 
 .tag-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
 .badge{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:3px 10px;
@@ -65,6 +67,7 @@ h1 span{color:var(--accent)}
 .badge.arcade{color:var(--cool);border-color:rgba(111,214,255,.4)}
 .badge.racing{color:var(--ok);border-color:rgba(114,240,164,.4)}
 .badge.air{color:#ff7e6b;border-color:rgba(255,126,107,.45)}
+.badge.puzzle{color:#d8b8ff;border-color:rgba(216,184,255,.45)}
 .tech{font-family:var(--mono);font-size:11px;color:var(--dim);white-space:nowrap}
 
 .card h2{font-size:clamp(20px,1.8vw,23px);font-weight:800;letter-spacing:.02em;line-height:1.25;
@@ -81,6 +84,7 @@ h1 span{color:var(--accent)}
 .card.cs-card .feats li::before{color:var(--accent)}
 .card.kart-card .feats li::before{color:var(--ok)}
 .card.ace-card .feats li::before{color:#ff7e6b}
+.card.prism-card .feats li::before{color:#d8b8ff}
 .feats b{color:var(--fg);font-weight:600}
 .feats kbd,.keys kbd{font-family:var(--mono);font-size:11px;padding:1px 6px;border-radius:4px;
   background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);color:var(--fg);
@@ -100,6 +104,7 @@ h1 span{color:var(--accent)}
 .play.cool{background:var(--cool);color:#041624}
 .play.ok{background:var(--ok);color:#042012}
 .play.air{background:linear-gradient(135deg,#ff8b5e,#ff5247);color:#1f0704}
+.play.puzzle{background:#d8b8ff;color:#24122f}
 .play:hover{filter:brightness(1.08);transform:translateY(-1px)}
 .file-link{font-family:var(--mono);font-size:12px;color:var(--faint)}
 
@@ -121,9 +126,9 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.0
 <div class="wrap">
   <header>
     <div>
-      <div class="eyebrow" data-i18n="eyebrow">ZERO-ASSET WEBGL GAMES · PURE PROCEDURAL 3D</div>
+      <div class="eyebrow" data-i18n="eyebrow">SINGLE-FILE GAMES · THREE.JS + WEBGL</div>
       <h1 data-i18n-html="title">3D Games <span>Collection</span></h1>
-      <p class="sub" data-i18n="subtitle">三款完全基于 Three.js 构建的单文件网页 3D 游戏——无任何外部贴图、模型或音频文件，所有画面、几何体与音效均由代码实时生成。</p>
+      <p class="sub" data-i18n="subtitle">五款单文件 3D 网页游戏：在港口交火、带小鸟穿过管道、驾驶卡丁车漂移、飞越群岛，或在石殿中解开光路谜题。</p>
     </div>
     <div class="lang-switch" role="group" aria-label="Language">
       <button type="button" data-lang="zh" class="on">中文</button>
@@ -290,10 +295,48 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.0
         </div>
       </div>
     </article>
+
+    <article class="card prism-card">
+      <a class="preview" href="games/prism.html" aria-labelledby="prism-title">
+        <img src="assets/previews/prism-vault.webp" width="960" height="540" decoding="async"
+          alt="棱镜密室实机画面：红、蓝两束光沿悬空石廊的上下两层抵达核心" data-i18n-alt="prism.preview">
+        <span class="preview-label" data-i18n="screenshot">实机截图</span>
+      </a>
+      <div class="banner prism">
+        <div class="tag-row">
+          <span class="badge puzzle" data-i18n="prism.badge">3D 光学解谜</span>
+          <span class="tech">Three.js r186 · WebGL 2</span>
+        </div>
+        <h2 id="prism-title" data-i18n="prism.title">棱镜密室 · PRISM VAULT</h2>
+        <p class="tagline" data-i18n="prism.tagline">五章十室，从第一面镜子到整座棱镜圣殿</p>
+      </div>
+      <div class="body">
+        <p class="desc" data-i18n="prism.desc">把镜子放进石廊的槽位，让光绕过立柱、穿过天井。只有当每个核心同时收到它需要的颜色，密室才算解开。</p>
+        <ul class="feats" data-i18n-html="prism.feats">
+          <li><b>把光送上楼：</b>转动水平镜改变方向，翻转升降镜，让光束穿行于不同楼层。</li>
+          <li><b>配出核心的颜色：</b>用棱镜分光、用晶体滤色；两束光在走廊交叉不会混色，照进同一核心才会。</li>
+          <li><b>挑战三星：</b>随时撤销一步，试试能否用更少的元件解开同一间密室。</li>
+        </ul>
+        <div class="keys">
+          <div class="keys-title" data-i18n="controls">核心操作</div>
+          <div class="keys-list" data-i18n-html="prism.keys">
+            <span class="k-item"><kbd>左键</kbd> 选择 / 放置</span>
+            <span class="k-item"><kbd>右键拖拽</kbd> 环视</span>
+            <span class="k-item"><kbd>R / F</kbd> 旋转 / 翻转</span>
+            <span class="k-item"><kbd>Z</kbd> 撤销</span>
+            <span class="k-item"><kbd>H</kbd> 提示</span>
+          </div>
+        </div>
+        <div class="actions">
+          <a class="play puzzle" href="games/prism.html" data-i18n="play">开始游玩 →</a>
+          <span class="file-link">games/prism.html</span>
+        </div>
+      </div>
+    </article>
   </main>
 
   <footer>
-    <span data-i18n="footer.note">提示：所有游戏均通过 CDN 加载 Three.js，请联网并使用现代 WebGL 浏览器打开。</span>
+    <span data-i18n="footer.note">请使用支持 WebGL 2 的现代浏览器。部分游戏需要联网加载 Three.js；《棱镜密室》和《极速卡丁车》下载后也可离线游玩。</span>
     <span>3DGames · MIT License</span>
   </footer>
 </div>
@@ -301,9 +344,9 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.0
 <script>
 const TEXT = {
   zh: {
-    eyebrow: 'ZERO-ASSET WEBGL GAMES · PURE PROCEDURAL 3D',
+    eyebrow: 'SINGLE-FILE GAMES · THREE.JS + WEBGL',
     title: '3D 网页游戏 <span>合集</span>',
-    subtitle: '四款完全基于 Three.js 构建的单文件网页 3D 游戏——无任何外部贴图、模型或音频文件，所有画面、几何体与音效均由代码实时生成。',
+    subtitle: '五款单文件 3D 网页游戏：在港口交火、带小鸟穿过管道、驾驶卡丁车漂移、飞越群岛，或在石殿中解开光路谜题。',
     controls: '核心操作',
     play: '开始游玩 →',
     screenshot: '实机截图',
@@ -335,12 +378,19 @@ const TEXT = {
     'ace.desc': '驾驶三款现代隐身战机穿梭晴空火山群岛、黄昏天然石拱门峡湾与闪电雷暴海域，迎战敌方编队、防空雷达、300 米级航空母舰与王牌长机「绯红一号」。',
     'ace.feats': '<li><b>电影级海空 GLSL 渲染：</b>IBL 环境反射、HDR 辉光、海岸白浪与舰船尾迹动态海面、坡度混合火山地貌及受光立体云海。</li><li><b>3 架隐身战机与专属特武：</b>F-22X 猛禽（4AAM 四目标齐射）、SU-57X 女武神（QAAM 高过载格斗弹）、F-35X 雷霆（LASM 六联装反舰弹）。</li><li><b>直觉空战与双视角：</b>鼠标引导压坡转向 + 动态机炮提前量圈 + 热诱弹反制，按 <kbd>V</kbd> 一键切换电影追尾与 3D 座舱视角。</li>',
     'ace.keys': '<span class="k-item"><kbd>鼠标</kbd> 转向</span><span class="k-item"><kbd>W/S</kbd> 加力/减速</span><span class="k-item"><kbd>左键</kbd> 机炮</span><span class="k-item"><kbd>右键/空格</kbd> 导弹</span><span class="k-item"><kbd>Q</kbd> 特武</span><span class="k-item"><kbd>F</kbd> 热诱弹</span><span class="k-item"><kbd>V</kbd> 座舱</span>',
-    'footer.note': '提示：所有游戏均通过 CDN 加载 Three.js，请联网并使用现代 WebGL 浏览器打开。',
+    'prism.preview': '棱镜密室实机画面：红、蓝两束光沿悬空石廊的上下两层抵达核心',
+    'prism.badge': '3D 光学解谜',
+    'prism.title': '棱镜密室 · PRISM VAULT',
+    'prism.tagline': '五章十室，从第一面镜子到整座棱镜圣殿',
+    'prism.desc': '把镜子放进石廊的槽位，让光绕过立柱、穿过天井。只有当每个核心同时收到它需要的颜色，密室才算解开。',
+    'prism.feats': '<li><b>把光送上楼：</b>转动水平镜改变方向，翻转升降镜，让光束穿行于不同楼层。</li><li><b>配出核心的颜色：</b>用棱镜分光、用晶体滤色；两束光在走廊交叉不会混色，照进同一核心才会。</li><li><b>挑战三星：</b>随时撤销一步，试试能否用更少的元件解开同一间密室。</li>',
+    'prism.keys': '<span class="k-item"><kbd>左键</kbd> 选择 / 放置</span><span class="k-item"><kbd>右键拖拽</kbd> 环视</span><span class="k-item"><kbd>R / F</kbd> 旋转 / 翻转</span><span class="k-item"><kbd>Z</kbd> 撤销</span><span class="k-item"><kbd>H</kbd> 提示</span>',
+    'footer.note': '请使用支持 WebGL 2 的现代浏览器。部分游戏需要联网加载 Three.js；《棱镜密室》和《极速卡丁车》下载后也可离线游玩。',
   },
   en: {
-    eyebrow: 'ZERO-ASSET WEBGL GAMES · PURE PROCEDURAL 3D',
+    eyebrow: 'SINGLE-FILE GAMES · THREE.JS + WEBGL',
     title: '3D Games <span>Collection</span>',
-    subtitle: 'Four single-file 3D browser games built with Three.js — zero external textures, models, or audio files. Everything is generated procedurally in code.',
+    subtitle: 'Five single-file 3D games: fight through a midnight port, flap between pipes, drift a kart, fly over an archipelago, or solve light puzzles in a stone vault.',
     controls: 'Controls',
     play: 'Play Now →',
     screenshot: 'In-game screenshot',
@@ -372,7 +422,14 @@ const TEXT = {
     'ace.desc': 'Pilot three stealth fighters across sunlit islands, a golden-hour volcanic sea arch, and a lightning-storm carrier fleet culminating in a duel against Ace Crimson-1.',
     'ace.feats': '<li><b>Cinematic Sea & Sky GLSL:</b> Procedural IBL reflections, HDR bloom, Gerstner ocean with shoreline foam & ship wakes, slope-blended volcanic terrain, and lit volumetric-style clouds.</li><li><b>3 Stealth Jets & Special Weapons:</b> F-22X Raptor (4AAM multi-lock), SU-57X Valkyrie (high-G QAAM), and F-35X Striker (6-pod LASM anti-ship salvo).</li><li><b>Mouse-Aim & Dual Views:</b> Intuitive banking flight with dynamic cannon lead reticle, flare countermeasures, and instant <kbd>V</kbd> toggle between chase cam & 3D cockpit.</li>',
     'ace.keys': '<span class="k-item"><kbd>Mouse</kbd> Steer</span><span class="k-item"><kbd>W/S</kbd> Thrust</span><span class="k-item"><kbd>LMB</kbd> Gun</span><span class="k-item"><kbd>RMB/Space</kbd> Missile</span><span class="k-item"><kbd>Q</kbd> SPW</span><span class="k-item"><kbd>F</kbd> Flares</span><span class="k-item"><kbd>V</kbd> Cockpit</span>',
-    'footer.note': 'Note: All games load Three.js from a CDN; an internet connection and modern WebGL browser are required.',
+    'prism.preview': 'Prism Vault gameplay: red and blue beams reach their cores on two levels of a floating stone cloister',
+    'prism.badge': '3D Light Puzzles',
+    'prism.title': 'PRISM VAULT',
+    'prism.tagline': 'Five chapters, ten chambers, from your first mirror to the vault',
+    'prism.desc': 'Place mirrors in the stone floor to guide beams past pillars and through skylights. A chamber opens only when every core receives exactly the colors it needs at the same time.',
+    'prism.feats': '<li><b>Send light upstairs:</b> Turn flat mirrors around corners and flip lift mirrors to move beams between floors.</li><li><b>Mix at the core:</b> Split beams with prisms and filter them with crystals. Crossing paths stay separate until they reach the same core.</li><li><b>Aim for three stars:</b> Undo a move and try to solve the same chamber with fewer pieces.</li>',
+    'prism.keys': '<span class="k-item"><kbd>LMB</kbd> Select / place</span><span class="k-item"><kbd>RMB drag</kbd> Orbit</span><span class="k-item"><kbd>R / F</kbd> Rotate / flip</span><span class="k-item"><kbd>Z</kbd> Undo</span><span class="k-item"><kbd>H</kbd> Hint</span>',
+    'footer.note': 'Use a modern browser with WebGL 2. Some games load Three.js online; Prism Vault and Turbo Kart also work offline after download.',
   }
 };
 

@@ -113,6 +113,9 @@ jobs:
       - name: Check Prism Vault puzzles and controls
         run: npm run test:prism
 
+      - name: Check Iron Core Arena combat and camera
+        run: npm run test:ironcore
+
       - name: Validate deployment package (dry run, no upload)
         run: npx cf deploy --prebuilt --mode production --dry-run
 

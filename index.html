@@ -59,6 +59,8 @@ h1 span{color:var(--accent)}
   linear-gradient(135deg,#1f162b,#09111f)}
 .banner.prism{background:radial-gradient(circle at 85% 20%,rgba(197,157,255,.25),transparent 60%),
   linear-gradient(135deg,#271b38,#12101f)}
+.banner.iron{background:radial-gradient(circle at 85% 20%,rgba(112,222,215,.22),transparent 60%),
+  linear-gradient(135deg,#183039,#0b1319)}
 
 .tag-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
 .badge{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:3px 10px;
@@ -68,6 +70,7 @@ h1 span{color:var(--accent)}
 .badge.racing{color:var(--ok);border-color:rgba(114,240,164,.4)}
 .badge.air{color:#ff7e6b;border-color:rgba(255,126,107,.45)}
 .badge.puzzle{color:#d8b8ff;border-color:rgba(216,184,255,.45)}
+.badge.mech{color:#81e7df;border-color:rgba(129,231,223,.45)}
 .tech{font-family:var(--mono);font-size:11px;color:var(--dim);white-space:nowrap}
 
 .card h2{font-size:clamp(20px,1.8vw,23px);font-weight:800;letter-spacing:.02em;line-height:1.25;
@@ -85,6 +88,7 @@ h1 span{color:var(--accent)}
 .card.kart-card .feats li::before{color:var(--ok)}
 .card.ace-card .feats li::before{color:#ff7e6b}
 .card.prism-card .feats li::before{color:#d8b8ff}
+.card.ironcore-card .feats li::before{color:#81e7df}
 .feats b{color:var(--fg);font-weight:600}
 .feats kbd,.keys kbd{font-family:var(--mono);font-size:11px;padding:1px 6px;border-radius:4px;
   background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);color:var(--fg);
@@ -105,6 +109,7 @@ h1 span{color:var(--accent)}
 .play.ok{background:var(--ok);color:#042012}
 .play.air{background:linear-gradient(135deg,#ff8b5e,#ff5247);color:#1f0704}
 .play.puzzle{background:#d8b8ff;color:#24122f}
+.play.mech{background:#81e7df;color:#092427}
 .play:hover{filter:brightness(1.08);transform:translateY(-1px)}
 .file-link{font-family:var(--mono);font-size:12px;color:var(--faint)}
 
@@ -128,7 +133,7 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.0
     <div>
       <div class="eyebrow" data-i18n="eyebrow">SINGLE-FILE GAMES · THREE.JS + WEBGL</div>
       <h1 data-i18n-html="title">3D Games <span>Collection</span></h1>
-      <p class="sub" data-i18n="subtitle">五款单文件 3D 网页游戏：在港口交火、带小鸟穿过管道、驾驶卡丁车漂移、飞越群岛，或在石殿中解开光路谜题。</p>
+      <p class="sub" data-i18n="subtitle">六款单文件 3D 网页游戏：在港口交火、带小鸟穿过管道、驾驶卡丁车漂移、飞越群岛、解开光路谜题，或驾驶机甲守住竞技场。</p>
     </div>
     <div class="lang-switch" role="group" aria-label="Language">
       <button type="button" data-lang="zh" class="on">中文</button>
@@ -333,10 +338,49 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.0
         </div>
       </div>
     </article>
+
+    <article class="card ironcore-card">
+      <a class="preview" href="games/ironcore.html" aria-labelledby="ironcore-title">
+        <img src="assets/previews/iron-core-arena.webp" width="960" height="540" decoding="async"
+          alt="铁核竞技场实机画面：堡垒机甲迎战铁核巨像，橙色扇形预警覆盖反应堆地板" data-i18n-alt="ironcore.preview">
+        <span class="preview-label" data-i18n="screenshot">实机截图</span>
+      </a>
+      <div class="banner iron">
+        <div class="tag-row">
+          <span class="badge mech" data-i18n="ironcore.badge">3D 机甲生存</span>
+          <span class="tech">Three.js r186 · WebGL 2</span>
+        </div>
+        <h2 id="ironcore-title" data-i18n="ironcore.title">铁核竞技场 · IRON CORE ARENA</h2>
+        <p class="tagline" data-i18n="ironcore.tagline">三架机甲、八波攻势，最后迎战铁核巨像</p>
+      </div>
+      <div class="body">
+        <p class="desc" data-i18n="ironcore.desc">在机库选好机甲，进入俯视角竞技场。底盘移动与瞄准相互独立：盯住闸门涌入的敌群，也别错过脚下即将亮起的攻击预警。</p>
+        <ul class="feats" data-i18n-html="ironcore.feats">
+          <li><b>选一架合手的机甲：</b>先锋用微型导弹追敌，磁轨能一击贯穿一列目标，堡垒则可以展开偏转护盾。</li>
+          <li><b>波间改装：</b>清场后从三个模块中选一个，带着升级后的机甲迎接下一扇闸门。</li>
+          <li><b>迎战 OMEGA-01：</b>第八波击败铁核巨像后，可以带着本局模块进入无尽超载。</li>
+        </ul>
+        <div class="keys">
+          <div class="keys-title" data-i18n="controls">核心操作</div>
+          <div class="keys-list" data-i18n-html="ironcore.keys">
+            <span class="k-item"><kbd>WASD</kbd> 移动</span>
+            <span class="k-item"><kbd>鼠标</kbd> 瞄准</span>
+            <span class="k-item"><kbd>左键</kbd> 主武器</span>
+            <span class="k-item"><kbd>右键 / E</kbd> 副武器</span>
+            <span class="k-item"><kbd>空格 / Shift</kbd> 冲刺</span>
+            <span class="k-item"><kbd>Esc / P</kbd> 暂停</span>
+          </div>
+        </div>
+        <div class="actions">
+          <a class="play mech" href="games/ironcore.html" data-i18n="play">开始游玩 →</a>
+          <span class="file-link">games/ironcore.html</span>
+        </div>
+      </div>
+    </article>
   </main>
 
   <footer>
-    <span data-i18n="footer.note">请使用支持 WebGL 2 的现代浏览器。部分游戏需要联网加载 Three.js；《棱镜密室》和《极速卡丁车》下载后也可离线游玩。</span>
+    <span data-i18n="footer.note">请使用支持 WebGL 2 的现代浏览器。部分游戏需要联网加载 Three.js；《棱镜密室》《极速卡丁车》和《铁核竞技场》下载后也可离线游玩。</span>
     <span>3DGames · MIT License</span>
   </footer>
 </div>
@@ -346,7 +390,7 @@ const TEXT = {
   zh: {
     eyebrow: 'SINGLE-FILE GAMES · THREE.JS + WEBGL',
     title: '3D 网页游戏 <span>合集</span>',
-    subtitle: '五款单文件 3D 网页游戏：在港口交火、带小鸟穿过管道、驾驶卡丁车漂移、飞越群岛，或在石殿中解开光路谜题。',
+    subtitle: '六款单文件 3D 网页游戏：在港口交火、带小鸟穿过管道、驾驶卡丁车漂移、飞越群岛、解开光路谜题，或驾驶机甲守住竞技场。',
     controls: '核心操作',
     play: '开始游玩 →',
     screenshot: '实机截图',
@@ -385,12 +429,19 @@ const TEXT = {
     'prism.desc': '把镜子放进石廊的槽位，让光绕过立柱、穿过天井。只有当每个核心同时收到它需要的颜色，密室才算解开。',
     'prism.feats': '<li><b>把光送上楼：</b>转动水平镜改变方向，翻转升降镜，让光束穿行于不同楼层。</li><li><b>配出核心的颜色：</b>用棱镜分光、用晶体滤色；两束光在走廊交叉不会混色，照进同一核心才会。</li><li><b>挑战三星：</b>随时撤销一步，试试能否用更少的元件解开同一间密室。</li>',
     'prism.keys': '<span class="k-item"><kbd>左键</kbd> 选择 / 放置</span><span class="k-item"><kbd>右键拖拽</kbd> 环视</span><span class="k-item"><kbd>R / F</kbd> 旋转 / 翻转</span><span class="k-item"><kbd>Z</kbd> 撤销</span><span class="k-item"><kbd>H</kbd> 提示</span>',
-    'footer.note': '请使用支持 WebGL 2 的现代浏览器。部分游戏需要联网加载 Three.js；《棱镜密室》和《极速卡丁车》下载后也可离线游玩。',
+    'ironcore.preview': '铁核竞技场实机画面：堡垒机甲迎战铁核巨像，橙色扇形预警覆盖反应堆地板',
+    'ironcore.badge': '3D 机甲生存',
+    'ironcore.title': '铁核竞技场 · IRON CORE ARENA',
+    'ironcore.tagline': '三架机甲、八波攻势，最后迎战铁核巨像',
+    'ironcore.desc': '在机库选好机甲，进入俯视角竞技场。底盘移动与瞄准相互独立：盯住闸门涌入的敌群，也别错过脚下即将亮起的攻击预警。',
+    'ironcore.feats': '<li><b>选一架合手的机甲：</b>先锋用微型导弹追敌，磁轨能一击贯穿一列目标，堡垒则可以展开偏转护盾。</li><li><b>波间改装：</b>清场后从三个模块中选一个，带着升级后的机甲迎接下一扇闸门。</li><li><b>迎战 OMEGA-01：</b>第八波击败铁核巨像后，可以带着本局模块进入无尽超载。</li>',
+    'ironcore.keys': '<span class="k-item"><kbd>WASD</kbd> 移动</span><span class="k-item"><kbd>鼠标</kbd> 瞄准</span><span class="k-item"><kbd>左键</kbd> 主武器</span><span class="k-item"><kbd>右键 / E</kbd> 副武器</span><span class="k-item"><kbd>空格 / Shift</kbd> 冲刺</span><span class="k-item"><kbd>Esc / P</kbd> 暂停</span>',
+    'footer.note': '请使用支持 WebGL 2 的现代浏览器。部分游戏需要联网加载 Three.js；《棱镜密室》《极速卡丁车》和《铁核竞技场》下载后也可离线游玩。',
   },
   en: {
     eyebrow: 'SINGLE-FILE GAMES · THREE.JS + WEBGL',
     title: '3D Games <span>Collection</span>',
-    subtitle: 'Five single-file 3D games: fight through a midnight port, flap between pipes, drift a kart, fly over an archipelago, or solve light puzzles in a stone vault.',
+    subtitle: 'Six single-file 3D games: fight through a midnight port, flap between pipes, drift a kart, fly over an archipelago, solve light puzzles, or pilot a mech in the arena.',
     controls: 'Controls',
     play: 'Play Now →',
     screenshot: 'In-game screenshot',
@@ -429,7 +480,14 @@ const TEXT = {
     'prism.desc': 'Place mirrors in the stone floor to guide beams past pillars and through skylights. A chamber opens only when every core receives exactly the colors it needs at the same time.',
     'prism.feats': '<li><b>Send light upstairs:</b> Turn flat mirrors around corners and flip lift mirrors to move beams between floors.</li><li><b>Mix at the core:</b> Split beams with prisms and filter them with crystals. Crossing paths stay separate until they reach the same core.</li><li><b>Aim for three stars:</b> Undo a move and try to solve the same chamber with fewer pieces.</li>',
     'prism.keys': '<span class="k-item"><kbd>LMB</kbd> Select / place</span><span class="k-item"><kbd>RMB drag</kbd> Orbit</span><span class="k-item"><kbd>R / F</kbd> Rotate / flip</span><span class="k-item"><kbd>Z</kbd> Undo</span><span class="k-item"><kbd>H</kbd> Hint</span>',
-    'footer.note': 'Use a modern browser with WebGL 2. Some games load Three.js online; Prism Vault and Turbo Kart also work offline after download.',
+    'ironcore.preview': 'Iron Core Arena gameplay: the Bastion mech faces the Colossus as an orange warning marks its sweep across the reactor floor',
+    'ironcore.badge': '3D Mech Survival',
+    'ironcore.title': 'IRON CORE ARENA',
+    'ironcore.tagline': 'Three mechs. Eight waves. One Iron Core Colossus.',
+    'ironcore.desc': 'Pick a mech in the hangar, then drive and aim independently in a top-down arena. Watch the floor for attack warnings and dash out of danger before the next gate opens.',
+    'ironcore.feats': '<li><b>Pick your chassis:</b> Vanguard tracks enemies with missiles, Railgunner pierces a line of targets, and Bastion can raise a deflector shield.</li><li><b>Build between waves:</b> Choose one of three modules to upgrade your mech for the next gate.</li><li><b>Face OMEGA-01:</b> Beat the Colossus in wave eight, then carry your modules into Endless Overload.</li>',
+    'ironcore.keys': '<span class="k-item"><kbd>WASD</kbd> Drive</span><span class="k-item"><kbd>Mouse</kbd> Aim</span><span class="k-item"><kbd>LMB</kbd> Primary</span><span class="k-item"><kbd>RMB / E</kbd> Secondary</span><span class="k-item"><kbd>Space / Shift</kbd> Dash</span><span class="k-item"><kbd>Esc / P</kbd> Pause</span>',
+    'footer.note': 'Use a modern browser with WebGL 2. Some games load Three.js online; Prism Vault, Turbo Kart and Iron Core Arena also work offline after download.',
   }
 };
 

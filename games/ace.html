@@ -695,54 +695,54 @@ function makeGlowTexture() {
 }
 
 function makeCarrierDeckTexture() {
-  const c = document.createElement('canvas'); c.width = 512; c.height = 1024;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#252b33'; ctx.fillRect(0,0,512,1024);
-  // Subtle deck weathering & tire marks
-  for (let i = 0; i < 420; i++) {
-    ctx.fillStyle = `rgba(255,255,255,${Math.random()*0.025})`;
-    ctx.fillRect(Math.random()*512, Math.random()*1024, 8+Math.random()*28, 20+Math.random()*90);
+  const { ctx, texture } = paintedPavement(512, '#465460');
+  ctx.fillStyle = '#394751'; ctx.fillRect(354, 217, 125, 537);
+  ctx.strokeStyle = '#d8ac65'; ctx.lineWidth = 5; ctx.strokeRect(358, 221, 117, 529);
+  for (let bay = 0; bay < 4; bay++) {
+    ctx.fillStyle = '#82908e'; ctx.fillRect(369, 187 - 29 * bay, 80 - bay * 9, 7);
   }
-  // White perimeter safety lines
-  ctx.strokeStyle = '#d8e0e8'; ctx.lineWidth = 6;
-  ctx.strokeRect(22, 22, 468, 980);
-  // Angled landing runway markings
-  ctx.save();
-  ctx.translate(220, 540); ctx.rotate(-0.14);
-  ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 8;
-  ctx.beginPath(); ctx.moveTo(-78, -440); ctx.lineTo(-78, 440); ctx.moveTo(78, -440); ctx.lineTo(78, 440); ctx.stroke();
-  ctx.setLineDash([34, 24]); ctx.strokeStyle = '#eef4fa'; ctx.lineWidth = 7;
-  ctx.beginPath(); ctx.moveTo(0, -430); ctx.lineTo(0, 430); ctx.stroke();
-  // Arresting wires
-  ctx.setLineDash([]); ctx.strokeStyle = '#11161c'; ctx.lineWidth = 4;
-  for (let y = 160; y <= 280; y += 36) { ctx.beginPath(); ctx.moveTo(-72, y); ctx.lineTo(72, y); ctx.stroke(); }
+  ctx.save(); ctx.translate(194, 416); ctx.rotate(0.205);
+  ctx.fillStyle = '#35424b'; ctx.fillRect(-75, -367, 150, 735);
+  ctx.fillStyle = '#f3bd65'; ctx.fillRect(-79, -367, 6, 735); ctx.fillRect(73, -367, 6, 735);
+  ctx.fillStyle = '#dbe4dc'; ctx.fillRect(-66, -367, 3, 735); ctx.fillRect(63, -367, 3, 735);
+  for (let mark = -340; mark < 340; mark += 66) ctx.fillRect(-5, mark, 10, 34);
+  for (let mark = -53; mark <= 53; mark += 21) ctx.fillRect(mark, -358, 9, 48);
   ctx.restore();
-  // Bow catapult tracks
-  ctx.strokeStyle = '#9aa6b5'; ctx.lineWidth = 5;
-  ctx.beginPath(); ctx.moveTo(210, 40); ctx.lineTo(210, 390); ctx.moveTo(295, 40); ctx.lineTo(295, 390); ctx.stroke();
-  // Deck number "79"
-  ctx.fillStyle = '#edf3fa'; ctx.font = 'bold 96px Consolas, monospace'; ctx.textAlign = 'center';
-  ctx.fillText('79', 256, 130);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
-  return tex;
+  ctx.fillStyle = '#dee7df'; ctx.textAlign = 'center'; ctx.font = 'bold 93px sans-serif';
+  ctx.fillText('79', 272, 932);
+  ctx.fillRect(212, 950, 120, 6);
+  return texture;
+}
+
+function paintedPavement(width, base) {
+  const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = 1024;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = base; ctx.fillRect(0, 0, width, 1024);
+  for (let index = 0; index < 280; index++) {
+    ctx.fillStyle = index % 3 ? 'rgba(255,244,218,.032)' : 'rgba(17,26,29,.08)';
+    ctx.fillRect(hash2(index, 1) * width, hash2(index, 2) * 1024, 2 + hash2(index, 3) * 12, 8 + hash2(index, 4) * 60);
+  }
+  ctx.fillStyle = 'rgba(15,26,30,.20)';
+  for (let seam = 32; seam < 1024; seam += 96) ctx.fillRect(0, seam, width, 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 8;
+  return { ctx, texture };
 }
 
 function makeRunwayTexture() {
-  const c = document.createElement('canvas'); c.width = 256; c.height = 1024;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#2b3036'; ctx.fillRect(0,0,256,1024);
-  ctx.strokeStyle = '#e8eef5'; ctx.lineWidth = 6;
-  ctx.strokeRect(18, 18, 220, 988);
-  ctx.setLineDash([40, 32]); ctx.lineWidth = 8;
-  ctx.beginPath(); ctx.moveTo(128, 120); ctx.lineTo(128, 904); ctx.stroke();
-  ctx.setLineDash([]); ctx.fillStyle = '#e8eef5';
-  for (let x = 40; x <= 216; x += 24) { ctx.fillRect(x - 6, 36, 12, 62); ctx.fillRect(x - 6, 926, 12, 62); }
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
-  return tex;
+  const { ctx, texture } = paintedPavement(256, '#404c4d');
+  ctx.fillStyle = '#b7a688'; ctx.fillRect(0, 0, 9, 1024); ctx.fillRect(247, 0, 9, 1024);
+  for (const side of [1, -1]) {
+    ctx.save(); ctx.translate(128, 512); ctx.scale(side, side);
+    ctx.fillStyle = '#dadfd4'; ctx.fillRect(-111, -508, 4, 1016);
+    for (let offset = -82; offset <= 82; offset += 25) ctx.fillRect(offset, 442, 12, 49);
+    ctx.textAlign = 'center'; ctx.font = 'bold 58px sans-serif'; ctx.fillText(side === 1 ? '36' : '18', 0, 413);
+    ctx.fillRect(-90, 237, 17, 47); ctx.fillRect(73, 237, 17, 47);
+    ctx.restore();
+  }
+  ctx.fillStyle = '#e8e8d8';
+  for (let mark = 203; mark < 805; mark += 66) ctx.fillRect(124, mark, 8, 33);
+  return texture;
 }
 
 // ============================================================================
@@ -1232,216 +1232,379 @@ function buildBomberMesh() {
 
 // --- Custom Slope + Height Blended Volcanic Island Builder ---
 function buildVolcanicIsland(cx, cz, radius, peakH, seed, mCfg) {
-  const segs = 56;
-  const geo = new THREE.PlaneGeometry(radius * 2.5, radius * 2.5, segs, segs);
+  const segments = 56, extent = radius * 1.2, spacing = 2 * extent / segments;
+  const geo = new THREE.PlaneGeometry(2 * extent, 2 * extent, segments, segments);
   geo.rotateX(-Math.PI / 2);
-  const pos = geo.attributes.position;
+  const pos = geo.attributes.position, smooth = THREE.MathUtils.smoothstep;
+  const phase = seed * 2.39;
+  const form = mCfg.landform ?? ['shield', 'dyke', 'breach'][seed % 3];
+  const bearing = mCfg.bearing ?? phase, axisX = Math.cos(bearing), axisZ = Math.sin(bearing);
+  const channel = mCfg.channel, bankSide = channel ? Math.sign(cx - channel.x) : 0;
+  // Crest control points are in island radii (along, across, relief). The open rim faces the inlet.
+  const crest = form === 'breach' ? [
+    [-0.74,0.28,0.11], [-0.49,0.10,0.50], [-0.32,-0.23,0.63], [-0.09,-0.36,0.42],
+    [0.23,-0.31,0.82], [0.41,-0.10,0.72], [0.48,0.17,0.48], [0.66,0.44,0.13]
+  ] : form === 'dyke' ? [
+    [-0.82,-0.05,0.12], [-0.55,-0.14,0.43], [-0.33,-0.09,0.94], [-0.17,-0.01,0.72],
+    [0.10,0.04,0.42], [0.38,0.14,0.64], [0.71,0.05,0.17]
+  ] : [[-0.82,0.16,0.12], [-0.47,0.02,0.28], [-0.15,-0.14,0.52], [0.17,-0.14,0.79], [0.38,0.11,0.55], [0.62,0.26,0.20]];
+  const ribs = crest.slice(1).map(([endX, endZ, endH], index) => {
+    const [x, z, height] = crest[index], dx = endX - x, dz = endZ - z;
+    return { x, z, height, dx, dz, dh: endH - height, inverseLengthSq: 1 / (dx * dx + dz * dz) };
+  });
 
-  function sampleHeight(lx, lz) {
-    const dist = Math.hypot(lx, lz) / radius;
-    if (dist > 1.25) return -18;
-    const falloff = Math.max(0, 1 - dist * dist);
-    const n1 = ridge2((lx + seed * 130) * 0.0038, (lz - seed * 97) * 0.0038, 4);
-    const n2 = fbm2((lx - seed * 71) * 0.009, (lz + seed * 53) * 0.009, 3);
-    const h = (n1 * 0.72 + n2 * 0.28) * peakH * Math.pow(falloff, 1.35) - 10;
-    return h;
+  function bedrock(x, z) {
+    const along = (x * axisX + z * axisZ) / radius, across = (z * axisX - x * axisZ) / radius;
+    const angle = Math.atan2(across, along);
+    const inlet = 0.25 * smooth(across, 0.20, 0.82) * (1 - smooth(Math.abs(along - 0.18), 0.04, 0.55));
+    const coast = 0.99 + 0.066 * Math.sin(3 * angle + phase) + 0.046 * Math.cos(5 * angle - phase) + 0.018 * Math.sin(8 * angle + phase);
+    const inland = coast - Math.hypot(along / 1.05, (across + 0.10 * along) / (form === 'dyke' ? 0.83 : 0.94)) - inlet;
+    if (inland <= -0.15) return -20;
+    const folds = noise2(3.5 * along + seed, 3.5 * across - seed), slip = noise2(2.4 * across, 3.2 * along + seed);
+    let ridge = 0;
+    for (const rib of ribs) {
+      const rx = along - rib.x + 0.11 * (folds - 0.5), rz = across - rib.z + 0.16 * (slip - 0.5);
+      const fraction = THREE.MathUtils.clamp((rx * rib.dx + rz * rib.dz) * rib.inverseLengthSq, 0, 1);
+      const distance = Math.hypot(rx - fraction * rib.dx, rz - fraction * rib.dz);
+      const relief = rib.height + fraction * rib.dh;
+      const skirt = Math.max(0, 1 - distance / (0.37 + 0.42 * relief));
+      ridge = Math.max(ridge, relief * skirt * (0.54 + 0.46 * skirt));
+    }
+    const flutes = noise2(7.5 * along + 2 * slip + seed, 2.8 * across - seed);
+    const fault = 0.54 + 0.15 * Math.sin(4.5 * along + phase) - 0.17 * along + 0.18 * (folds - 0.5);
+    const tongue = Math.max(0, 1 - 1.5 * Math.abs(along + 0.29)) * smooth(across, -0.63, -0.02);
+    const scarp = tongue * ((0.09 + 0.10 * flutes) * smooth(fault + 0.15 * flutes - across, -0.04, 0.047)
+      + (0.10 + 0.18 * slip) * smooth(fault - 0.15 + 0.13 * folds - across, -0.04, 0.07));
+    const dip = ridge + 0.15 * along + 0.055 * slip;
+    const outcrop = (1 - smooth(Math.abs(dip - 0.32), 0.026, 0.083)) * smooth(flutes, 0.26, 0.76);
+    const buttress = (0.15 * (flutes - 0.44) + 0.10 * outcrop) * smooth(ridge + scarp, 0.03, 0.19);
+    const shore = inland < 0 ? Math.max(-20, 140 * inland) : (46 + 60 * folds) * inland / (1 + 1.4 * inland);
+    let height = shore + peakH * ((ridge * (0.90 + 0.22 * folds) + buttress) * smooth(inland, -0.015, 0.30) + scarp * smooth(inland, -0.025, 0.14));
+    if (channel) {
+      const east = x + cx - channel.x, south = z + cz - channel.z;
+      const run = east * channel.sin + south * channel.cos;
+      const cross = bankSide * (east * channel.cos - south * channel.sin - 17 * Math.sin(run / 190));
+      const bank = cross - 47 - 24 * smooth(Math.abs(run), 25, 300);
+      const tidalCut = Math.max(-20, bank * (0.29 + 0.0016 * Math.max(0, bank)));
+      height = THREE.MathUtils.lerp(Math.min(height, tidalCut), height, smooth(Math.abs(run), 205, 405));
+    }
+    return height;
   }
 
-  for (let i = 0; i < pos.count; i++) {
-    const lx = pos.getX(i), lz = pos.getZ(i);
-    pos.setY(i, sampleHeight(lx, lz));
+  const pads = (mCfg.pads || []).map(pad => {
+    const x = pad.x - cx, z = pad.z - cz;
+    return { ...pad, x, z, height: pad.height ?? bedrock(x, z) };
+  });
+  for (let index = 0; index < pos.count; index++) {
+    const x = pos.getX(index), z = pos.getZ(index);
+    let height = bedrock(x, z);
+    for (const pad of pads) {
+      const verge = Math.hypot(Math.max(0, Math.abs(x - pad.x) - pad.halfX), Math.max(0, Math.abs(z - pad.z) - pad.halfZ));
+      height = THREE.MathUtils.lerp(pad.height, height, smooth(verge, 0, pad.blend));
+    }
+    pos.setY(index, height);
   }
   geo.computeVertexNormals();
 
-  const mat = new THREE.ShaderMaterial({
-    uniforms: {
-      uSunDir: oceanUniforms.uSunDir,
-      uSunColor: oceanUniforms.uSunColor,
-      uSkyColor: oceanUniforms.uSkyColor,
-      uFogColor: oceanUniforms.uFogColor,
-      uFogDensity: oceanUniforms.uFogDensity,
-      uLightning: oceanUniforms.uLightning,
-      uStorm: { value: mCfg.storm ? 1.0 : 0.0 }
-    },
-    vertexShader: `
-      varying vec3 vWorldPos;
-      varying vec3 vNormalW;
-      void main() {
-        vec4 wp = modelMatrix * vec4(position, 1.0);
-        vWorldPos = wp.xyz;
-        vNormalW = normalize(mat3(modelMatrix) * normal);
-        gl_Position = projectionMatrix * viewMatrix * wp;
-      }
-    `,
-    fragmentShader: `
-      uniform vec3 uSunDir;
-      uniform vec3 uSunColor;
-      uniform vec3 uSkyColor;
-      uniform vec3 uFogColor;
-      uniform float uFogDensity;
-      uniform float uLightning;
-      uniform float uStorm;
-      varying vec3 vWorldPos;
-      varying vec3 vNormalW;
+  const wet = new THREE.Color(0x514f50), sand = new THREE.Color(0xd0bb92);
+  const fern = new THREE.Color(mCfg.id === 1 ? 0x394d42 : 0x345943), meadow = new THREE.Color(mCfg.storm ? 0x788377 : 0x94a166);
+  const basalt = new THREE.Color(0x384652), tuff = new THREE.Color(0xbaaa8b), clinker = new THREE.Color(0x875c4b);
+  const color = new THREE.Color(), scrub = new THREE.Color(), strata = new THREE.Color();
+  const colors = new Float32Array(pos.count * 3);
+  for (let index = 0; index < pos.count; index++) {
+    const x = pos.getX(index), z = pos.getZ(index), height = pos.getY(index);
+    const slope = 1 - geo.attributes.normal.getY(index);
+    const province = noise2(0.006 * x - seed, 0.005 * z + seed), patch = fbm2(0.013 * x + seed, 0.013 * z, 3);
+    const ash = noise2(height * 0.040 + x * 0.007 - z * 0.006 + 2.7 * province, seed + z * 0.008 + x * 0.004);
+    scrub.copy(fern).lerp(meadow, smooth(patch + 0.23 * (province - 0.5), 0.22, 0.67));
+    strata.copy(basalt).lerp(clinker, 0.52 * smooth(province, 0.38, 0.78)).lerp(tuff, (0.38 + 0.36 * province) * smooth(ash, 0.31, 0.76));
+    color.copy(wet).lerp(sand, (0.16 + 0.84 * smooth(province, 0.16, 0.78)) * smooth(height, -2, 6));
+    color.lerp(scrub, smooth(height + 22 * (patch - 0.40), 5, 23));
+    const exposure = slope + 0.24 * (province - 0.46) + 0.12 * (patch - 0.40);
+    color.lerp(strata, Math.max(smooth(exposure, 0.07, 0.36), (0.45 + 0.45 * ash) * smooth(height / peakH, 0.56, 0.88)));
+    color.multiplyScalar(0.91 + 0.19 * patch).toArray(colors, index * 3);
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const mesh = new THREE.Mesh(geo, volcanicSurface());
+  mesh.name = 'Volcanic island';
+  mesh.position.set(cx, 0, cz); mesh.castShadow = true; mesh.receiveShadow = true;
 
-      float h21(vec2 p){ p=fract(p*vec2(127.1,311.7)); p+=dot(p,p+34.23); return fract(p.x*p.y); }
-      float n2(vec2 p){
-        vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
-        return mix(mix(h21(i),h21(i+vec2(1,0)),f.x), mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x), f.y);
-      }
-
-      void main() {
-        vec3 N = normalize(vNormalW);
-        vec3 L = normalize(uSunDir);
-        float h = vWorldPos.y;
-        float slope = 1.0 - clamp(N.y, 0.0, 1.0);
-        float detail = n2(vWorldPos.xz * 0.045) * 0.55 + n2(vWorldPos.xz * 0.18) * 0.45;
-        float strata = sin(h * 0.22 + detail * 3.0) * 0.5 + 0.5;
-
-        // Height + Slope biome blending
-        vec3 wetSand = vec3(0.32, 0.28, 0.21);
-        vec3 sand = vec3(0.76, 0.69, 0.52);
-        vec3 grass = mix(vec3(0.11, 0.30, 0.13), vec3(0.22, 0.42, 0.16), detail);
-        vec3 rock = mix(vec3(0.18, 0.19, 0.21), vec3(0.30, 0.28, 0.26), strata * 0.7 + detail * 0.3);
-        vec3 peak = vec3(0.26, 0.24, 0.23);
-
-        vec3 albedo = mix(wetSand, sand, smoothstep(0.0, 7.0, h));
-        albedo = mix(albedo, grass, smoothstep(8.0, 26.0, h));
-        albedo = mix(albedo, peak, smoothstep(130.0, 220.0, h));
-        albedo = mix(albedo, rock, smoothstep(0.26, 0.52, slope));
-        albedo *= mix(1.0, 0.62, uStorm);
-
-        float diff = max(dot(N, L), 0.0);
-        vec3 light = uSunColor * diff * (1.25 - uStorm * 0.55) + uSkyColor * (0.28 + 0.22 * max(N.y, 0.0));
-        light += vec3(0.55, 0.75, 1.0) * uLightning * (0.35 + diff * 0.5);
-        vec3 col = albedo * light;
-
-        float dist = length(cameraPosition - vWorldPos);
-        float fogF = 1.0 - exp(-pow(dist * uFogDensity, 1.65));
-        col = mix(col, uFogColor + vec3(0.45,0.6,0.8) * uLightning * 0.4, clamp(fogF, 0.0, 1.0));
-        gl_FragColor = vec4(col, 1.0);
-      }
-    `
-  });
-
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(cx, 0, cz);
-  mesh.receiveShadow = true;
+  function sampleHeight(x, z) {
+    if (Math.abs(x) > extent || Math.abs(z) > extent) return -20;
+    const gridX = (x + extent) / spacing, gridZ = (z + extent) / spacing;
+    const col = Math.min(segments - 1, Math.floor(gridX)), row = Math.min(segments - 1, Math.floor(gridZ));
+    const fx = gridX - col, fz = gridZ - row, corner = row * (segments + 1) + col;
+    const east = pos.getY(corner + 1), south = pos.getY(corner + segments + 1);
+    // PlaneGeometry splits each quad from southwest to northeast, not bilinearly.
+    if (fx + fz <= 1) return pos.getY(corner) * (1 - fx - fz) + east * fx + south * fz;
+    return pos.getY(corner + segments + 2) * (fx + fz - 1) + east * (1 - fz) + south * (1 - fx);
+  }
   return { mesh, cx, cz, radius, peakH, sampleHeight };
 }
 
-// --- Giant Natural Stone Sea Arch (Mission 2 Fly-Through Landmark!) ---
+function volcanicSurface(faceted = false) {
+  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, flatShading: faceted });
+  // Modulate albedo only: r160 still owns lights, shadow maps, fog and output color.
+  material.onBeforeCompile = shader => {
+    shader.vertexShader = 'varying vec4 vGeology;\n' + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      vGeology = vec4(position, 1.0 - abs(normal.y));`);
+    shader.fragmentShader = `varying vec4 vGeology;
+      vec4 rockHash(vec4 corners) {
+        vec4 hash = fract(corners);
+        return fract(hash * (hash + 33.33) * (hash + hash));
+      }
+      float rockGrain(vec3 point) {
+        vec3 cell = floor(point), part = fract(point);
+        part = part * part * (3.0 - 2.0 * part);
+        vec4 corners = vec4(0.0, 0.1031, 0.11369, 0.21679) + dot(cell, vec3(0.1031, 0.11369, 0.13787));
+        vec4 hash = mix(rockHash(corners), rockHash(corners + 0.13787), part.z);
+        return mix(mix(hash.x, hash.y, part.x), mix(hash.z, hash.w, part.x), part.y);
+      }
+    ` + shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      float beds = rockGrain(vGeology.xyz * vec3(0.031, 0.044, 0.031));
+      float grain = rockGrain(vGeology.xyz * 0.24 + 1.7 * beds);
+      float exposure = smoothstep(0.10, 0.43, vGeology.w);
+      float dip = vGeology.y * 0.061 + dot(vGeology.xz, vec2(0.009, -0.005));
+      float deposit = rockGrain(vec3(vGeology.x * 0.012, dip + 0.76 * beds, vGeology.z * 0.010));
+      float layer = smoothstep(0.23, 0.77, deposit);
+      float fissure = (1.0 - smoothstep(0.025, 0.115, abs(deposit - 0.46))) * smoothstep(0.43, 0.72, beds) * exposure;
+      diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(0.68, 0.77, 0.89), vec3(1.24, 1.16, 1.03), layer), exposure);
+      float detail = 1.0 - smoothstep(560.0, 1650.0, vViewPosition.z);
+      diffuseColor.rgb *= 0.77 + 0.44 * beds + detail * (0.32 * (grain - 0.5) - 0.25 * fissure);`);
+  };
+  return material;
+}
+
+function landmarkMesh(parent, geometry, material, x = 0, y = 0, z = 0) {
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+function landmarkBlocks(parent, blocks, material = new THREE.MeshStandardMaterial({ roughness: 0.79, metalness: 0.13 })) {
+  const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(), material, blocks.length);
+  const matrix = new THREE.Matrix4(), tint = new THREE.Color();
+  blocks.forEach(([x, y, z, width, height, depth, paint], index) => {
+    mesh.setMatrixAt(index, matrix.makeScale(width, height, depth).setPosition(x, y, z));
+    mesh.setColorAt(index, tint.setHex(paint));
+  });
+  mesh.castShadow = mesh.receiveShadow = !material.isMeshBasicMaterial;
+  parent.add(mesh);
+  return mesh;
+}
+
+function clippedPlan(halfX, halfZ, cut) {
+  return [[-halfX + cut, -halfZ], [-halfX, -halfZ + cut], [-halfX, halfZ - cut], [-halfX + cut, halfZ],
+    [halfX - cut, halfZ], [halfX, halfZ - cut], [halfX, -halfZ + cut], [halfX - cut, -halfZ]];
+}
+
+// Clockwise XZ outline and courses [elevation, beam scale, length scale, side paint].
+function landmarkLoft(outline, courses, lid, paintedLid = false) {
+  const positions = [], colors = [], uvs = [], indices = [], tint = new THREE.Color();
+  const xs = outline.map(point => point[0]), zs = outline.map(point => point[1]);
+  const left = Math.min(...xs), aft = Math.min(...zs), width = Math.max(...xs) - left, length = Math.max(...zs) - aft;
+  function vertex([x, z], [height, beam, run]) {
+    positions.push(x * beam, height, z * run); colors.push(tint.r, tint.g, tint.b);
+    if (paintedLid) uvs.push((x - left) / width, 1 - (z - aft) / length);
+    return positions.length / 3 - 1;
+  }
+  for (let tier = 1; tier < courses.length; tier++) {
+    const lower = courses[tier - 1], upper = courses[tier];
+    tint.setHex(lower[3]);
+    outline.forEach((point, index) => {
+      const next = outline[(index + 1) % outline.length];
+      const first = vertex(point, lower); vertex(next, lower); vertex(next, upper); vertex(point, upper);
+      indices.push(first, first + 1, first + 2, first, first + 2, first + 3);
+    });
+  }
+  function cap(course, top) {
+    const center = vertex([0, 0], course), ring = outline.map(point => vertex(point, course));
+    ring.forEach((corner, index) => {
+      const next = ring[(index + 1) % ring.length];
+      if (top) indices.push(center, corner, next); else indices.push(center, next, corner);
+    });
+  }
+  tint.setHex(courses[0][3]); cap(courses[0], false);
+  const lidStart = indices.length;
+  tint.setHex(lid); cap(courses[courses.length - 1], true);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  if (paintedLid) {
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geo.addGroup(0, lidStart, 0); geo.addGroup(lidStart, indices.length - lidStart, 1);
+  }
+  geo.setIndex(indices); geo.computeVertexNormals();
+  return geo;
+}
+
 function buildSeaArch(x, z, rotY) {
-  const g = new THREE.Group();
-  const rockMat = new THREE.MeshStandardMaterial({ color: 0x5c534c, roughness: 0.88, metalness: 0.08 });
-  const archGeo = new THREE.TorusGeometry(135, 32, 10, 28, Math.PI);
-  const pos = archGeo.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const vx = pos.getX(i), vy = pos.getY(i), vz = pos.getZ(i);
-    const n = (fbm2(vx * 0.04, vy * 0.04, 3) - 0.5) * 14;
-    pos.setXYZ(i, vx + n, vy + n * 0.5, vz + n * 0.8);
-  }
-  archGeo.computeVertexNormals();
-  const arch = new THREE.Mesh(archGeo, rockMat);
-  arch.position.y = -12;
-  g.add(arch);
-  g.position.set(x, 0, z);
-  g.rotation.y = rotY;
-  return g;
+  const root = new THREE.Group();
+  root.name = 'Sea arch';
+  const spans = [
+    [-202,-18,28,21,-12], [-178,-18,51,39,-7], [-160,-18,104,53,-5], [-139,-18,116,54,3],
+    [-128,-17,152,45,8], [-109,-8,158,44,5], [-100,44,151,35,3], [-83,71,151,33,1],
+    [-66,86,138,29,-5], [-40,105,143,25,-8], [-15,108,136,23,-12], [12,109,142,24,-10],
+    [40,102,148,28,-5], [65,96,164,30,3], [83,75,158,33,8], [101,50,146,34,11],
+    [112,8,121,42,12], [128,-18,119,47,10], [151,-18,83,44,4], [169,-18,47,34,1], [190,-18,27,22,-4]
+  ];
+  const section = [[0,-0.46], [0.09,-0.82], [0.36,-1], [0.64,-0.91], [0.84,-0.84], [1,-0.42],
+    [0.97,0.38], [0.80,0.80], [0.73,0.91], [0.49,0.98], [0.32,1.01], [0.08,0.82], [0,0.44]];
+  const positions = [], colors = [], indices = [];
+  const basalt = new THREE.Color(0x585352), ash = new THREE.Color(0xb29878), moss = new THREE.Color(0x7d8554), tint = new THREE.Color();
+  spans.forEach(([along, low, high, depth, sweep], ring) => {
+    section.forEach(([rise, face], edge) => {
+      const chip = hash2(ring, edge) - 0.5, height = low + (high - low) * rise + chip * 4;
+      positions.push(along + chip * 5, height, sweep + depth * face + chip * 3);
+      const grit = 0.32 + 0.19 * Math.sin(height * 0.12 + along * 0.015) + chip * 0.24;
+      tint.copy(basalt).lerp(ash, grit).lerp(moss, THREE.MathUtils.smoothstep(rise, 0.80, 1) * (0.50 + chip * 0.6));
+      colors.push(tint.r, tint.g, tint.b);
+      if (ring + 1 < spans.length) {
+        const first = ring * section.length + edge, next = ring * section.length + (edge + 1) % section.length;
+        indices.push(first, next, first + section.length, next, next + section.length, first + section.length);
+      }
+    });
+  });
+  const last = (spans.length - 1) * section.length;
+  for (let edge = 1; edge < section.length - 1; edge++) indices.push(0, edge + 1, edge, last, last + edge, last + edge + 1);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3)); geo.setIndex(indices); geo.computeVertexNormals();
+  landmarkMesh(root, geo, volcanicSurface(true));
+  root.position.set(x, 0, z); root.rotation.y = rotY;
+  return root;
 }
 
-// --- Allied Airbase Island Landmark (Mission 1) ---
 function buildAirbaseLandmark(x, y, z) {
-  const g = new THREE.Group();
-  const rw = new THREE.Mesh(new THREE.BoxGeometry(44, 2.5, 290), new THREE.MeshStandardMaterial({ map: runwayTex, roughness: 0.85 }));
-  g.add(rw);
-  const conc = new THREE.MeshStandardMaterial({ color: 0x5c6670, roughness: 0.82 });
-  for (let i = -1; i <= 1; i++) {
-    const hangar = new THREE.Mesh(new THREE.CylinderGeometry(11, 11, 24, 12, 1, false, 0, Math.PI), conc);
-    hangar.rotation.z = Math.PI / 2; hangar.position.set(38, 1.2, i * 48); g.add(hangar);
+  const root = new THREE.Group();
+  root.name = 'Island airfield';
+  const trim = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88 });
+  const strip = landmarkLoft(clippedPlan(22, 145, 2), [[-0.8,1,1,0x8c8170], [0.7,1,1]], 0xffffff, true);
+  landmarkMesh(root, strip, [trim, new THREE.MeshStandardMaterial({ map: runwayTex, roughness: 0.94 })]);
+  const blocks = [
+    [43,-0.1,-13,42,1.25,209,0xa69e87], [46,1.4,-104,17,2,18,0x767875],
+    [46,12,-104,7,21,8,0xd1c9a7], [46,15,-104,7.3,3,8.3,0xce704c],
+    [46,34,-104,1,7,1,0x515e62], [46,35.9,-104,3.6,1,3.6,0x63767b], [46,39,-104,3.3,0.8,3.3,0x58686a],
+    [44,3.8,-87,9,6.6,10,0x94a39b], [27,0.7,-8,0.85,0.22,151,0xcead65]
+  ];
+  const profile = new THREE.Shape([[-16,0],[-16,7],[-13,11.3],[-7,14],[7,14],[13,11.3],[16,7],[16,0]].map(([across, up]) => new THREE.Vector2(across, up)));
+  const shell = new THREE.ExtrudeGeometry(profile, { depth: 26, bevelEnabled: false }); shell.rotateY(Math.PI / 2);
+  const roof = new THREE.MeshStandardMaterial({ color: 0xbfc4b7, roughness: 0.82, metalness: 0.18 });
+  for (const bay of [-51, 0, 51]) {
+    landmarkMesh(root, shell, roof, 35, 0.5, bay);
+    blocks.push([31,0.7,bay,8,0.22,0.85,0xcead65], [48,14.7,bay,12.4,0.7,5.2,0x749095]);
+    for (const rib of [-6.4, 0, 6.4]) blocks.push([48 + rib,15.2,bay,0.65,0.45,5.8,0xc3c4b1]);
+    for (const wall of [34.8, 61.2]) {
+      blocks.push([wall,5,bay,0.65,9.3,23,0x354c53], [wall,10.6,bay,1.8,1.6,26,0xd78955],
+        [wall,4.7,bay,0.85,8.2,0.55,0x91a29d]);
+    }
   }
-  const tower = new THREE.Mesh(new THREE.BoxGeometry(12, 26, 12), conc);
-  tower.position.set(36, 13, -95); g.add(tower);
-  const beacon = new THREE.Mesh(new THREE.SphereGeometry(2.2, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff3c3c }));
-  beacon.position.set(36, 28, -95); g.add(beacon);
-  g.position.set(x, y, z);
-  return g;
+  const lantern = landmarkLoft(clippedPlan(8, 7, 2.4), [[21,0.60,0.60,0x687777], [23.4,1,1,0xe4ddbd],
+    [24.5,1,1,0x386975], [29.3,1.06,1.06,0xe7dcb9], [30.8,1.13,1.13]], 0x879597);
+  landmarkMesh(root, lantern, trim, 46, 0, -104);
+  landmarkBlocks(root, blocks);
+  const lights = [[46,37.3,-104,2.4,2.8,2.4,0xff784b]];
+  for (const side of [-1, 1]) for (let mark = -132; mark <= 132; mark += 44) {
+    lights.push([side * 21,0.97,mark,1.4,0.55,2.2,0xffdd94]);
+  }
+  landmarkBlocks(root, lights, new THREE.MeshBasicMaterial());
+  root.position.set(x, y, z);
+  return root;
 }
 
-// --- Enemy Radar Station / SAM Site ---
 function buildGroundFacility(type) {
-  const g = new THREE.Group();
-  const conc = new THREE.MeshStandardMaterial({ color: 0x4b5259, roughness: 0.85 });
-  const base = new THREE.Mesh(new THREE.BoxGeometry(24, 6, 24), conc);
-  base.position.y = 3; g.add(base);
+  const root = new THREE.Group();
+  root.name = type === 'radar' ? 'Radome station' : 'Twin-pylon station';
+  const ceramic = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 });
+  const slab = landmarkLoft(clippedPlan(16, 15, 5), [[-1.6,1,1,0x676668], [1.6,1,1,0xb7a58d], [2.4,0.96,0.96]], 0x8d8980);
+  landmarkMesh(root, slab, ceramic);
+  const blocks = [[8,4.9,-8,11,5.2,7,0xa8aaa0], [8,7.8,-8,12,1,8,0xdee1d5], [8,4.7,-4.4,5,3.7,0.45,0x465964],
+    [13.55,5.6,-8,0.3,1.7,4.8,0x536771], [8.8,8.6,-8,2.8,0.7,2.8,0x697b7d]];
+  for (const stripe of [-6, 0, 6]) blocks.push([stripe,2.52,12.7,3.6,0.26,1.0,0xe3c68a]);
   if (type === 'radar') {
-    const dome = new THREE.Mesh(new THREE.IcosahedronGeometry(11, 1), new THREE.MeshStandardMaterial({ color: 0xdce6f0, roughness: 0.4, metalness: 0.2 }));
-    dome.position.y = 14; g.add(dome);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(12, 0.8, 6, 16), new THREE.MeshBasicMaterial({ color: 0xff5533 }));
-    ring.rotation.x = Math.PI / 2; ring.position.y = 7; g.add(ring);
+    const drum = landmarkLoft(clippedPlan(10.8, 10.8, 6), [[2.3,1.06,1.06,0x526266], [7,0.91,0.91,0xd48759],
+      [8.6,1,1,0xe1d6b7], [10,1,1]], 0x92a6a4);
+    landmarkMesh(root, drum, ceramic, -2, 0, 2);
+    const dome = new THREE.IcosahedronGeometry(10.4, 1); dome.scale(1, 0.93, 1);
+    const colors = [], pearl = new THREE.Color(0xe4e4cd), shade = new THREE.Color(0xa6c0c3), tint = new THREE.Color();
+    for (let face = 0; face < dome.attributes.position.count / 3; face++) {
+      tint.copy(pearl).lerp(shade, 0.64 * hash2(face, 17));
+      for (let corner = 0; corner < 3; corner++) colors.push(tint.r, tint.g, tint.b);
+    }
+    dome.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    landmarkMesh(root, dome, ceramic, -2, 10, 2);
   } else {
-    // SAM Launcher Battery
-    const turret = new THREE.Mesh(new THREE.BoxGeometry(12, 5, 16), new THREE.MeshStandardMaterial({ color: 0x3b4938, roughness: 0.7 }));
-    turret.position.y = 8; turret.rotation.x = -0.35; g.add(turret);
-    const glow = new THREE.Mesh(new THREE.BoxGeometry(10, 1.5, 2), new THREE.MeshBasicMaterial({ color: 0xff4238 }));
-    glow.position.set(0, 11.5, -6); g.add(glow);
+    const fin = landmarkLoft(clippedPlan(3.2, 7, 1.6), [[3,1,1,0x53656a], [10.5,1,0.82,0xdb8759],
+      [13,0.94,0.72,0xe3dbc1], [15.2,0.86,0.58]], 0xcbd6cb);
+    for (const side of [-1, 1]) {
+      const pylon = landmarkMesh(root, fin, ceramic, side * 5, 0, 4);
+      pylon.rotation.z = -side * 0.20;
+    }
+    blocks.push([0,3.4,4,19,2.3,16,0x657579], [0,5.9,5,5,5,6,0xc0ba9b]);
   }
-  return g;
+  landmarkBlocks(root, blocks);
+  landmarkBlocks(root, [[8.8,9.4,-8,1.5,1.1,1.5,0xff8653]], new THREE.MeshBasicMaterial());
+  return root;
 }
 
-// --- 300m-Scale Supercarrier (Mission 3 Boss Flagship!) ---
 function buildCarrierMesh() {
-  const g = new THREE.Group();
-  const hullMat = new THREE.MeshStandardMaterial({ color: 0x3a434d, metalness: 0.45, roughness: 0.55 });
-  const darkMat = new THREE.MeshStandardMaterial({ color: 0x1f252c, metalness: 0.5, roughness: 0.5 });
-
-  // Lower armored hull
-  const hull = new THREE.Mesh(new THREE.BoxGeometry(46, 22, 285), hullMat);
-  hull.position.y = 6; g.add(hull);
-  // Flight Deck with custom painted markings
-  const deck = new THREE.Mesh(
-    new THREE.BoxGeometry(66, 3, 300),
-    new THREE.MeshStandardMaterial({ map: carrierDeckTex, roughness: 0.78, metalness: 0.15 })
-  );
-  deck.position.y = 18.5; g.add(deck);
-
-  // Multi-tier Island Superstructure
-  const island = new THREE.Mesh(new THREE.BoxGeometry(14, 28, 48), hullMat);
-  island.position.set(24, 34, 18); g.add(island);
-  const bridgeWin = new THREE.Mesh(new THREE.BoxGeometry(14.5, 3.2, 16), new THREE.MeshBasicMaterial({ color: 0x7be0ff }));
-  bridgeWin.position.set(24, 42, 4); g.add(bridgeWin);
-  const mast = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 2.4, 24, 8), darkMat);
-  mast.position.set(24, 58, 22); g.add(mast);
-  const radarDish = new THREE.Mesh(new THREE.BoxGeometry(14, 3.2, 2), new THREE.MeshStandardMaterial({ color: 0xcbd6e2, metalness: 0.5, roughness: 0.35 }));
-  radarDish.position.set(24, 68, 22); g.add(radarDish);
-
-  // Deck runway edge lights
-  const lightMat = new THREE.MeshBasicMaterial({ color: 0xffb84d });
-  for (let z = -130; z <= 130; z += 32) {
-    const l1 = new THREE.Mesh(new THREE.SphereGeometry(1.1, 6, 6), lightMat);
-    l1.position.set(-31, 20.5, z); g.add(l1);
-    const l2 = new THREE.Mesh(new THREE.SphereGeometry(1.1, 6, 6), lightMat);
-    l2.position.set(31, 20.5, z); g.add(l2);
+  const root = new THREE.Group();
+  root.name = 'Carrier 79';
+  const steel = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.76, metalness: 0.16 });
+  const hull = [[-18,-145],[-23,-130],[-24,44],[-20,95],[-11,126],[0,149],
+    [11,126],[20,95],[24,44],[23,-130],[18,-145]];
+  landmarkMesh(root, landmarkLoft(hull, [[-9,0.70,0.94,0x775654], [0.8,0.86,0.98,0x43575f],
+    [4.1,0.90,0.989,0x7d9196], [12,1,1,0x566774], [16.4,1,1]], 0x88969a), steel);
+  const deck = [[-21,-150],[-29,-139],[-31,-58],[-38,9],[-38,34],[-28,61],[-21,95],[-18,137],[-8,150],
+    [12,150],[22,136],[25,88],[30,67],[30,-81],[27,-126],[20,-150]];
+  const deckGeo = landmarkLoft(deck, [[15.8,0.92,0.987,0x657980], [18.5,1,1,0xc0bda6], [20,1,1]], 0xffffff, true);
+  landmarkMesh(root, deckGeo, [steel, new THREE.MeshStandardMaterial({ map: carrierDeckTex, roughness: 0.89, metalness: 0.08 })]);
+  const house = landmarkLoft(clippedPlan(7.8, 24, 4), [[20,1,1,0x8a9b9e], [29,0.91,0.93,0x536773],
+    [31,0.94,0.95,0xb7c2bf], [37,0.76,0.76]], 0x66767d);
+  landmarkMesh(root, house, steel, 19.5, 0, 7);
+  const bridge = landmarkLoft(clippedPlan(8.7, 11, 3.2), [[34,0.67,0.71,0x788b91], [37.6,1,1,0xbac7c3],
+    [38.6,1.02,1.02,0x376073], [41.7,1.08,1.08,0xd1d2bc], [43,1.13,1.13]], 0x8c9c9b);
+  landmarkMesh(root, bridge, steel, 19, 0, 19);
+  const mast = landmarkLoft(clippedPlan(3.2, 4, 1.1), [[43,1,1,0x738a90], [52,0.58,0.55,0xadbbb9], [60,0.29,0.28]], 0xa2b1ad);
+  landmarkMesh(root, mast, steel, 19, 0, 17);
+  landmarkBlocks(root, [[20,39,-6,8.5,7,9,0xb3bab1], [20,42.7,-6,9,1.6,9.5,0xc67c54], [20,44,-6,7.8,1.2,8.6,0x475c66],
+    [19,51.4,17,10,1.1,2.4,0x99a9ad], [-23.8,12,-63,2.3,2,90,0x384e59], [23.8,12,-63,2.3,2,90,0x384e59]]);
+  const dish = landmarkBlocks(root, [[0,0,0,1.7,4.2,1.7,0xaabdc1], [0,2.1,0,12.5,1.5,1.6,0xd1d6c9],
+    [-4.3,3.8,0,3.2,2.5,1.4,0x8baab1], [4.3,3.8,0,3.2,2.5,1.4,0x8baab1]]);
+  dish.position.set(19, 59, 17); root.userData.radarDish = dish;
+  const lights = [[19,58.4,17,1.9,1.4,1.9,0xff945d]];
+  for (const [port, starboard, along] of [[-27,26,-112],[-29,28,-67],[-32,28,-26],[-36,28,14],[-29,28,52],[-21,23,87],[-17,20,124]]) {
+    lights.push([port,20.25,along,1.2,0.5,3.2,0xffce84], [starboard,20.25,along,1.2,0.5,3.2,0xb0dacf]);
   }
-  g.userData.radarDish = radarDish;
-  return g;
+  landmarkBlocks(root, lights, new THREE.MeshBasicMaterial());
+  return root;
 }
 
-// --- Aegis Stealth Destroyer ---
 function buildDestroyerMesh() {
-  const g = new THREE.Group();
-  const hullMat = new THREE.MeshStandardMaterial({ color: 0x424d58, metalness: 0.5, roughness: 0.48 });
-  const hull = new THREE.Mesh(new THREE.BoxGeometry(18, 12, 128), hullMat);
-  hull.position.y = 4; g.add(hull);
-  const bow = new THREE.Mesh(new THREE.ConeGeometry(9.5, 28, 4), hullMat);
-  bow.rotation.x = -Math.PI / 2; bow.rotation.y = Math.PI / 4; bow.position.set(0, 4, -74); g.add(bow);
-  const superS = new THREE.Mesh(new THREE.BoxGeometry(13, 16, 44), hullMat);
-  superS.position.set(0, 16, -6); g.add(superS);
-  const mast = new THREE.Mesh(new THREE.ConeGeometry(3.2, 18, 4), hullMat);
-  mast.position.set(0, 32, -8); g.add(mast);
-  const nav = new THREE.Mesh(new THREE.SphereGeometry(1.2, 6, 6), new THREE.MeshBasicMaterial({ color: 0xff453a }));
-  nav.position.set(0, 41, -8); g.add(nav);
-  return g;
+  const root = new THREE.Group();
+  root.name = 'Fleet escort';
+  const steel = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.15, roughness: 0.74 });
+  const hull = [[-7.5,-71],[-10.4,-61],[-12.5,-19],[-12,26],[-8.5,53],[-3.4,71],[0,80],
+    [3.4,71],[8.5,53],[12,26],[12.5,-19],[10.4,-61],[7.5,-71]];
+  landmarkMesh(root, landmarkLoft(hull, [[-6,0.55,0.93,0x795957], [1,0.79,0.975,0x455b67],
+    [3.5,0.91,0.99,0x899da4], [9,1,1,0xb9c4ba], [10,1,1]], 0x61737e), steel);
+  const bridge = landmarkLoft(clippedPlan(9, 17.5, 3.6), [[10,1,1,0xa8b5b3], [18.5,0.75,0.76,0x84989e],
+    [20,0.81,0.80,0x385c6c], [23.1,0.74,0.69,0xd0d2bd], [24.3,0.80,0.73]], 0x889b9f);
+  landmarkMesh(root, bridge, steel, 0, 0, 13);
+  const mast = landmarkLoft(clippedPlan(3.2, 4.2, 1.4), [[24.3,1,1,0x8d9fa3], [33,0.48,0.48,0xbac6bf],
+    [39,0.22,0.22]], 0x899da0);
+  landmarkMesh(root, mast, steel, 0, 0, 11);
+  const stack = landmarkLoft(clippedPlan(5, 6, 1.8), [[10,1,1,0x94a4a6], [17.6,0.78,0.78,0xc7875f],
+    [19.9,0.78,0.78,0x445861], [21,0.80,0.80]], 0x394b59);
+  landmarkMesh(root, stack, steel, 0, 0, -17);
+  const pad = new THREE.RingGeometry(6.7, 7.6, 20); pad.rotateX(-Math.PI / 2);
+  landmarkMesh(root, pad, new THREE.MeshStandardMaterial({ color: 0xe4ddbb, polygonOffset: true, polygonOffsetFactor: -1 }), 0, 10.1, -48);
+  landmarkBlocks(root, [[0,31.8,11,8.4,0.95,1.6,0x92a6aa], [0,37.8,11,5.5,1.3,1.3,0xc1cdc6],
+    [0,10.15,56,3,0.30,1.5,0xdac6a0], [0,10.15,52,5.5,0.30,1.5,0xdac6a0], [0,10.15,48,8,0.30,1.5,0xdac6a0],
+    [-2,10.22,-48,1.0,0.4,6,0xd6d5bd], [2,10.22,-48,1.0,0.4,6,0xd6d5bd], [0,10.22,-48,3.2,0.4,1.1,0xd6d5bd]]);
+  landmarkBlocks(root, [[0,40,11,1.4,1.9,1.4,0xff8a59]], new THREE.MeshBasicMaterial());
+  return root;
 }
 
 // --- Volumetric-Feeling Two-Tone Lit Cloud Sea ---
@@ -1812,8 +1975,8 @@ function loadMissionScene(mIdx, previewOnly = false) {
     [1450, 780, 310, 160, 67],
     [-1480, 820, 330, 175, 83]
   ] : mIdx === 1 ? [
-    [-460, -240, 430, 285, 19],
-    [460, -240, 430, 275, 29],
+    [-460, -240, 430, 285, 19, 'dyke', -0.32],
+    [460, -240, 430, 275, 29, 'breach', 0.28],
     [-1150, -1100, 400, 235, 41],
     [1180, -980, 390, 240, 59],
     [0, -1650, 450, 260, 73],
@@ -1825,19 +1988,29 @@ function loadMissionScene(mIdx, previewOnly = false) {
     [1380, 1080, 340, 185, 61]
   ];
 
-  defs.forEach(([x, z, r, h, seed], i) => {
-    const isl = buildVolcanicIsland(x, z, r, h, seed, mCfg);
+  const airfield = { x: -110, z: 1260 };
+  const archBearing = Math.PI * 0.06;
+  const channel = { x: 0, z: -240, sin: Math.sin(archBearing), cos: Math.cos(archBearing) };
+  const stations = mIdx === 1 ? [
+    ['radar',-373,-177], ['radar',344,-76], ['radar',-1218,-928], ['radar',976,-976],
+    ['sam',-253,-1699], ['sam',83,-1711]
+  ] : [];
+  const pads = mIdx === 0 ? [{ x: airfield.x + 21, z: airfield.z, halfX: 65, halfZ: 166, height: 23, blend: 58 }]
+    : stations.map(([, x, z]) => ({ x, z, halfX: 38, halfZ: 38, blend: 58 }));
+  defs.forEach(([x, z, r, h, seed, landform, bearing], i) => {
+    const localPads = pads.filter(pad => Math.hypot(pad.x - x, pad.z - z) < r);
+    const isl = buildVolcanicIsland(x, z, r, h, seed, { ...mCfg, landform, bearing, pads: localPads, channel: mIdx === 1 && i < 2 ? channel : null });
     worldGroup.add(isl.mesh);
     islands.push(isl);
-    if (i < MAX_ISLANDS) islandUniformData[i].set(x, z, r * 0.92, h);
+    // Keep the circular shoal estimate inside the irregular coast; surf peeks out at coves, not as a full halo.
+    if (i < MAX_ISLANDS) islandUniformData[i].set(x, z, r * 0.76, h);
   });
 
   // Mission-Specific Landmarks
   if (mIdx === 0) {
-    worldGroup.add(buildAirbaseLandmark(0, 16, 1250));
+    worldGroup.add(buildAirbaseLandmark(airfield.x, sampleTerrainHeight(airfield.x, airfield.z), airfield.z));
   } else if (mIdx === 1) {
-    // Iconic Giant Fly-Through Natural Stone Sea Arch right between the twin fjord islands!
-    worldGroup.add(buildSeaArch(0, -240, Math.PI * 0.06));
+    worldGroup.add(buildSeaArch(channel.x, channel.z, archBearing));
   }
 
   if (previewOnly) return;
@@ -1865,17 +2038,8 @@ function loadMissionScene(mIdx, previewOnly = false) {
     showRadio(I18N[lang].radioLaunch);
   } else if (mIdx === 1) {
     totalMissionTargets = 10; // 4 radars + 2 SAMs + 4 fighters
-    const radarSpots = [
-      [-420, -220], [420, -220], [-1080, -1020], [1100, -920]
-    ];
-    for (const [rx, rz] of radarSpots) {
-      const gy = Math.max(18, sampleTerrainHeight(rx, rz));
-      spawnEnemy('radar', new THREE.Vector3(rx, gy, rz));
-    }
-    const samSpots = [[-80, -1580], [95, -1520]];
-    for (const [sx, sz] of samSpots) {
-      const gy = Math.max(18, sampleTerrainHeight(sx, sz));
-      spawnEnemy('sam', new THREE.Vector3(sx, gy, sz));
+    for (const [type, x, z] of stations) {
+      spawnEnemy(type, new THREE.Vector3(x, sampleTerrainHeight(x, z), z));
     }
     for (let i = 0; i < 4; i++) {
       spawnEnemy('fighter', new THREE.Vector3(-600 + i * 400, 340, -650 - i * 140));
@@ -1896,11 +2060,7 @@ function loadMissionScene(mIdx, previewOnly = false) {
 function sampleTerrainHeight(wx, wz) {
   let maxH = -20;
   for (const isl of islands) {
-    const dx = wx - isl.cx, dz = wz - isl.cz;
-    if (dx*dx + dz*dz < (isl.radius * 1.25) ** 2) {
-      const h = isl.sampleHeight(dx, dz);
-      if (h > maxH) maxH = h;
-    }
+    maxH = Math.max(maxH, isl.sampleHeight(wx - isl.cx, wz - isl.cz));
   }
   return maxH;
 }

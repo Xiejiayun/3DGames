@@ -2089,6 +2089,7 @@ scene.add(fxGroup);
 
 let lang = 'zh';
 let mode = 'hangar'; // 'hangar' | 'playing' | 'paused' | 'debrief'
+let redrawPausedScene = false;
 let selJetIdx = 0;
 let selMissionIdx = 0;
 let mouseSens = 1.0;
@@ -3465,6 +3466,7 @@ function renderHangarUI() {
 function setScreen(next) {
   clearFlightInputs();
   mode = next;
+  redrawPausedScene = next === 'paused';
   const playing = next === 'playing', paused = next === 'paused', hangar = next === 'hangar';
   const top = document.getElementById('topBar'), utilities = document.getElementById('utilities');
   (paused ? document.getElementById('pauseUtilities') : top).append(utilities);
@@ -3703,6 +3705,7 @@ document.addEventListener('visibilitychange', () => {
 
 function onResize() {
   if (renderingUnavailable) return;
+  if (mode === 'paused') redrawPausedScene = true;
   const width = Math.max(1, innerWidth), height = Math.max(1, innerHeight);
   const tier = renderTiers[quality];
   const dpr = Math.min(window.devicePixelRatio || 1, tier.dpr, Math.sqrt(tier.pixels / (width * height)), renderer.capabilities.maxTextureSize / Math.max(width, height));
@@ -3780,13 +3783,14 @@ function animate(now) {
   lastTime = now;
   frameCount++;
 
-  if (slowMoTimer > 0) {
+  if (renderingUnavailable || (mode === 'paused' && !redrawPausedScene)) return;
+  redrawPausedScene = false;
+  if (mode !== 'paused' && slowMoTimer > 0) {
     slowMoTimer -= rawDt;
     if (slowMoTimer <= 0) timeScale = 1.0;
   }
   const dt = rawDt * timeScale;
 
-  if (renderingUnavailable) return;
   if (mode === 'playing') for (const wake of wakeUniformData) wake.w = 0;
 
   if (mode === 'playing') {
@@ -3801,9 +3805,10 @@ function animate(now) {
     updateProjectilesAndFX(dt);
     updateHUDDom();
   }
-  updateCamera(rawDt);
-
-  updateEnvironment(mode === 'paused' ? 0 : rawDt);
+  if (mode !== 'paused') {
+    updateCamera(rawDt);
+    updateEnvironment(rawDt);
+  }
   if (composer) {
     try {
       composer.render();

@@ -51,6 +51,18 @@ function installProbes() {
   };
   window.aceQA = {
     step, cycle: cycleQuality,
+    sampleFrames(count) {
+      const renderScene = renderer.render, start = missionTimer;
+      let scenes = 0, calls = 0;
+      renderer.render = function (...args) {
+        const result = renderScene.apply(this, args);
+        if (args[0] === scene) { scenes++; calls += this.info.render.calls; }
+        return result;
+      };
+      try { for (let index = 0; index < count; index++) step(); }
+      finally { renderer.render = renderScene; }
+      return { scenes, calls, elapsed:missionTimer - start };
+    },
     info: () => ({ revision: THREE.REVISION, webgl: renderer.capabilities.isWebGL2 ? 2 : 1, quality, hdr: supportsHDR(), post: !!composer,
       size: [gl.drawingBufferWidth, gl.drawingBufferHeight], dpr: renderer.getPixelRatio(),
       postSize: composer && [composer.readBuffer.width, composer.readBuffer.height],
@@ -307,6 +319,27 @@ try {
     if (state.post) assert.deepEqual(state.postSize, state.size);
   }
   await metrics.send('Emulation.clearDeviceMetricsOverride');
+  await page.locator('#pauseBtn').click();
+  const sampleFrames = count => page.evaluate(count => aceQA.sampleFrames(count), count);
+  assert.equal((await sampleFrames(3)).scenes, 1, 'Pause submits one frozen frame');
+  const frozen = await info();
+  const idle = await sampleFrames(40);
+  assert.deepEqual(idle, { scenes:0, calls:0, elapsed:0 });
+  assert.deepEqual((await info()).memory, frozen.memory);
+  await page.setViewportSize({ width:736, height:414 });
+  await page.waitForFunction(() => aceQA.info().size[0] === 736);
+  assert.equal((await sampleFrames(3)).scenes, 1, 'Resize redraws once while paused');
+  for (const tier of ['med', 'low', 'high']) {
+    await page.locator('#pauseQualBtn').click();
+    const changed = await sampleFrames(3);
+    assert.ok(changed.scenes === 1 && changed.calls > 0 && changed.elapsed === 0, `${tier}: refresh graphics without resuming`);
+    assert.equal((await info()).quality, tier);
+  }
+  await capture('pause-idle');
+  await page.locator('#btnResume').click();
+  const resumed = await sampleFrames(3);
+  assert.ok(resumed.scenes === 3 && resumed.calls > 0 && Math.abs(resumed.elapsed - 3/60) < 1e-5);
+  report.pause = { idle, resumed };
   await page.evaluate(() => aceQA.lose());
   await page.waitForFunction(() => document.querySelector('#bootErr').textContent.includes('Restoring'));
   await page.evaluate(() => aceQA.restore());
@@ -314,6 +347,7 @@ try {
   await page.evaluate(() => aceQA.step());
   assert.equal(await page.evaluate(() => __ACE_DEBUG__.getState().mode), 'paused');
   const recovered = await info(); assert.ok(recovered.post && recovered.environment && recovered.environment !== before.environment);
+  await page.locator('#btnResume').click();
   await page.evaluate(() => aceQA.failPost()); assert.equal((await info()).post, false);
   await page.evaluate(() => aceQA.step());
 

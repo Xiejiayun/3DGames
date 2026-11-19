@@ -7332,6 +7332,20 @@ void main() {
     return Math.abs(s.x - s.t) < 1e-3 && Math.abs(s.v) < 0.01;
   }
   var spring = (x) => ({ x, v: 0, t: x });
+  function mirrorBlank(width, height, corner, thickness) {
+    const halfW = width / 2, halfH = height / 2;
+    const outline = new THREE.Shape([
+      [-halfW + corner, -halfH], [halfW - corner, -halfH], [halfW, -halfH + corner], [halfW, halfH - corner],
+      [halfW - corner, halfH], [-halfW + corner, halfH], [-halfW, halfH - corner], [-halfW, -halfH + corner]
+    ].map(([across, up]) => new THREE.Vector2(across, up)));
+    const bevel = 0.012;
+    const geometry = new THREE.ExtrudeGeometry(outline, { depth: thickness - bevel * 2, bevelThickness: bevel, bevelSize: bevel, bevelOffset: -bevel, bevelSegments: 1 });
+    const { position, uv } = geometry.attributes;
+    for (let vertex = 0; vertex < position.count; vertex++) uv.setXY(vertex, position.getX(vertex) / width + 0.5, position.getY(vertex) / height + 0.5);
+    geometry.translate(0, 0, bevel - thickness / 2);
+    geometry.rotateY(Math.PI / 2);
+    return geometry;
+  }
   function turntableParts(group, turn) {
     const base = mesh(lathe([[0.36, -0.075], [0.7, -0.075], [0.71, 0], [0.7, 0.03], [0.36, 0.03]], 48), MAT.bronze, 0, 0, 0);
     group.add(base);
@@ -7371,49 +7385,15 @@ void main() {
         this.tiltG.userData.anim = true;
         mergeStatic(this.tiltG);
       }
-      if (this.vArrows) this.vArrows.forEach((h) => {
-        h.userData.anim = true;
-      });
       this.turn.userData.anim = true;
       mergeStatic(this.turn);
       mergeStatic(this.group);
     }
-    plate(w, h) {
-      const g = new THREE.Group();
-      const glass = mesh(rb(0.05, h, w, 0.012), MAT.silver, 0.03, 0, 0);
-      g.add(glass);
-      const back = mesh(rb(0.05, h + 0.06, w + 0.06, 0.015), MAT.bronze, -0.02, 0, 0);
-      g.add(back);
-      for (const yy of [-h * 0.3, 0, h * 0.3]) g.add(mesh(rb(0.07, 0.06, w * 0.92, 0.02), MAT.bronze, -0.075, yy, 0));
-      for (const zz of [-w * 0.28, w * 0.28]) g.add(mesh(rb(0.07, h * 0.9, 0.06, 0.02), MAT.bronze, -0.075, 0, zz));
-      const boss = new THREE.CylinderGeometry(0.09, 0.11, 0.08, 16);
-      boss.rotateZ(Math.PI / 2);
-      g.add(mesh(boss, MAT.brassDark, -0.12, 0, 0));
-      g.add(mesh(rb(0.09, 0.07, w + 0.1, 0.02), MAT.brass, 0.02, h / 2 + 0.03, 0));
-      g.add(mesh(rb(0.09, 0.07, w + 0.1, 0.02), MAT.brass, 0.02, -h / 2 - 0.03, 0));
-      g.add(mesh(rb(0.09, h + 0.12, 0.07, 0.02), MAT.brass, 0.02, 0, w / 2 + 0.03));
-      g.add(mesh(rb(0.09, h + 0.12, 0.07, 0.02), MAT.brass, 0.02, 0, -w / 2 - 0.03));
-      return g;
-    }
     buildFlat() {
       const mount = this.turn;
-      const blank = (width, height, corner, thickness, material, offset) => {
-        const halfW = width / 2, halfH = height / 2;
-        const outline = new THREE.Shape([
-          [-halfW + corner, -halfH], [halfW - corner, -halfH], [halfW, -halfH + corner], [halfW, halfH - corner],
-          [halfW - corner, halfH], [-halfW + corner, halfH], [-halfW, halfH - corner], [-halfW, -halfH + corner]
-        ].map(([across, up]) => new THREE.Vector2(across, up)));
-        const bevel = 0.012;
-        const geometry = new THREE.ExtrudeGeometry(outline, { depth: thickness - bevel * 2, bevelThickness: bevel, bevelSize: bevel, bevelOffset: -bevel, bevelSegments: 1 });
-        const { position, uv } = geometry.attributes;
-        for (let vertex = 0; vertex < position.count; vertex++) uv.setXY(vertex, position.getX(vertex) / width + 0.5, position.getY(vertex) / height + 0.5);
-        geometry.translate(0, 0, bevel - thickness / 2);
-        geometry.rotateY(Math.PI / 2);
-        mount.add(mesh(geometry, material, offset, 1, 0));
-      };
-      blank(1.19, 1.13, 0.15, 0.112, MAT.brass, 0);
-      blank(1.087, 1.027, 0.122, 0.032, MAT.flatSilver, 0.067);
-      blank(1.082, 1.022, 0.119, 0.037, MAT.bronze, -0.068);
+      mount.add(mesh(mirrorBlank(1.19, 1.13, 0.15, 0.112), MAT.brass, 0, 1, 0));
+      mount.add(mesh(mirrorBlank(1.087, 1.027, 0.122, 0.032), MAT.flatSilver, 0.067, 1, 0));
+      mount.add(mesh(mirrorBlank(1.082, 1.022, 0.119, 0.037), MAT.bronze, -0.068, 1, 0));
       for (const side of [-1, 1]) {
         const brace = rb(0.084, 0.128, 1.12, 0.029, 1);
         brace.rotateX(side * 0.71);
@@ -7444,42 +7424,52 @@ void main() {
       }
     }
     buildElev() {
-      const t2 = this.turn;
-      for (const s of [-1, 1]) {
-        t2.add(mesh(rb(0.09, 1, 0.09, 0.03), MAT.brass, 0, 0.55, s * 0.62));
-        t2.add(mesh(rb(0.18, 0.07, 0.18, 0.02), MAT.brassDark, 0, 0.11, s * 0.62));
-        const pin = new THREE.CylinderGeometry(0.045, 0.045, 0.12, 14);
-        pin.rotateX(Math.PI / 2);
-        t2.add(mesh(pin, MAT.brassPolished, 0, 1, s * 0.56));
-        const hub = new THREE.CylinderGeometry(0.075, 0.075, 0.05, 18);
-        hub.rotateX(Math.PI / 2);
-        t2.add(mesh(hub, MAT.brassPolished, 0, 1, s * 0.66));
+      const mount = this.turn, blade = this.tiltG = new THREE.Group();
+      blade.position.y = 1;
+      mount.add(blade);
+      blade.add(mesh(mirrorBlank(1.02, 1.12, 0.17, 0.12), MAT.brass));
+      blade.add(mesh(mirrorBlank(0.91, 1.01, 0.14, 0.034), MAT.flatSilver, 0.072));
+      blade.add(mesh(mirrorBlank(0.93, 1.03, 0.15, 0.042), MAT.bronze, -0.076));
+      const axle = new THREE.CylinderGeometry(0.09, 0.09, 1.17, 12);
+      axle.rotateX(Math.PI / 2);
+      blade.add(mesh(axle, MAT.brass, -0.06));
+      blade.add(mesh(rb(0.068, 0.92, 0.16, 0.023, 1), MAT.brass, -0.112));
+      const limit = Math.PI / 3;
+      const scale = new THREE.Shape();
+      scale.absarc(0, 0, 0.35, -limit, limit, false);
+      scale.absarc(0, 0, 0.24, limit, -limit, true);
+      scale.closePath();
+      for (const side of [-1, 1]) {
+        mount.add(mesh(new THREE.CylinderGeometry(0.085, 0.15, 0.87, 8), MAT.brass, 0, 0.56, side * 0.55));
+        mount.add(mesh(rb(0.33, 0.1, 0.215, 0.034, 1), MAT.brassPolished, 0, 0.14, side * 0.54));
+        const quadrant = new THREE.ExtrudeGeometry(scale, { depth: 0.055, bevelEnabled: false, curveSegments: 8 });
+        quadrant.translate(0, 0, -0.0275);
+        mount.add(mesh(quadrant, MAT.brass, 0, 1, side * 0.55));
+        for (const angle of [-Math.PI / 4, Math.PI / 4]) {
+          const stop = new THREE.BoxGeometry(0.36, 0.049, 0.076);
+          stop.translate(0.17, 0, 0);
+          stop.rotateZ(angle);
+          mount.add(mesh(stop, MAT.brassPolished, 0, 1, side * 0.55));
+        }
+        const journal = new THREE.CylinderGeometry(0.145, 0.145, 0.14, 12);
+        journal.rotateX(Math.PI / 2);
+        mount.add(mesh(journal, MAT.bronze, 0, 1, side * 0.555));
+        const needle = new THREE.ConeGeometry(0.06, 0.34, 4);
+        needle.rotateZ(-Math.PI / 2);
+        blade.add(mesh(needle, MAT.brassPolished, 0.15, 0, side * 0.624));
+        const nut = new THREE.CylinderGeometry(0.091, 0.091, 0.065, 6);
+        nut.rotateX(Math.PI / 2);
+        blade.add(mesh(nut, MAT.brassPolished, 0, 0, side * 0.645));
       }
-      this.tiltG = new THREE.Group();
-      this.tiltG.position.y = 1;
-      t2.add(this.tiltG);
-      const pl = this.plate(0.9, 0.9);
-      this.tiltG.add(pl);
-      const ha = mesh(chevron(0.15, 0.022), arrowMat(5913096), 0.56, 0.1, 0, false);
-      ha.rotation.x = -Math.PI / 2;
-      t2.add(ha);
-      this.vArrows = [];
-      for (const s of [-1, 1]) {
-        const holder = new THREE.Group();
-        holder.position.set(0, 1.12, s * 0.62);
-        const va = mesh(chevron(0.15, 0.022), arrowMat(5913096), 0, 0.08, 0, false);
-        va.rotation.z = Math.PI / 2;
-        va.rotation.y = Math.PI / 2;
-        holder.add(va);
-        t2.add(holder);
-        this.vArrows.push(holder);
-      }
+      const horizontalPort = mesh(chevron(0.15, 0.022), arrowMat(5913096), 0.56, 0.1, 0, false);
+      horizontalPort.rotation.x = -Math.PI / 2;
+      mount.add(horizontalPort);
       this.tilt.x = this.tilt.t = Math.PI / 4;
     }
     buildSplit(quality) {
       const t2 = this.turn;
-      t2.add(mesh(new THREE.CylinderGeometry(0.12, 0.17, 0.56, 16), MAT.brass, 0, 0.36, 0));
-      t2.add(mesh(rb(0.78, 0.05, 0.78, 0.02), MAT.brassPolished, 0, 0.66, 0));
+      t2.add(mesh(lathe([[0.11, 0.08], [0.23, 0.08], [0.24, 0.14], [0.15, 0.22], [0.12, 0.49], [0.22, 0.61], [0.22, 0.65]], 8, true), MAT.brass));
+      t2.add(mesh(rb(0.76, 0.085, 0.76, 0.035, 1), MAT.brassPolished, 0, 0.66, 0));
       const S2 = 0.6, gap = 8e-3;
       const pair = _PieceView.crystalPair || (_PieceView.crystalPair = glassPair(15924223, 12576511, { ior: 1.52, thickness: 0.8, transmission: 0.92 }));
       for (const s of [-1, 1]) {
@@ -7509,17 +7499,28 @@ void main() {
       t2.add(film);
       pair.high.depthWrite = false;
       pair.low.depthWrite = false;
-      for (const yy of [1 + S2 / 2 + 0.012, 1 - S2 / 2 - 0.012]) {
-        const rail = rb(S2 * 1.38, 0.02, 0.03, 8e-3);
-        rail.rotateY(-Math.PI / 4);
-        t2.add(mesh(rail, MAT.brassPolished, 0, yy, 0, false));
+      const rail = rb(S2 * 1.45, 0.043, 0.062, 0.016, 1);
+      rail.rotateY(-Math.PI / 4);
+      t2.add(mesh(rail, MAT.brassPolished, 0, 1 + S2 / 2, 0));
+      for (const corner of [-1, 1]) {
+        t2.add(mesh(new THREE.CylinderGeometry(0.046, 0.068, S2 + 0.05, 6), MAT.brass, corner * 0.3, 1, corner * 0.3));
       }
-      for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) t2.add(mesh(rb(0.05, S2 + 0.06, 0.05, 0.015), MAT.brass, x * (S2 / 2 + 0.01), 1, z * (S2 / 2 + 0.01)));
-      const fr = new THREE.Group();
-      fr.add(mesh(rb(0.03, 0.05, S2 + 0.08, 0.01), MAT.brassPolished, 0, S2 / 2 + 0.02, 0));
-      fr.add(mesh(rb(0.03, 0.05, S2 + 0.08, 0.01), MAT.brassPolished, 0, -S2 / 2 - 0.02, 0));
-      fr.position.set(-S2 / 2 - 0.03, 1, 0);
-      t2.add(fr);
+      const port = (face, incoming) => {
+        const collar = new THREE.Group();
+        const [dx, , dz] = DIRV[face];
+        collar.position.set(dx * S2 / 2, 1, dz * S2 / 2);
+        if (dx) collar.rotation.z = -dx * Math.PI / 2;
+        else collar.rotation.x = dz * Math.PI / 2;
+        const radius = incoming ? 0.26 : 0.164, length = incoming ? 0.20 : 0.155;
+        const throat = incoming ? 0.135 : 0.11, sides = incoming ? 16 : 8;
+        collar.add(mesh(lathe([[throat, -0.018], [0.176, -0.018], [0.177, 0.04], [radius, length - 0.035], [radius, length], [radius - 0.037, length], [throat, 0.035], [throat, -0.018]], sides, !incoming), MAT.brass));
+        collar.add(mesh(lathe([[radius, length - 0.037], [radius + 0.011, length - 0.029], [radius + 0.011, length + 0.005], [radius - 0.039, length + 0.005], [radius - 0.039, length - 0.002]], sides, !incoming), MAT.brassPolished));
+        t2.add(collar);
+      };
+      const forward = splitIn(this);
+      port(OPP(forward), true);
+      port(forward, false);
+      port(splitSide(this), false);
       const inA = mesh(chevron(0.16, 0.022), arrowMat(6963720), -0.56, 0.1, 0, false);
       inA.rotation.x = -Math.PI / 2;
       t2.add(inA);
@@ -7540,11 +7541,14 @@ void main() {
       const col = maskColor(this.mask);
       const key = "filterPair" + this.mask;
       const pair = _PieceView[key] || (_PieceView[key] = glassPair(new THREE.Color().copy(col).lerp(new THREE.Color(1, 1, 1), 0.35), col, { ior: 1.5, thickness: 0.6, attDist: 0.5, lowOpacity: 0.55 }));
-      const glass = mesh(new THREE.CylinderGeometry(0.29, 0.29, 1.24, 6, 1), pair.high, 0, 0.98, 0, false);
+      const glass = mesh(new THREE.CylinderGeometry(0.31, 0.28, 1.20, 6, 1), pair.high, 0, 0.88, 0, false);
       registerGlass(glass, pair, quality);
       t2.add(glass);
-      t2.add(mesh(lathe([[0.2, 0.08], [0.39, 0.08], [0.4, 0.2], [0.36, 0.34], [0.2, 0.34]], 6, true), MAT.brass, 0, 0, 0));
-      t2.add(mesh(lathe([[0.2, 1.58], [0.36, 1.58], [0.4, 1.66], [0.4, 1.74], [0.2, 1.74]], 6, true), MAT.brass, 0, 0, 0));
+      t2.add(mesh(lathe([[0.2, 0.08], [0.39, 0.08], [0.4, 0.16], [0.32, 0.24], [0.32, 0.3], [0.23, 0.32]], 6, true), MAT.brass));
+      const rim = 0.426;
+      t2.add(mesh(lathe([[0.285, 1.38], [0.335, 1.38], [rim, 1.435], [rim, 1.465], [0.405, 1.48]], 6, true), MAT.brass));
+      t2.add(mesh(new THREE.CylinderGeometry(0.41, 0.41, 0.29, 6, 1, true), MAT.ink, 0, 1.595));
+      t2.add(mesh(lathe([[0.398, 1.729], [rim, 1.746], [rim, 1.772], [0.35, 1.796], [0.24, 1.796]], 6, true), MAT.brass));
       if (!FILTER_MATS.has(this.mask)) {
         const tex2 = glyphPlateTexture(this.mask);
         FILTER_MATS.set(this.mask, {
@@ -7553,11 +7557,24 @@ void main() {
         });
       }
       const enamel = FILTER_MATS.get(this.mask).enamel;
-      t2.add(mesh(new THREE.CylinderGeometry(0.405, 0.405, 0.06, 6, 1, true), enamel, 0, 1.66, 0, false));
-      const cap = new THREE.CircleGeometry(0.3, 6);
+      const channels = [1, 2, 4].filter(bit => this.mask & bit);
+      const radius = channels.length === 1 ? 0.137 : 0.175 / channels.length;
+      for (let facet = 0; facet < 6; facet++) {
+        const angle = (facet + 0.5) * Math.PI / 3;
+        const apothem = 0.41 * Math.cos(Math.PI / 6) + 0.002;
+        for (const [index, bit] of channels.entries()) {
+          const sides = bit === MASK.R ? 3 : bit === MASK.G ? 4 : 20;
+          const start = sides === 4 ? Math.PI / 4 : Math.PI / 2;
+          const glyph = new THREE.RingGeometry(radius * 0.57, radius, sides, 1, start);
+          glyph.translate((index - (channels.length - 1) / 2) * radius * 2.2, 0, apothem);
+          glyph.rotateY(angle);
+          t2.add(mesh(glyph, enamel, 0, 1.595, 0, false));
+        }
+      }
+      const cap = new THREE.CircleGeometry(0.313, 6);
       cap.rotateX(-Math.PI / 2);
       const capMat = FILTER_MATS.get(this.mask).cap;
-      const capM = mesh(cap, capMat, 0, 1.745, 0, false);
+      const capM = mesh(cap, capMat, 0, 1.798, 0, false);
       t2.add(capM);
       this.inner = new THREE.Sprite(perLevel(new THREE.SpriteMaterial({ map: dotTex(), color: col, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })));
       this.inner.scale.setScalar(0.5);
@@ -7606,11 +7623,7 @@ void main() {
       if (this.type === "elev") settled = springStep(this.tilt, dt, 18) && settled;
       this.group.position.set(this.pos.x.x, this.pos.y.x, this.pos.z.x);
       this.turn.rotation.y = this.yaw.x;
-      if (this.tiltG) {
-        this.tiltG.rotation.z = this.tilt.x;
-        const up = this.tilt.x > 0;
-        for (const h of this.vArrows) h.rotation.z = up ? 0 : Math.PI;
-      }
+      if (this.tiltG) this.tiltG.rotation.z = this.tilt.x;
       if (this.inner) {
         this.inner.material.opacity += ((this.glow > 0 ? 0.85 : 0) - this.inner.material.opacity) * Math.min(1, dt * 8);
         if (this.type === "split") this.inner.material.color.copy(this.glowColor);

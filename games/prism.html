@@ -67,6 +67,7 @@ kbd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-siz
 #guide { position: absolute; left: 50%; top: 162px; transform: translateX(-50%); padding: 9px 38px 9px 18px; font-size: 13px; letter-spacing: .03em; max-width: min(720px, 80vw); line-height: 1.5; }
 #guide .gx { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: 0; background: none; font-size: 18px; color: var(--ink2); }
 #guide.flash { animation: gin .5s ease-out; }
+#hud:has(#solved:not(.hidden)) #guide { display: none; }
 #guide-socket { width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 0; background: none; visibility: hidden; translate: 0 42%; touch-action: none; }
 #guide-socket span { display: grid; place-items: center; position: relative; top: -5px; width: 22px; height: 22px; border: 2px solid #fff3d4; border-radius: 50%; background: #29444a; color: white; font: 700 12px/1 var(--font); box-shadow: 0 1px 5px #332916aa; }
 #guide-socket span::after { content: ''; position: absolute; top: 100%; border: 4px solid transparent; border-top-color: #fff3d4; }
@@ -200,7 +201,6 @@ ul.rules { margin: 14px 0 6px; padding-left: 18px; font-size: 12.5px; line-heigh
   #lit .k { font-size: 10px; letter-spacing: .03em; } #lit .v { font-size: 18px; } #lit .sl { margin: 0 2px; } #lit .pips { display: none; }
   #guide { top: calc(var(--edge-t) + 52px); width: min(540px, calc(100% - var(--edge-l) - var(--edge-r))); max-width: none; padding: 7px 40px 7px 12px; font-size: 12px; }
   #guide .gx { right: 0; width: 38px; height: 100%; } #tl:not(.mini) ~ #guide { visibility: hidden; }
-  #hud[data-lesson="lit"]:has(#solved:not(.hidden)) #guide { visibility: hidden; }
   #bottom { left: var(--edge-l); right: var(--edge-r); bottom: var(--edge-b); transform: none; gap: 4px; }
   #trayWrap { width: 100%; max-width: 480px; display: grid; gap: 4px; padding: 4px; }
   #tray { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; }
@@ -8835,7 +8835,7 @@ void main() {
           recover: "2/4 · 先点一下放错位置的镜子，选中后就能移动它。",
           select: "3/4 · 点 A 选中镜子，就会出现「旋转」按钮。",
           rotate: "3/4 · 点「旋转」或按 R，直到反射光照进核心。",
-          lit: "4/4 · 核心外圈闭合了！点「下一关」继续。"
+          lit: "4/4 · 核心外圈闭合，就表示这一关已解开。想再试，可以点「撤销」。"
         },
         3: ["只有一面升降镜。先试 B：它把光朝上打。", "光停在楼板下面——那块楼板是实心的。点左侧「L1」只看底层，或转到侧面看看。", "把同一面镜移到 A（点 A 即可移动）：那里的楼板开了天井。"]
       },
@@ -8968,7 +8968,7 @@ void main() {
           recover: "2/4 · Select the mirror you placed so you can move it.",
           select: "3/4 · Tap A to select the mirror and reveal Rotate.",
           rotate: "3/4 · Tap Rotate or press R until the beam reaches the core.",
-          lit: "4/4 · The core’s ring is closed! Choose Next vault to continue."
+          lit: "4/4 · Watch the core. When its ring closes, the vault is solved. Undo to try again."
         },
         3: ["One elevation mirror. Try B first: it throws the light upward.", "The light stops under the slab — that slab is solid. Click “L1” on the left to see the ground floor alone, or turn to the side.", "Move the same mirror to A (just click A): the slab above it is open."]
       },

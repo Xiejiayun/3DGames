@@ -11,8 +11,8 @@ const root = new URL('../dist/', import.meta.url);
 const directory = fileURLToPath(root).replace(/[\\/]$/, '');
 const server = createServer(async (req, res) => {
   try {
-    const path = new URL(req.url, 'http://localhost').pathname;
-    if (/^\/games\/[a-z]+\.html$/.test(path)) { res.writeHead(307, { location: path.slice(0, -5) }).end(); return; }
+    const { pathname: path, search } = new URL(req.url, 'http://localhost');
+    if (/^\/games\/[a-z]+\.html$/.test(path)) { res.writeHead(307, { location: path.slice(0, -5) + search }).end(); return; }
     const asset = /^\/games\/[a-z]+$/.test(path) ? `${path}.html` : path;
     const file = resolve(directory, '.' + (asset === '/' ? '/index.html' : decodeURIComponent(asset)));
     if (!file.startsWith(directory + sep)) { res.writeHead(403).end(); return; }

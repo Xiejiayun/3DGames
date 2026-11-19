@@ -215,11 +215,27 @@ ul.rules { margin: 14px 0 6px; padding-left: 18px; font-size: 12.5px; line-heigh
   #solved { top: calc(var(--edge-t) + 52px); right: var(--edge-r); max-width: calc(100% - var(--edge-l) - var(--edge-r)); } #solved button { min-height: 38px; }
   #overlay .ov { padding: 12px; } .ovx { min-height: 38px; } .lvls { grid-template-columns: 1fr; }
 }
+@media (orientation: landscape) and (max-height: 520px) {
+  #trayWrap { display: flex; } .card { height: 44px; } .card .ico { height: 22px; }
+  #acts .act { flex: none; flex-direction: column; gap: 0; }
+  #ctx .ci { flex-basis: auto; } #ctx .ci small { display: none; }
+  #guide { left: auto; right: var(--edge-r); transform: none; } #guide.flash { animation: none; }
+}
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 549px) {
+  #tray { flex: 1; min-width: 0; } #acts { flex: none; } #acts .act { width: 42px; padding: 2px; }
+  #ctx button { min-width: 36px; padding-inline: 5px; } #ctx button:disabled { display: none; }
+  #guide { width: clamp(126px, 32vw, 170px); padding: 6px 9px; line-height: 1.4; }
+  #guide .gt::before { content: ''; float: right; width: 27px; height: 28px; }
+  #guide .gx { right: 0; top: 0; width: 36px; height: 36px; transform: none; }
+}
+@media (orientation: landscape) and (max-width: 419px) {
+  #trayWrap:has(.card:nth-child(3)) { display: grid; }
+  #trayWrap:has(.card:nth-child(3)) #acts .act { flex: 1; flex-direction: row; }
+}
 @media (max-height: 520px) and (min-width: 550px) {
-  #trayWrap { display: flex; width: max-content; max-width: 100%; align-items: stretch; }
-  #tray { grid-auto-columns: minmax(70px, 90px); } .card { height: 44px; } .card .ico { height: 22px; }
-  #acts .act { width: 52px; flex: none; flex-direction: column; padding: 2px 4px; gap: 0; white-space: nowrap; } #ctx .ci { flex-basis: auto; } #ctx .ci small { display: none; }
-  #floors { top: 52%; transform: translateY(-50%); } #guide { left: auto; right: var(--edge-r); transform: none; width: clamp(140px, 21vw, 220px); } #guide.flash { animation: none; } .lvls { grid-template-columns: repeat(2, 1fr); }
+  #trayWrap { width: max-content; max-width: 100%; } #tray { grid-auto-columns: minmax(70px, 90px); }
+  #acts .act { width: 52px; padding: 2px 4px; white-space: nowrap; }
+  #floors { top: 52%; transform: translateY(-50%); } #guide { width: clamp(140px, 21vw, 220px); } .lvls { grid-template-columns: repeat(2, 1fr); }
 }
 </style>
 </head>

@@ -29,4 +29,6 @@
 
 ## 合并门槛
 
+已验证的改进：**IN-01** 在 Chromium 离线回归中覆盖选关和帮助的焦点循环、Space/Esc 关闭、焦点归还，以及弹窗内 Ctrl/Cmd+Z 不改动棋盘。
+
 每项从当时的 `origin/main` 建独立 worktree 和分支，PR 只做该项，目标为 `main`。规则或交互改动跑 `node scripts/build-site.mjs` 与 `npm run test:prism`；界面/资产改动看实机渲染截图，性能结论写明档位、场景和采样方式。代码 PR 等仓库检查通过再合并；仓库现有工作流会自行处理 main 上的发布，不另行手动部署。不能用一次绿灯证明「零 bug」或「AAA」。

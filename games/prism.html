@@ -6008,8 +6008,11 @@ void main() {
 
   // src/materials.js
   var MAT = {};
-  var swappables = [];
+  var swappables = new Map();
   var shinySet = /* @__PURE__ */ new Set();
+  function baseMaterial(node) {
+    return node.userData.realMat ?? node.material;
+  }
   function bindReflection(material, texture) {
     if (material?.userData.envK == null) return;
     if (!material.envMap) material.needsUpdate = true;
@@ -6030,9 +6033,9 @@ void main() {
     const bind = material => bindReflection(material, texture);
     shinySet.forEach(bind);
     root.traverse(node => {
-      if (Array.isArray(node.material)) node.material.forEach(bind);
-      else bind(node.material);
-      bind(node.userData.realMat);
+      const material = baseMaterial(node);
+      if (Array.isArray(material)) material.forEach(bind);
+      else bind(material);
     });
   }
   function createMaterials(renderer2) {
@@ -6109,14 +6112,15 @@ void main() {
   }
   function registerGlass(mesh2, pair, quality) {
     mesh2.userData.keep = true;
-    swappables.push({ mesh: mesh2, pair });
+    swappables.set(mesh2, pair);
     mesh2.material = quality === "low" ? pair.low : pair.high;
   }
-  function unregisterGlass(meshes) {
-    for (let i = swappables.length - 1; i >= 0; i--) if (meshes.has(swappables[i].mesh)) swappables.splice(i, 1);
-  }
   function applyGlassQuality(quality) {
-    for (const s of swappables) s.mesh.material = quality === "low" ? s.pair.low : s.pair.high;
+    for (const [mesh, pair] of swappables) {
+      const material = quality === "low" ? pair.low : pair.high;
+      if (mesh.userData.realMat) mesh.userData.realMat = material;
+      else mesh.material = material;
+    }
   }
   function fadeClone(m) {
     const c = m.clone();
@@ -7236,9 +7240,9 @@ void main() {
     return MASK_COLOR[m] || MASK_COLOR[7];
   }
   var DOT = { tex: null };
-  function perLevel(m) {
-    m.userData.perLevel = true;
-    return m;
+  function perLevel(resource) {
+    resource.userData.perLevel = true;
+    return resource;
   }
   var FILTER_MATS = /* @__PURE__ */ new Map();
   function dotTex() {
@@ -7527,7 +7531,7 @@ void main() {
       t2.add(sideA);
       const straightDot = mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.02, 12), MAT.brassPolished, 0.56, 0.1, 0, false);
       t2.add(straightDot);
-      this.inner = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTex(), color: 16777215, transparent: true, opacity: 0, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending }));
+      this.inner = new THREE.Sprite(perLevel(new THREE.SpriteMaterial({ map: dotTex(), color: 16777215, transparent: true, opacity: 0, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending })));
       this.inner.scale.setScalar(0.42);
       this.inner.position.set(0, 1, 0);
       this.inner.renderOrder = 8;
@@ -7557,7 +7561,7 @@ void main() {
       const capMat = FILTER_MATS.get(this.mask).cap;
       const capM = mesh(cap, capMat, 0, 1.745, 0, false);
       t2.add(capM);
-      this.inner = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTex(), color: col, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+      this.inner = new THREE.Sprite(perLevel(new THREE.SpriteMaterial({ map: dotTex(), color: col, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })));
       this.inner.scale.setScalar(0.5);
       this.inner.position.set(0, 1, 0);
       t2.add(this.inner);
@@ -7620,16 +7624,14 @@ void main() {
   var GHOST = { mat: null, hint: null };
   function makeGhost(view, hint2) {
     const mat = hint2 ? GHOST.hint || (GHOST.hint = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.45, 1.2, 1.3), transparent: true, opacity: 0.5, depthWrite: false })) : GHOST.mat || (GHOST.mat = new THREE.MeshBasicMaterial({ color: 16769696, transparent: true, opacity: 0.38, depthWrite: false }));
-    const meshes = new Set();
     view.group.traverse((o) => {
       if (o.isMesh) {
-        meshes.add(o);
+        swappables.delete(o);
         o.material = mat;
         o.castShadow = false;
         o.receiveShadow = false;
       }
     });
-    unregisterGlass(meshes);
     if (view.inner) {
       view.inner.removeFromParent();
       view.inner.material.dispose();
@@ -7709,7 +7711,7 @@ void main() {
       this.halo.scale.setScalar(0.85);
       this.halo.position.set(0.62, 1, 0);
       a.add(this.halo);
-      const etex = glyphPlateTexture(e.mask);
+      const etex = perLevel(glyphPlateTexture(e.mask));
       const plate = perLevel(new THREE.MeshStandardMaterial({ map: etex, emissiveMap: etex, emissive: 16777215, emissiveIntensity: 0.45, roughness: 0.45 }));
       for (const s of [-1, 1]) {
         const p = mesh(new THREE.PlaneGeometry(0.46, 0.23), plate, 0, 0.4, s * 0.565, false);
@@ -7894,7 +7896,7 @@ void main(){
       for (const r of this.ripples) {
         const ph = (t2 * 0.62 + r.userData.phase) % 1;
         r.scale.setScalar(0.45 + ph * 1.9);
-        r.material.opacity = this.match ? (1 - ph) * (0.25 + 0.5 * k) : 0;
+        baseMaterial(r).opacity = this.match ? (1 - ph) * (0.25 + 0.5 * k) : 0;
       }
       return k;
     }
@@ -7929,7 +7931,7 @@ void main(){
       this.crystal = mesh(cg, this.pair.high, 0, 1, 0, false);
       registerGlass(this.crystal, this.pair, quality);
       g.add(this.crystal);
-      const rtex = glyphPlateTexture(r.need);
+      const rtex = perLevel(glyphPlateTexture(r.need));
       const plate = perLevel(new THREE.MeshStandardMaterial({ map: rtex, emissiveMap: rtex, emissive: 16777215, emissiveIntensity: 0.4, roughness: 0.45 }));
       for (let i = 0; i < 4; i++) {
         const p = mesh(new THREE.PlaneGeometry(0.36, 0.18), plate, 0, 0.17, 0, false);
@@ -8087,7 +8089,7 @@ void main(){
       ring.add(mesh(back, MAT.gate, isEntrance ? 0.1 : -0.1, 0, 0));
       for (const s of [-1, 1]) g.add(mesh(rb(0.12, 0.4, 0.12, 0.03), MAT.brassDark, 0, 0.2, s * 0.62));
       g.add(mesh(rb(0.7, 0.14, 1.7, 0.04), MAT.trim, 0, 0.07, 0));
-      const embMat = perLevel(new THREE.MeshBasicMaterial({ map: runeTexture(pair.sym, "#" + edge.getHexString()), transparent: true, side: THREE.DoubleSide }));
+      const embMat = perLevel(new THREE.MeshBasicMaterial({ map: perLevel(runeTexture(pair.sym, "#" + edge.getHexString())), transparent: true, side: THREE.DoubleSide }));
       const emb = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.36), embMat);
       emb.position.set(0, 2.02, 0);
       emb.rotation.y = Math.PI / 2;
@@ -9631,21 +9633,29 @@ void main() {
     const F = G.F;
     return new THREE.Box3(new THREE.Vector3(F.x0 - 1, 0.2, F.z0 - 1), new THREE.Vector3(F.x1 + 1, G.L.H * 2 + 1.5, F.z1 + 1));
   }
-  function disposeObject(o) {
-    const glass = /* @__PURE__ */ new Set();
-    o.traverse((m) => {
-      if (m.geometry) m.geometry.dispose();
-      if (m.isMesh) glass.add(m);
-      if (m.material) (Array.isArray(m.material) ? m.material : [m.material]).forEach((mt) => {
-        if (mt.userData && mt.userData.fadable) mt.dispose();
-        if (mt.userData && mt.userData.perLevel) {
-          unshiny(mt);
-          for (const k of ["map", "emissiveMap"]) if (mt[k] && mt[k].isCanvasTexture) mt[k].dispose();
-          mt.dispose();
-        }
-      });
+  function disposeObject(root) {
+    const materials = new Set(), textures = new Set();
+    root.traverse(node => {
+      if (node.geometry && !node.isSprite) node.geometry.dispose();
+      const material = baseMaterial(node);
+      if (Array.isArray(material)) material.forEach(item => materials.add(item));
+      else if (material) materials.add(material);
+      const pair = swappables.get(node);
+      if (pair) {
+        materials.add(pair.low);
+        materials.add(pair.high);
+        swappables.delete(node);
+      }
     });
-    unregisterGlass(glass);
+    for (const material of materials) {
+      if (!material.userData.perLevel && !material.userData.fadable) continue;
+      unshiny(material);
+      for (const texture of [material.map, material.emissiveMap]) {
+        if (texture?.userData.perLevel) textures.add(texture);
+      }
+      material.dispose();
+    }
+    textures.forEach(texture => texture.dispose());
   }
   function disposeLevel() {
     for (const c of [...levelRoot.children]) {

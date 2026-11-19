@@ -67,6 +67,11 @@ kbd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-siz
 #guide { position: absolute; left: 50%; top: 162px; transform: translateX(-50%); padding: 9px 38px 9px 18px; font-size: 13px; letter-spacing: .03em; max-width: min(720px, 80vw); line-height: 1.5; }
 #guide .gx { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: 0; background: none; font-size: 18px; color: var(--ink2); }
 #guide.flash { animation: gin .5s ease-out; }
+#guide-socket { width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 0; background: none; visibility: hidden; translate: 0 42%; }
+#guide-socket span { display: grid; place-items: center; position: relative; top: -5px; width: 22px; height: 22px; border: 2px solid #fff3d4; border-radius: 50%; background: #29444a; color: white; font: 700 12px/1 var(--font); box-shadow: 0 1px 5px #332916aa; }
+#guide-socket span::after { content: ''; position: absolute; top: 100%; border: 4px solid transparent; border-top-color: #fff3d4; }
+#guide-socket:focus-visible { outline: 2px solid #29444a; border-radius: 50%; }
+#hud[data-lesson="take"] [data-key="flat"], #hud[data-lesson="rotate"] [data-c="rotate"] { outline: 2px solid var(--gold); outline-offset: -2px; }
 @keyframes gin { from { opacity: 0; transform: translate(-50%, -6px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 #bottom { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
@@ -197,6 +202,7 @@ ul.rules { margin: 14px 0 6px; padding-left: 18px; font-size: 12.5px; line-heigh
   #lit .k { font-size: 10px; letter-spacing: .03em; } #lit .v { font-size: 18px; } #lit .sl { margin: 0 2px; } #lit .pips { display: none; }
   #guide { top: calc(var(--edge-t) + 52px); width: min(540px, calc(100% - var(--edge-l) - var(--edge-r))); max-width: none; padding: 7px 40px 7px 12px; font-size: 12px; }
   #guide .gx { right: 0; width: 38px; height: 100%; } #tl:not(.mini) ~ #guide { visibility: hidden; }
+  #hud[data-lesson="lit"]:has(#solved:not(.hidden)) #guide { visibility: hidden; }
   #bottom { left: var(--edge-l); right: var(--edge-r); bottom: var(--edge-b); transform: none; gap: 4px; }
   #trayWrap { width: 100%; max-width: 480px; display: grid; gap: 4px; padding: 4px; }
   #tray { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; }
@@ -8746,6 +8752,7 @@ void main() {
       est: "预计",
       sec: "秒",
       close: "关闭",
+      guideSlot: "A 槽位",
       controlsTitle: "操作",
       controls: [
         ["右键拖拽 / WASD", "360° 审视石殿"],
@@ -8765,7 +8772,15 @@ void main() {
         "机关只要收到所需通道就开闸；断光后闸门落下。"
       ],
       guide: {
-        1: ["点托盘里的「水平镜」，再点光路上的槽位。", "按 R 转一格：让墙上的光斑走进核心。", "外圈闭合，第一道光已入库。"],
+        1: {
+          take: "1/4 · 点下方的「水平镜」取镜，也可以按 1。",
+          place: "2/4 · 点光路尽头的 A 槽位，放下镜子。",
+          move: "2/4 · 这个槽没有对准核心。点 A，把选中的镜子移过去。",
+          recover: "2/4 · 先点一下放错位置的镜子，选中后就能移动它。",
+          select: "3/4 · 点 A 选中镜子，就会出现「旋转」按钮。",
+          rotate: "3/4 · 点「旋转」或按 R，直到反射光照进核心。",
+          lit: "4/4 · 核心外圈闭合了！点「下一关」继续。"
+        },
         3: ["只有一面升降镜。先试 B：它把光朝上打。", "光停在楼板下面——那块楼板是实心的。点左侧「L1」只看底层，或转到侧面看看。", "把同一面镜移到 A（点 A 即可移动）：那里的楼板开了天井。"]
       },
       loading: "正在雕刻石殿…",
@@ -8867,6 +8882,7 @@ void main() {
       est: "about",
       sec: "s",
       close: "Close",
+      guideSlot: "Slot A",
       controlsTitle: "Controls",
       controls: [
         ["Right-drag / WASD", "Orbit the hall 360°"],
@@ -8886,7 +8902,15 @@ void main() {
         "A sensor opens its gate while it holds the channels it needs; cut the light and the gate drops."
       ],
       guide: {
-        1: ["Click the Flat Mirror in the tray, then a slot on the beam.", "Press R once — walk the spot off the wall and into the core.", "The ring is closed: the first light is in the vault."],
+        1: {
+          take: "1/4 · Choose the Flat Mirror in the tray, or press 1.",
+          place: "2/4 · Tap slot A at the far end of the beam to place the mirror.",
+          move: "2/4 · This slot is out of line with the core. Move the mirror by tapping A.",
+          recover: "2/4 · Select the mirror you placed so you can move it.",
+          select: "3/4 · Tap A to select the mirror and reveal Rotate.",
+          rotate: "3/4 · Tap Rotate or press R until the beam reaches the core.",
+          lit: "4/4 · The core’s ring is closed! Choose Next vault to continue."
+        },
         3: ["One elevation mirror. Try B first: it throws the light upward.", "The light stops under the slab — that slab is solid. Click “L1” on the left to see the ground floor alone, or turn to the side.", "Move the same mirror to A (just click A): the slab above it is open."]
       },
       loading: "Carving the vault…",
@@ -8938,7 +8962,8 @@ void main() {
       </div>
       <div id="lit" class="panel"><div class="k"></div><div class="v"><b class="n">0</b><span class="sl">/</span><span class="t">0</span></div><div class="pips"></div></div>
       <div id="floors" class="panel"></div>
-      <div id="guide" class="panel hidden"><span class="gt"></span><button class="gx" aria-label="close">×</button></div>
+      <button type="button" id="guide-socket" class="lab hidden"><span aria-hidden="true">A</span></button>
+      <div id="guide" class="panel hidden"><span class="gt" role="status"></span><button class="gx" aria-label="close">×</button></div>
       <div id="bottom">
         <div id="ctx" class="panel hidden"></div>
         <div id="trayWrap" class="panel">
@@ -8962,7 +8987,9 @@ void main() {
         e.stopPropagation();
         this.h.onAction(b.dataset.a);
       }));
-      this.el("#guide .gx").addEventListener("click", () => this.setGuide(null));
+      this.el("#guide .gx").addEventListener("click", () => this.h.onDismissGuide());
+      this.guideSocket = this.el("#guide-socket");
+      this.guideSocket.addEventListener("click", () => this.h.onGuideSocket());
       this.el("#trayWrap").addEventListener("click", (e) => {
         if (!e.target.closest(".card") && !e.target.closest(".act")) this.h.onTrayArea();
       });
@@ -9505,6 +9532,8 @@ void main() {
   var compactHUD = matchMedia("(max-width: 700px), (max-height: 520px)");
   ui = new UI({
     onAction: (a) => act(a),
+    onDismissGuide: () => { G.guideDismissed = true; updateGuide(); },
+    onGuideSocket: () => { if (G.guideSocketPos) slotClick(G.L.ref[0].key); },
     onMenuToggle: () => {
       G.miniDone = true;
       ui.setMini(!ui.el("#tl").classList.contains("mini"));
@@ -9584,7 +9613,7 @@ void main() {
     disposeLevel();
     const def = LEVELS[n - 1];
     const L = parseLevel(def), F = makeFrame(L);
-    Object.assign(G, { def, L, F, puzzle: new Puzzle(L), res: null, solveIt: null, held: null, selectedId: null, hover: null, floorSel: "all", hint: { stage: 0, key: null }, complete: false, lastLit: 0, guideStage: -1, levelStart: G.t, fadeY: /* @__PURE__ */ new Map(), dirty: true, lastEditT: -10, shownSolvedVersion: -1 });
+    Object.assign(G, { def, L, F, puzzle: new Puzzle(L), res: null, solveIt: null, held: null, selectedId: null, hover: null, floorSel: "all", hint: { stage: 0, key: null }, complete: false, lastLit: 0, guideDismissed: false, levelStart: G.t, fadeY: /* @__PURE__ */ new Map(), dirty: true, lastEditT: -10, shownSolvedVersion: -1 });
     const arch = buildArchitecture(L, F, { seed: n });
     G.arch = arch;
     levelRoot.add(arch.root);
@@ -10185,6 +10214,7 @@ void main() {
       ui.setContext({ mode: "selected", name: t("selName", pieceName(p)), text: t("selected"), canRotate: p.type !== "filter", canFlip: p.type === "elev" });
     } else ui.setContext(null);
     updateCursor();
+    updateGuide();
   }
   function trayClick(key) {
     sound.ensure();
@@ -10663,17 +10693,32 @@ void main() {
     }
     if (dust) dust.mat.uniforms.uScale.value = innerHeight * 0.55 * renderer.getPixelRatio();
   });
+  function firstMirrorStep() {
+    if (!G.solveIt && G.res?.solved) return "lit";
+    const target = G.puzzle.layout.get(G.L.ref[0].key);
+    if (target) return G.selectedId === target.id ? "rotate" : "select";
+    if (G.puzzle.count) return G.selectedId != null ? "move" : "recover";
+    return G.held ? "place" : "take";
+  }
   function updateGuide(force) {
     const n = G.def.n, P = G.puzzle;
-    const lines = t("guide")[n];
-    let text = null;
+    const lines = !G.guideDismissed && t("guide")[n];
+    let text = null, lesson = "";
     if (lines) {
-      if (n === 1) text = G.res && G.res.solved ? lines[2] : P.count ? lines[1] : lines[0];
+      if (n === 1) {
+        lesson = firstMirrorStep();
+        text = lines[lesson];
+      }
       if (n === 3) {
         const atB = P.layout.has("1,0,1"), atA = P.layout.has("2,0,1");
         text = G.res && G.res.solved ? null : atB ? lines[1] : atA ? lines[2] : lines[0];
       }
-    } else if (G.t - G.levelStart < 12 || force) text = G.def.brief[getLang()];
+    } else if (!G.guideDismissed && (G.t - G.levelStart < 12 || force)) text = G.def.brief[getLang()];
+    const markSocket = ["place", "move", "select"].includes(lesson);
+    G.guideSocketPos = markSocket ? G.arch.slotInfo.get(G.L.ref[0].key).pos : null;
+    ui.guideSocket.classList.toggle("hidden", !markSocket);
+    if (markSocket) ui.guideSocket.setAttribute("aria-label", t("guideSlot"));
+    document.getElementById("hud").dataset.lesson = lesson;
     if (force || text !== G.guideText) {
       G.guideText = text;
       ui.setGuide(text);
@@ -10913,7 +10958,9 @@ void main() {
         ? `translate(clamp(4px, calc(${x.toFixed(1)}px - 50%), calc(${W - 4}px - 100%)), calc(${y.toFixed(1)}px - 100%))`
         : `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
       el.style.opacity = inHud ? 0 : alpha;
+      return !inHud;
     };
+    if (G.guideSocketPos) ui.guideSocket.style.visibility = place(ui.guideSocket, G.guideSocketPos, 1) ? "visible" : "hidden";
     const fadeA = (y) => {
       if (y == null) return 1;
       let a = 1;

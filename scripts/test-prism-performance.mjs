@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { checkReflections } from './test-prism-reflections.mjs';
+import { checkFloorResources } from './test-prism-floors.mjs';
 
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
@@ -97,6 +98,7 @@ try {
   console.log('PASS Prism frame timing: 60/4 FPS, bounded simulation, focus/visibility, automatic/manual quality; chamber 10 draws/triangles:', draws);
   await page.close();
   await checkReflections(browser);
+  await checkFloorResources(browser);
 } finally {
   await browser.close();
 }

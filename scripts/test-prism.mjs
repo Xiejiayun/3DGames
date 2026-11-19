@@ -44,8 +44,26 @@ try {
   await step();
   await page.locator('[data-s="next"]').click();
   await page.waitForFunction(() => window.PRISM.state().level === 2);
+
+  await page.evaluate(() => { PRISM.load(7); PRISM.step(1); });
+  const geometries = () => page.evaluate(() => PRISM.info().geometries);
+  const keyFrame = async key => { await page.keyboard.press(key); return geometries(); };
+  const withoutHint = await keyFrame('h');
+  for (let cycle = 0; cycle < 4; cycle++) {
+    assert.ok(await keyFrame('h') > withoutHint, 'second hint renders a piece preview');
+    assert.equal(await keyFrame('h'), withoutHint, 'dismissing a hint releases its geometry');
+  }
+  const hoverSlot = await page.evaluate(() => PRISM.slotScreenVisible('1,0,3'));
+  assert.ok(hoverSlot);
+  await page.mouse.move(hoverSlot.x, hoverSlot.y);
+  const withMirror = await keyFrame('1');
+  assert.ok(withMirror > withoutHint, 'hovering shows the held piece');
+  for (let cycle = 0; cycle < 4; cycle++) {
+    await keyFrame('4');
+    assert.equal(await keyFrame('1'), withMirror, 'changing the held piece releases its old preview');
+  }
   assert.deepEqual(errors, []);
-  console.log(`PASS Prism Vault: ${checks.length} puzzle checks, offline WebGL, dialog input isolation, place, rotate, undo and next chamber`);
+  console.log(`PASS Prism Vault: ${checks.length} puzzle checks, offline WebGL, dialog input isolation, place, rotate, undo, next chamber and preview resource lifetimes`);
 } finally {
   await browser.close();
 }

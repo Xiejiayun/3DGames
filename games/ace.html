@@ -1335,6 +1335,77 @@ function aircraftSkin() {
   return { face, loft, foil, mesh };
 }
 
+function cockpitDisplay(code) {
+  const display = document.createElement('canvas');
+  display.width = 960; display.height = 180;
+  const ctx = display.getContext('2d');
+  const accent = code === 'SU-57X' ? '#9ce2b3' : code === 'F-35X' ? '#93d8ff' : '#8be1d8';
+  for (const [index, title] of ['SYSTEMS', 'ATTITUDE', 'ENGINE'].entries()) {
+    ctx.save(); ctx.translate(index * 320, 0);
+    const glass = ctx.createLinearGradient(0, 0, 0, 180);
+    glass.addColorStop(0, '#19333a'); glass.addColorStop(1, '#06131a');
+    ctx.fillStyle = glass; ctx.fillRect(0, 0, 320, 180);
+    ctx.fillStyle = accent; ctx.font = 'bold 19px monospace'; ctx.fillText(title, 18, 30);
+    ctx.fillStyle = '#9aaeaf'; ctx.font = '15px monospace'; ctx.fillText(['BUS 1', code, 'THR'][index], 232, 29);
+    ctx.fillStyle = '#486167'; ctx.fillRect(16, 40, 288, 2);
+    if (index === 0) {
+      ctx.font = 'bold 17px monospace';
+      for (const [row, label] of ['PWR','NAV','COM'].entries()) {
+        const top = 60 + row * 38;
+        ctx.fillStyle = '#adcccd'; ctx.fillText(label, 22, top + 16);
+        ctx.fillStyle = accent; ctx.fillRect(80, top + 3, 5, 14);
+        for (let lamp = 0; lamp < 5; lamp++) ctx.fillRect(100 + lamp * 36, top + 5, 26, 10);
+      }
+    } else if (index === 1) {
+      ctx.strokeStyle = '#526e73'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(160, 97, 52, 0, 2 * Math.PI); ctx.stroke();
+      for (let tick = -3; tick <= 3; tick++) {
+        const angle = tick * Math.PI / 9;
+        ctx.beginPath(); ctx.moveTo(160 + 46 * Math.sin(angle), 97 - 46 * Math.cos(angle));
+        ctx.lineTo(160 + 52 * Math.sin(angle), 97 - 52 * Math.cos(angle)); ctx.stroke();
+      }
+      ctx.strokeStyle = '#ffd57b'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(141, 96); ctx.lineTo(153, 96); ctx.lineTo(160, 101);
+      ctx.lineTo(167, 96); ctx.lineTo(179, 96); ctx.stroke();
+    } else {
+      ctx.fillStyle = '#44616a'; ctx.fillRect(28, 112, 264, 18);
+      ctx.fillStyle = accent; ctx.font = '16px monospace'; ctx.fillText('IDLE', 28, 83); ctx.fillText('MAX', 260, 83);
+      for (let tick = 0; tick <= 10; tick++) ctx.fillRect(28 + tick * 26.4, 137, 2, tick % 5 ? 7 : 12);
+    }
+    ctx.restore();
+  }
+  const map = new THREE.CanvasTexture(display);
+  map.colorSpace = THREE.SRGBColorSpace;
+  return map;
+}
+
+function makeCockpitCoat() {
+  const grain = new Uint8Array(64 * 64 * 4);
+  for (let pixel = 0; pixel < 64 * 64; pixel++) {
+    const value = 220 + Math.floor(35 * hash2(pixel % 64, Math.floor(pixel / 64)));
+    grain.fill(value, pixel * 4, pixel * 4 + 3);
+    grain[pixel * 4 + 3] = 255;
+  }
+  const coat = new THREE.DataTexture(grain, 64, 64);
+  coat.wrapS = coat.wrapT = THREE.RepeatWrapping;
+  coat.generateMipmaps = true; coat.minFilter = THREE.LinearMipmapLinearFilter; coat.magFilter = THREE.LinearFilter;
+  coat.colorSpace = THREE.SRGBColorSpace; coat.needsUpdate = true;
+  return coat;
+}
+const cockpitCoat = makeCockpitCoat();
+
+function cockpitHousing(shell) {
+  const housing = shell.mesh(new THREE.MeshStandardMaterial({ map:cockpitCoat, vertexColors:true, roughness:0.67, metalness:0.24 }), 'Coaming');
+  const position = housing.geometry.getAttribute('position'), normal = housing.geometry.getAttribute('normal');
+  const uvs = [];
+  for (let index = 0; index < position.count; index++) {
+    const vertical = Math.abs(normal.getY(index)) > 0.7, lateral = Math.abs(normal.getX(index)) > 0.7;
+    uvs.push(3 * (lateral ? position.getZ(index) : position.getX(index)), 3 * (vertical ? position.getZ(index) : position.getY(index)));
+  }
+  housing.geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  return housing;
+}
+
 function buildAircraftCockpit(eyeZ, code) {
   const cockpit = new THREE.Group();
   cockpit.position.set(0, 1.06, eyeZ);
@@ -1343,61 +1414,134 @@ function buildAircraftCockpit(eyeZ, code) {
   const lip = [[-1.42, -0.64, -0.79], [-0.86, -0.44, -1.12], [-0.58, -0.37, -1.19],
     [0.58, -0.37, -1.19], [0.86, -0.44, -1.12], [1.42, -0.64, -0.79]];
   const bottom = point => [point[0] * 1.08, -1.18, point[2] + 0.18];
+  const piping = point => [point[0] * 0.99, point[1] + 0.016, point[2] + 0.008];
+  const pad = point => [point[0] * 0.97, point[1] + 0.033, point[2] - 0.028];
   const crest = point => [point[0] * 0.92, point[1] + 0.035, point[2] - 0.17];
   const deck = point => [point[0] * 0.71, point[1] - 0.19, point[2] - 0.69];
   for (let idx = 1; idx < lip.length; idx++) {
     const left = lip[idx - 1], right = lip[idx];
     shell.face([bottom(left), bottom(right), right, left], 0x222e39);
-    shell.face([left, right, crest(right), crest(left)], 0x4b575c);
+    shell.face([left, right, piping(right), piping(left)], 0x616d70);
+    shell.face([piping(left), piping(right), pad(right), pad(left)], 0x3c474c);
+    shell.face([pad(left), pad(right), crest(right), crest(left)], 0x495252);
     shell.face([crest(left), crest(right), deck(right), deck(left)], 0x303c45);
   }
-  cockpit.add(shell.mesh(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.79 }), 'Coaming'));
-
   const bow = new THREE.CatmullRomCurve3([[-1.28,-0.58,-0.84], [-1.12,0.12,-1.03],
     [-0.83,0.63,-1.18], [-0.46,0.82,-1.23], [0,0.87,-1.24], [0.46,0.82,-1.23],
     [0.83,0.63,-1.18], [1.12,0.12,-1.03], [1.28,-0.58,-0.84]].map(point => new THREE.Vector3(...point)));
-  cockpit.add(new THREE.Mesh(new THREE.TubeGeometry(bow, 28, 0.029, 8, false),
-    new THREE.MeshStandardMaterial({ color: 0x38434c, metalness: 0.31, roughness: 0.48 })));
+  const enamel = code === 'SU-57X' ? 0x567169 : code === 'F-35X' ? 0x52667c : 0x536575;
+  const railPaint = [0x232e36, 0x80939e, enamel, 0x2d3f4b, 0x17232b, 0x343f49];
+  let priorRail;
+  for (let step = 0; step <= 36; step++) {
+    const along = step / 36, center = bow.getPointAt(along), tangent = bow.getTangentAt(along);
+    const width = 0.025 + 0.028 * (2 * along - 1) ** 2;
+    const rib = [6, 12, 24, 30].includes(step) ? 0.009 : 0;
+    const rim = [[-1,0.012],[-0.78,0.032],[-0.46,0.039],[0.65,0.032],[1,0.012],[0.70,-0.030]]
+      .map(([radial, depth]) => [center.x - tangent.y * width * radial, center.y + tangent.x * width * radial, center.z + depth + rib]);
+    if (priorRail) for (let edge = 0; edge < rim.length; edge++) {
+      const next = (edge + 1) % rim.length;
+      shell.face([priorRail[edge], rim[edge], rim[next], priorRail[next]], railPaint[edge]);
+    }
+    priorRail = rim;
+  }
+  for (const along of [0.17, 0.31, 0.69, 0.83]) {
+    const center = bow.getPointAt(along);
+    const head = Array.from({ length:6 }, (_, index) => {
+      const angle = index * Math.PI / 3;
+      return [center.x + 0.010 * Math.cos(angle), center.y + 0.010 * Math.sin(angle), center.z + 0.044];
+    });
+    shell.face(head, 0xb7bbb7);
+  }
+
+  const sweep = 0.18, depthAt = offset => Math.max(0, Math.abs(offset) - 0.25) * sweep;
+  const pitch = -0.25, cosine = Math.cos(pitch), sine = Math.sin(pitch);
+  const panelPoint = (horizontal, vertical, relief) => {
+    const depth = depthAt(horizontal) + relief;
+    return [horizontal, -0.56 + vertical * cosine - depth * sine, -1.04 + vertical * sine + depth * cosine];
+  };
+  function ring(center, height, halfWidth, halfHeight, depth, cut) {
+    return [[-halfWidth+cut,-halfHeight],[halfWidth-cut,-halfHeight],[halfWidth,-halfHeight+cut],[halfWidth,halfHeight-cut],
+      [halfWidth-cut,halfHeight],[-halfWidth+cut,halfHeight],[-halfWidth,halfHeight-cut],[-halfWidth,-halfHeight+cut]]
+      .map(([horizontal, vertical]) => panelPoint(center + horizontal, height + vertical, depth));
+  }
+  function band(outer, inner, paint) {
+    for (let edge = 0; edge < outer.length; edge++) {
+      const next = (edge + 1) % outer.length;
+      shell.face([outer[edge], outer[next], inner[next], inner[edge]], paint);
+    }
+  }
+  function keycap(center, height, halfWidth, halfHeight, depth, paint) {
+    const cut = Math.min(halfHeight, halfWidth) * 0.38;
+    const foot = ring(center, height, halfWidth, halfHeight, depth, cut);
+    const crown = ring(center, height, halfWidth * 0.88, halfHeight * 0.85, depth + 0.009, cut * 0.8);
+    band(foot, crown, 0x48535a); shell.face(crown, paint);
+  }
+  const panes = [[-0.49, 0.178], [0, 0.224], [0.49, 0.178]];
+  const vertices = [], uvs = [], indices = [];
+  for (const [index, [center, half]] of panes.entries()) {
+    const height = 0.098;
+    const foot = ring(center, 0, half + 0.043, height + 0.046, -0.035, 0.026);
+    const shoulder = ring(center, 0, half + 0.032, height + 0.033, 0.026, 0.019);
+    const seal = ring(center, 0, half + 0.009, height + 0.010, 0.030, 0.009);
+    const aperture = ring(center, 0, half - 0.003, height - 0.003, 0.003, 0.004);
+    band(foot, shoulder, enamel); band(shoulder, seal, 0x57616a); band(seal, aperture, 0x18272c);
+    for (const side of [-1, 1]) for (const row of [-1, 1]) {
+      keycap(center + side * (half + 0.015), row * (height + 0.015), 0.006, 0.006, 0.032, 0xb7bbb4);
+    }
+    for (let key = -1; key <= 1; key++) keycap(center + key * 0.051, -0.12, 0.018, 0.008, 0.033, 0x222e35);
+    const first = vertices.length / 3;
+    indices.push(first, first + 1, first + 2, first, first + 2, first + 3);
+    for (const [horizontal, vertical] of [[-1,-1],[1,-1],[1,1],[-1,1]]) {
+      const offset = center + half * horizontal;
+      vertices.push(offset, height * vertical, depthAt(offset));
+      uvs.push((index * 320 + (horizontal < 0 ? 1 : 319)) / 960, vertical < 0 ? 0 : 1);
+    }
+  }
+  for (const side of [-1, 1]) {
+    keycap(side * 0.83, -0.018, 0.092, 0.095, -0.018, enamel);
+    for (let slot = -2; slot <= 2; slot++) keycap(side * 0.83, -0.018 + slot * 0.024, 0.069, 0.005, -0.006, 0x17252c);
+    const bracket = [[0.263,-0.398,-1.42],[0.296,-0.398,-1.42],[0.364,-0.386,-1.15],[0.32,-0.386,-1.15]];
+    const top = bracket.map(([horizontal, vertical, depth]) => [side * horizontal, vertical + 0.042, depth]);
+    const base = bracket.map(([horizontal, vertical, depth]) => [side * horizontal, vertical - 0.038, depth]);
+    for (let edge = 0; edge < top.length; edge++) {
+      const next = (edge + 1) % top.length;
+      shell.face([base[edge], top[edge], top[next], base[next]], enamel, side < 0);
+    }
+    shell.face(top, 0x778893, side > 0);
+    const stripe = [[0.300,-1.275],[0.335,-1.275],[0.341,-1.255],[0.307,-1.255]];
+    shell.face(stripe.map(([horizontal, depth]) => [side * horizontal, -0.347, depth]), 0xc3a260, side > 0);
+  }
+  cockpit.add(cockpitHousing(shell));
   const glass = aircraftSkin();
   glass.face([[-0.36,-0.39,-1.38], [0.36,-0.39,-1.38], [0.36,0.14,-1.45],
     [0.28,0.22,-1.46], [-0.28,0.22,-1.46], [-0.36,0.14,-1.45]], 0xffffff);
   cockpit.add(glass.mesh(new THREE.MeshBasicMaterial({ color: 0x93d9cb, transparent: true,
     opacity: 0.105, depthWrite: false }), 'Combiner'));
 
-  const display = document.createElement('canvas');
-  display.width = 768; display.height = 128;
-  const ctx = display.getContext('2d');
-  ctx.fillStyle = '#17242b'; ctx.fillRect(0, 0, 768, 128);
-  ctx.font = 'bold 17px monospace'; ctx.lineWidth = 2;
-  for (const [left, width, label] of [[10, 211, 'SYS / BUS'], [237, 284, code], [537, 221, 'ENG / THR']]) {
-    ctx.fillStyle = '#07181e'; ctx.fillRect(left, 6, width, 116);
-    ctx.strokeStyle = '#53676c'; ctx.strokeRect(left, 6, width, 116);
-    ctx.fillStyle = '#98cbbd'; ctx.fillText(label, left + 14, 31);
-    ctx.fillStyle = '#355152'; ctx.fillRect(left + 13, 39, width - 26, 2);
-  }
-  for (let idx = 0; idx < 3; idx++) {
-    const row = 57 + idx * 22;
-    ctx.fillStyle = '#70b5ad'; ctx.fillText(['PWR', 'NAV', 'COM'][idx], 28, row + 9);
-    for (let lamp = 0; lamp < 5; lamp++) ctx.fillRect(86 + lamp * 21, row, 14, 7);
-  }
-  ctx.strokeStyle = '#77b5ad';
-  ctx.beginPath(); ctx.moveTo(379, 47); ctx.lineTo(388, 76); ctx.lineTo(436, 91);
-  ctx.lineTo(432, 99); ctx.lineTo(387, 90); ctx.lineTo(386, 108); ctx.lineTo(372, 108);
-  ctx.lineTo(371, 90); ctx.lineTo(326, 99); ctx.lineTo(322, 91); ctx.lineTo(370, 76); ctx.closePath(); ctx.stroke();
-  ctx.fillStyle = '#365654'; ctx.fillRect(553, 69, 188, 18);
-  for (let idx = 0; idx <= 8; idx++) ctx.fillRect(553 + idx * 23, 92, 2, idx % 2 ? 5 : 10);
-  const map = new THREE.CanvasTexture(display);
-  map.colorSpace = THREE.SRGBColorSpace;
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.40, 0.235), new THREE.MeshBasicMaterial({ map, toneMapped: false }));
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  const screen = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ map: cockpitDisplay(code), toneMapped: false }));
   screen.name = 'Instruments';
-  screen.position.set(0, -0.56, -1.04); screen.rotation.x = -0.25;
-  const barGeo = new THREE.PlaneGeometry(1.40 * 188 / 768, 0.018);
-  barGeo.translate(1.40 * 94 / 768, 0, 0);
+  screen.position.set(0, -0.56, -1.04); screen.rotation.x = pitch;
+  const [engineCenter, engineHalf] = panes[2];
+  const start = engineCenter + (28 / 320 - 0.5) * 2 * engineHalf;
+  const length = 2 * engineHalf * (264 / 320) * Math.hypot(1, sweep);
+  const barGeo = new THREE.PlaneGeometry(length, 0.017);
+  barGeo.translate(length / 2, 0, 0);
   const powerBar = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: 0x84d8bd, toneMapped: false }));
-  powerBar.position.set(1.40 * (553 / 768 - 0.5), -0.026, 0.002);
-  screen.add(powerBar);
+  powerBar.position.set(start, -0.034, depthAt(start) + 0.002); powerBar.rotation.y = -Math.atan(sweep);
+  const marks = aircraftSkin();
+  for (const side of [-1, 1]) {
+    marks.face([[side*0.018,-0.002,0],[side*0.069,-0.002,0],[side*0.069,0.002,0],[side*0.018,0.002,0]], 0xa2e9dd, side < 0);
+  }
+  const horizon = marks.mesh(new THREE.MeshBasicMaterial({ vertexColors:true, toneMapped:false }), 'Horizon');
+  horizon.position.z = 0.004;
+  screen.add(powerBar, horizon);
   cockpit.add(screen);
   cockpit.userData.powerBar = powerBar;
+  cockpit.userData.horizon = horizon;
   return cockpit;
 }
 
@@ -2224,7 +2368,7 @@ const sharedTracerGeo = new THREE.BoxGeometry(0.28, 0.28, 12);
 const sharedMissileGeo = new THREE.CylinderGeometry(0.18, 0.24, 3.6, 6);
 sharedMissileGeo.rotateX(Math.PI / 2);
 const sharedEffectGeometry = new Set([sharedSphereGeo, sharedTracerGeo, sharedMissileGeo]);
-const sharedSceneTextures = new Set([cloudTex, glowTex, carrierDeckTex, runwayTex]);
+const sharedSceneTextures = new Set([cloudTex, glowTex, carrierDeckTex, runwayTex, cockpitCoat]);
 
 function releaseSceneResources(root) {
   const owned = new Set();
@@ -2811,6 +2955,9 @@ function updatePlayer(dt, rawDt) {
   ud.finL.quaternion.setFromAxisAngle(ud.finL.userData.axis, yaw);
   ud.finR.quaternion.setFromAxisAngle(ud.finR.userData.axis, yaw);
   ud.cockpit.userData.powerBar.scale.x = player.throttle;
+  euler.setFromQuaternion(player.quat, 'YXZ');
+  ud.cockpit.userData.horizon.rotation.z = -euler.z;
+  ud.cockpit.userData.horizon.position.y = -0.008 - THREE.MathUtils.clamp(euler.x, -0.65, 0.65) * 0.034;
 
   // Wingtip Condensation Vapor in high-G turns & low-altitude ocean spray
   const gLoad = Math.abs(player.pitchRate) + Math.abs(player.yawRate);

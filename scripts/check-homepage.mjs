@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
 import { resolve, sep, extname } from 'node:path';
@@ -11,9 +12,17 @@ const directory = fileURLToPath(root).replace(/[\\/]$/, '');
 const server = createServer(async (req, res) => {
   try {
     const path = new URL(req.url, 'http://localhost').pathname;
-    const file = resolve(directory, '.' + (path === '/' ? '/index.html' : decodeURIComponent(path)));
+    if (/^\/games\/[a-z]+\.html$/.test(path)) { res.writeHead(307, { location: path.slice(0, -5) }).end(); return; }
+    const asset = /^\/games\/[a-z]+$/.test(path) ? `${path}.html` : path;
+    const file = resolve(directory, '.' + (asset === '/' ? '/index.html' : decodeURIComponent(asset)));
     if (!file.startsWith(directory + sep)) { res.writeHead(403).end(); return; }
     const data = await readFile(file);
+    if (extname(file) === '.webp') {
+      const etag = `"${createHash('sha256').update(data).digest('hex')}"`;
+      res.setHeader('etag', etag);
+      res.setHeader('cache-control', 'no-cache');
+      if (req.headers['if-none-match'] === etag) { res.writeHead(304).end(); return; }
+    }
     res.setHeader('content-type', extname(file) === '.webp' ? 'image/webp' : 'text/html; charset=utf-8');
     res.end(data);
   } catch { res.writeHead(404).end(); }
@@ -35,7 +44,11 @@ try {
   const page = await browser.newPage({ locale: 'zh-CN' });
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
-  page.on('response', r => { if (!r.ok()) errors.push(`${r.status()} ${r.url()}`); });
+  page.on('response', response => {
+    const status = response.status();
+    const redirect = [301, 302, 303, 307, 308].includes(status) && response.headers().location;
+    if (!response.ok() && status !== 304 && !redirect) errors.push(`${status} ${response.url()}`);
+  });
   const output = process.env.HOME_SCREENSHOTS;
   if (output) await mkdir(output, { recursive: true });
   for (const game of games) {

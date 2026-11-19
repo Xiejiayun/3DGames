@@ -43,10 +43,10 @@ kbd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-siz
 #tl.mini .num { font-size: 20px; } #tl.mini .name { font-size: 14px; }
 #tl.mini::after { content: '☰'; margin-left: 10px; font-size: 13px; color: var(--ink2); }
 #tl.mini { display: flex; align-items: center; }
-#tl.mini:hover { display: block; min-width: 250px; padding: 12px 16px 10px; }
-#tl.mini:hover::after { content: none; }
-#tl.mini:hover .brand, #tl.mini:hover .menu { display: flex; } #tl.mini:hover .sub { display: block; }
-#tl.mini:hover .lvl { margin-top: 6px; } #tl.mini:hover .num { font-size: 26px; } #tl.mini:hover .name { font-size: 17px; }
+#tl.mini:is(:hover, :focus-within, .dialog-source) { display: block; min-width: 250px; padding: 12px 16px 10px; }
+#tl.mini:is(:hover, :focus-within, .dialog-source)::after { content: none; }
+#tl.mini:is(:hover, :focus-within, .dialog-source) .brand, #tl.mini:is(:hover, :focus-within, .dialog-source) .menu { display: flex; } #tl.mini:is(:hover, :focus-within, .dialog-source) .sub { display: block; }
+#tl.mini:is(:hover, :focus-within, .dialog-source) .lvl { margin-top: 6px; } #tl.mini:is(:hover, :focus-within, .dialog-source) .num { font-size: 26px; } #tl.mini:is(:hover, :focus-within, .dialog-source) .name { font-size: 17px; }
 .mbtn { border: 1px solid var(--line); background: rgba(255, 255, 255, .08); border-radius: 999px; padding: 3px 10px; font-size: 11px; letter-spacing: .06em; color: var(--ink2); transition: all .18s; }
 .mbtn:hover { color: var(--ink); border-color: var(--gold); background: rgba(228, 194, 122, .16); }
 
@@ -137,7 +137,9 @@ body.dark .lab .st.bad { color: #ff8f73; }
 .lab.why i { width: 7px; height: 7px; border-radius: 50%; display: block; box-shadow: 0 0 6px currentColor; }
 .lab.slotTag { font-size: 15px; font-weight: 800; color: #fff; text-shadow: 0 1px 4px rgba(0, 0, 0, .7); letter-spacing: .04em; transform-origin: center; }
 
-#overlay { position: fixed; inset: 0; background: rgba(10, 8, 6, .35); display: flex; align-items: center; justify-content: center; z-index: 5; pointer-events: auto; }
+#overlay { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; border: 0; padding: 0; color: inherit; background: transparent; }
+#overlay[open] { display: flex; align-items: center; justify-content: center; }
+#overlay::backdrop { background: rgba(10, 8, 6, .35); }
 #overlay .ov { width: min(980px, 92vw); max-height: 86vh; overflow: auto; padding: 18px 22px 22px; background: var(--glass2); }
 .ovh { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .ovh h2 { margin: 0; font-size: 16px; letter-spacing: .24em; font-weight: 700; }
@@ -8845,7 +8847,7 @@ void main() {
         <div class="lvl"><span class="num"></span><span class="name"></span></div>
         <div class="sub"></div>
         <div class="menu">
-          <button data-a="levels" class="mbtn"></button><button data-a="help" class="mbtn"></button>
+          <button data-a="levels" class="mbtn" aria-haspopup="dialog"></button><button data-a="help" class="mbtn" aria-haspopup="dialog"></button>
           <button data-a="lang" class="mbtn"></button><button data-a="quality" class="mbtn"></button><button data-a="mute" class="mbtn"></button>
         </div>
       </div>
@@ -8867,7 +8869,7 @@ void main() {
       <div id="toast" class="hidden"></div>
       <div id="solved" class="panel hidden"></div>
       <div id="labels"></div>
-      <div id="overlay" class="hidden"><div class="ov panel"></div></div>`;
+      <dialog id="overlay" aria-labelledby="overlay-title"><div class="ov panel"></div></dialog>`;
       this.el = (s) => hud.querySelector(s);
       hud.querySelectorAll("button").forEach((b) => b.addEventListener("mousedown", (e) => e.preventDefault()));
       hud.querySelectorAll("[data-a]").forEach((b) => b.addEventListener("click", (e) => {
@@ -8880,6 +8882,15 @@ void main() {
       });
       this.el("#overlay").addEventListener("click", (e) => {
         if (e.target.id === "overlay") this.closeOverlay();
+      });
+      this.el("#overlay").addEventListener("close", () => this.el("#tl").classList.remove("dialog-source"));
+      this.el("#overlay").addEventListener("keydown", (event) => {
+        if (event.key !== "Tab") return;
+        const buttons = this.el("#overlay").querySelectorAll("button:enabled");
+        const first = buttons[0], last = buttons[buttons.length - 1];
+        if (document.activeElement !== (event.shiftKey ? first : last)) return;
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
       });
       this.labels = this.el("#labels");
       this.toastTimer = 0;
@@ -9028,15 +9039,21 @@ void main() {
       this.el("#solved").classList.add("hidden");
     }
     get overlayOpen() {
-      return !this.el("#overlay").classList.contains("hidden");
+      return this.el("#overlay").open;
+    }
+    showOverlay(action) {
+      this.h.onOverlayOpen();
+      this.el("#tl").classList.add("dialog-source");
+      this.el(`[data-a="${action}"]`).focus({ preventScroll: true });
+      this.el("#overlay").showModal();
     }
     closeOverlay() {
-      this.el("#overlay").classList.add("hidden");
+      this.el("#overlay").close();
     }
     openLevels(levels, chapters, best, current) {
       const ov = this.el("#overlay .ov");
       const zh = getLang() === "zh";
-      let html = `<div class="ovh"><h2>${t("selectLevel")}</h2><button class="ovx">${t("close")}</button></div><div class="chs">`;
+      let html = `<div class="ovh"><h2 id="overlay-title">${t("selectLevel")}</h2><button class="ovx" autofocus>${t("close")}</button></div><div class="chs">`;
       chapters.forEach((c, ci) => {
         html += `<div class="ch"><div class="chh"><i class="sw sw-${c.sky}"></i><span>${zh ? c.zh : c.en}</span><small>${zh ? c.en : ""}</small></div><div class="lvls">`;
         for (const L of levels.filter((l) => l.chapter === ci)) {
@@ -9055,16 +9072,16 @@ void main() {
         this.closeOverlay();
         this.h.onLevel(+b.dataset.n);
       }));
-      this.el("#overlay").classList.remove("hidden");
+      this.showOverlay("levels");
     }
     openHelp() {
       const ov = this.el("#overlay .ov");
-      ov.innerHTML = `<div class="ovh"><h2>${t("controlsTitle")}</h2><button class="ovx">${t("close")}</button></div>
+      ov.innerHTML = `<div class="ovh"><h2 id="overlay-title">${t("controlsTitle")}</h2><button class="ovx" autofocus>${t("close")}</button></div>
       <table class="keys">${t("controls").map(([k, v]) => `<tr><td><kbd>${k}</kbd></td><td>${v}</td></tr>`).join("")}</table>
       <ul class="rules">${t("rules").map((r) => `<li>${r}</li>`).join("")}</ul>
       <div class="glyphrow">${glyphSVG(1, "on")} R ${glyphSVG(2, "on")} G ${glyphSVG(4, "on")} B</div>`;
       ov.querySelector(".ovx").addEventListener("click", () => this.closeOverlay());
-      this.el("#overlay").classList.remove("hidden");
+      this.showOverlay("help");
     }
     addLabel(cls) {
       const d = document.createElement("div");
@@ -9401,6 +9418,13 @@ void main() {
   var ui = null;
   ui = new UI({
     onAction: (a) => act(a),
+    onOverlayOpen: () => {
+      keys.clear();
+      ptr.down = false;
+      G.dragging = rig.dragging = false;
+      rig.fling.yaw = rig.fling.pitch = 0;
+      updateCursor();
+    },
     onTray: (key) => trayClick(key),
     onTrayArea: () => {
       if (G.selectedId != null) act("recall");
@@ -10469,16 +10493,13 @@ void main() {
     rig.zoom(Math.exp(e.deltaY * 11e-4));
   }, { passive: false });
   window.addEventListener("keydown", (e) => {
+    if (ui.overlayOpen || (e.key === " " && e.target.closest?.("button"))) return;
     if (e.key === " " || e.key === "Backspace") e.preventDefault();
     if (e.ctrlKey || e.metaKey || e.altKey) {
       if ((e.key === "z" || e.key === "Z") && !e.altKey) {
         e.preventDefault();
         act("undo");
       }
-      return;
-    }
-    if (ui.overlayOpen) {
-      if (e.key === "Escape") ui.closeOverlay();
       return;
     }
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;

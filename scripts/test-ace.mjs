@@ -6,6 +6,11 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const root = fileURLToPath(new URL('../', import.meta.url)).replace(/[\\/]$/, '');
+const threeRoot = resolve(fileURLToPath(import.meta.resolve('three')), '../..');
+const { version } = JSON.parse(await readFile(resolve(threeRoot, 'package.json'), 'utf8'));
+const threePrefix = `https://unpkg.com/three@${version}/`;
+const output = process.env.ACE_SCREENSHOTS;
+if (output) await mkdir(output, { recursive: true });
 const server = createServer(async (req, res) => {
   try {
     const pathname = new URL(req.url, 'http://localhost').pathname;
@@ -27,14 +32,55 @@ let browser;
 try {
   browser = await chromium.launch({
     headless: true,
-    args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist']
+    args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-webgl', '--enable-unsafe-swiftshader']
   });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, locale: 'zh-CN' });
   const errors = [];
+  await page.route('https://**', async route => {
+    const url = route.request().url();
+    if (url.startsWith(threePrefix)) {
+      const file = resolve(threeRoot, url.slice(threePrefix.length));
+      if (file.startsWith(threeRoot + sep) && extname(file) === '.js') {
+        return route.fulfill({ path: file, contentType: 'application/javascript', headers: { 'Access-Control-Allow-Origin': '*' } });
+      }
+    }
+    errors.push(`Unexpected external request: ${url}`);
+    return route.abort();
+  });
   page.on('pageerror', e => errors.push(`PAGEERROR: ${e}`));
   page.on('console', msg => {
     if (msg.type() === 'error') errors.push(`CONSOLE_ERROR: ${msg.text()}`);
   });
+
+  const state = () => page.evaluate(() => window.__ACE_DEBUG__.getState());
+  async function frames(count = 2) {
+    const start = (await state()).frameCount;
+    await page.waitForFunction(target => window.__ACE_DEBUG__.getState().frameCount >= target, start + count);
+  }
+  const capture = async name => {
+    if (output) await page.screenshot({ path: resolve(output, `${name}.png`) });
+  };
+  async function sampleScene(name) {
+    await frames(4);
+    const sample = await page.evaluate(() => new Promise(done => requestAnimationFrame(() => {
+      const surface = document.createElement('canvas');
+      surface.width = 48; surface.height = 27;
+      const ctx = surface.getContext('2d');
+      ctx.drawImage(document.querySelector('#gl'), 0, 0, 48, 27);
+      const pixels = ctx.getImageData(0, 0, 48, 27).data;
+      const mean = [0, 0, 0], luminance = [];
+      for (let offset = 0; offset < pixels.length; offset += 4) {
+        for (let channel = 0; channel < 3; channel++) mean[channel] += pixels[offset + channel];
+        luminance.push(pixels[offset] * 0.21 + pixels[offset + 1] * 0.72 + pixels[offset + 2] * 0.07);
+      }
+      luminance.sort((left, right) => left - right);
+      done({ mean: mean.map(sum => Math.round(sum / luminance.length)),
+        contrast: luminance[Math.floor(luminance.length * 0.95)] - luminance[Math.floor(luminance.length * 0.05)] });
+    })));
+    assert.ok(sample.contrast > 15, `${name}: expected visible sky/scene contrast, measured ${JSON.stringify(sample)}`);
+    await capture(name);
+    return sample.mean;
+  }
 
   await page.goto(`${origin}/games/ace.html`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => window.__ACE_DEBUG__ && window.__ACE_DEBUG__.getState().frameCount >= 5, null, { timeout: 20000 });
@@ -42,6 +88,17 @@ try {
   let st = await page.evaluate(() => window.__ACE_DEBUG__.getState());
   assert.equal(st.mode, 'hangar');
   assert.equal(st.lang, 'zh');
+  await capture('hangar');
+  const memory = [];
+  for (const jet of [0, 1, 2, 0, 1, 2, 0]) {
+    await page.locator(`[data-jet="${jet}"]`).click();
+    await frames();
+    if (jet === 0) memory.push((await state()).gpu);
+  }
+  for (const snapshot of memory.slice(1)) {
+    assert.ok(snapshot.geometries <= memory[0].geometries + 12, `Hangar leaked geometries: ${JSON.stringify(memory)}`);
+    assert.ok(snapshot.textures <= memory[0].textures + 2, `Hangar leaked textures: ${JSON.stringify(memory)}`);
+  }
 
   // Switch aircraft & mission in Hangar
   await page.locator('[data-jet="1"]').click();
@@ -58,7 +115,8 @@ try {
   await page.locator('[data-mission="0"]').click();
   await page.locator('#sortieBtn').click();
 
-  await page.waitForTimeout(350);
+  await page.mouse.move(640, 360);
+  const daylight = await sampleScene('day-chase');
   st = await page.evaluate(() => window.__ACE_DEBUG__.getState());
   assert.equal(st.mode, 'playing');
   assert.ok(st.enemiesAlive >= 4, 'Mission 1 enemies spawned');
@@ -67,13 +125,20 @@ try {
   await page.keyboard.press('KeyV');
   st = await page.evaluate(() => window.__ACE_DEBUG__.getState());
   assert.equal(st.cameraMode, '1p', 'Switched to 1P 3D cockpit');
+  await sampleScene('day-cockpit');
 
   await page.keyboard.press('KeyV');
   await page.keyboard.press('Space');
   await page.keyboard.press('KeyQ');
   await page.keyboard.press('Space');
   await page.keyboard.press('KeyF');
+  await page.waitForFunction(() => {
+    const { fx } = window.__ACE_DEBUG__.getState();
+    return fx.flares === 8 && fx.smokeInstances > 0 && fx.glowInstances >= 8;
+  });
   st = await page.evaluate(() => window.__ACE_DEBUG__.getState());
+  assert.equal(st.fx.smokeInstances + st.fx.glowInstances, st.fx.particles + st.fx.flares);
+  await capture('day-effects');
   assert.equal(st.cameraMode, '3p');
   assert.equal(st.activeWeapon, 'spw');
   assert.ok(st.mslAmmo < 2, 'Standard missile fired');
@@ -88,10 +153,11 @@ try {
 
   // Test Mission 2 (Sunset Fjord) & Mission 3 (Storm Carrier) load cleanly
   await page.evaluate(() => window.__ACE_DEBUG__.startMission(1, 0));
-  await page.waitForTimeout(450);
+  const sunset = await sampleScene('sunset-chase');
   st = await page.evaluate(() => window.__ACE_DEBUG__.getState());
   assert.equal(st.selMissionIdx, 1);
   assert.ok(st.enemiesAlive >= 8, 'Mission 2 radar/SAM/fighters spawned');
+  assert.equal(st.fx.flares + st.fx.missiles + st.fx.glowInstances, 0, 'New sortie clears the previous effects');
 
   if (process.env.CAPTURE_PREVIEW === '1') {
     // Capture an iconic 16:9 Sunset Fjord in-flight action screenshot!
@@ -120,13 +186,29 @@ try {
   }
 
   await page.evaluate(() => window.__ACE_DEBUG__.startMission(2, 2));
-  await page.waitForTimeout(450);
+  const storm = await sampleScene('storm-chase');
   st = await page.evaluate(() => window.__ACE_DEBUG__.getState());
   assert.equal(st.selMissionIdx, 2);
   assert.ok(st.enemiesAlive >= 6, 'Mission 3 carrier fleet spawned');
+  for (const [first, second] of [[daylight, sunset], [sunset, storm], [daylight, storm]]) {
+    assert.ok(first.some((channel, index) => Math.abs(channel - second[index]) > 12), `Mission palettes collapsed: ${first} vs ${second}`);
+  }
+  await page.keyboard.press('Escape');
+  for (const expected of ['med', 'low', 'high']) {
+    await page.locator('#pauseQualBtn').click();
+    await frames();
+    assert.equal((await state()).quality, expected);
+  }
+  await page.locator('#btnHangar').click();
+  await page.locator('#sortieBtn').click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await frames();
+  assert.equal((await state()).mode, 'playing');
+  await capture('narrow-sortie');
 
   assert.deepEqual(errors, [], `Expected zero runtime/console errors, got: ${errors.join('; ')}`);
-  console.log('PASS games/ace.html: hangar, 3 jets, 3 missions, 1P/3P cockpit, weapons/flares, pause, ZH/EN; zero errors');
+  console.log('PASS Ace: 3 jets, 3 distinct rendered missions, 1P/3P, batched flares & reset, quality, pause, narrow layout, ZH/EN; zero errors');
+  console.log('Same-aircraft GPU samples:', memory, 'mission RGB:', { daylight, sunset, storm });
 } finally {
   await browser?.close();
   server.closeAllConnections();

@@ -1686,18 +1686,126 @@ const sharedSphereGeo = new THREE.SphereGeometry(1, 8, 6);
 const sharedTracerGeo = new THREE.BoxGeometry(0.28, 0.28, 12);
 const sharedMissileGeo = new THREE.CylinderGeometry(0.18, 0.24, 3.6, 6);
 sharedMissileGeo.rotateX(Math.PI / 2);
+const sharedEffectGeometry = new Set([sharedSphereGeo, sharedTracerGeo, sharedMissileGeo]);
+const sharedSceneTextures = new Set([cloudTex, glowTex, carrierDeckTex, runwayTex]);
+
+function releaseSceneResources(root) {
+  const owned = new Set();
+  root.traverse(node => {
+    if (node.isInstancedMesh) owned.add(node);
+    if (node.geometry && !node.isSprite && !sharedEffectGeometry.has(node.geometry)) owned.add(node.geometry);
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    for (const material of materials) {
+      if (!material || owned.has(material)) continue;
+      owned.add(material);
+      for (const value of Object.values(material)) {
+        if (value?.isTexture && !sharedSceneTextures.has(value)) owned.add(value);
+      }
+    }
+  });
+  for (const resource of owned) resource.dispose();
+}
+
+const particleCapacity = { low: 180, med: 280, high: 420 };
+const flareBurstSize = 8;
+const flareColor = new THREE.Color(0xffefd0);
+const smokeOrder = [];
+const viewDirection = new THREE.Vector3();
+
+function createBillboardLayer(map, additive) {
+  const quad = new THREE.PlaneGeometry(1, 1);
+  const geometry = new THREE.InstancedBufferGeometry();
+  geometry.setIndex(quad.index);
+  geometry.setAttribute('position', quad.getAttribute('position'));
+  geometry.setAttribute('uv', quad.getAttribute('uv'));
+  for (const [name, stride] of [['centerSize', 4], ['tintAlpha', 4], ['spin', 1]]) {
+    const data = new Float32Array((particleCapacity.high + flareBurstSize) * stride);
+    geometry.setAttribute(name, new THREE.InstancedBufferAttribute(data, stride).setUsage(THREE.DynamicDrawUsage));
+  }
+  geometry.instanceCount = 0;
+  const material = new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
+    fog: true, transparent: true, depthWrite: false,
+    blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+    vertexShader: `
+      attribute vec4 centerSize, tintAlpha;
+      attribute float spin;
+      varying vec2 spriteUv;
+      varying vec4 tint;
+      #include <fog_pars_vertex>
+      void main() {
+        spriteUv = uv;
+        tint = tintAlpha;
+        vec4 mvPosition = viewMatrix * vec4(centerSize.xyz, 1.0);
+        float cs = cos(spin), sn = sin(spin);
+        mvPosition.xy += mat2(cs, sn, -sn, cs) * position.xy * centerSize.w;
+        gl_Position = projectionMatrix * mvPosition;
+        #include <fog_vertex>
+      }`,
+    fragmentShader: `
+      uniform sampler2D spriteMap;
+      varying vec2 spriteUv;
+      varying vec4 tint;
+      #include <fog_pars_fragment>
+      void main() {
+        gl_FragColor = texture2D(spriteMap, spriteUv) * tint;
+        #include <fog_fragment>
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`
+  });
+  material.uniforms.spriteMap = { value: map };
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = additive ? 'FX glow' : 'FX smoke';
+  mesh.frustumCulled = false;
+  mesh.visible = false;
+  mesh.renderOrder = additive ? 3 : 2;
+  scene.add(mesh);
+  return mesh;
+}
+
+const smokeLayer = createBillboardLayer(cloudTex, false);
+const glowLayer = createBillboardLayer(glowTex, true);
+
+function writeBillboard(layer, pos, size, color, opacity, spin) {
+  const { attributes } = layer.geometry;
+  const index = layer.geometry.instanceCount++;
+  attributes.centerSize.setXYZW(index, pos.x, pos.y, pos.z, size);
+  attributes.tintAlpha.setXYZW(index, color.r, color.g, color.b, opacity);
+  attributes.spin.setX(index, spin);
+}
+
+function writeParticle(layer, particle) {
+  const age = 1 - particle.life / particle.maxLife;
+  writeBillboard(layer, particle.pos, particle.size * (1 + age * particle.grow), particle.color,
+    (layer === glowLayer ? 0.95 : 0.62) * (1 - age), particle.spin + age * 0.45);
+}
+
+function renderParticleLayers() {
+  smokeLayer.geometry.instanceCount = glowLayer.geometry.instanceCount = 0;
+  smokeOrder.length = 0;
+  camera.getWorldDirection(viewDirection);
+  for (const particle of particles) {
+    if (particle.additive) writeParticle(glowLayer, particle);
+    else {
+      particle.depth = particle.pos.dot(viewDirection);
+      smokeOrder.push(particle);
+    }
+  }
+  smokeOrder.sort((left, right) => right.depth - left.depth);
+  for (const particle of smokeOrder) writeParticle(smokeLayer, particle);
+  for (const flare of flares) writeBillboard(glowLayer, flare.pos, 6.5, flareColor, flare.life / 2.2, 0);
+  for (const layer of [smokeLayer, glowLayer]) {
+    layer.visible = layer.geometry.instanceCount > 0;
+    if (layer.visible) {
+      for (const name of ['centerSize', 'tintAlpha', 'spin']) layer.geometry.attributes[name].needsUpdate = true;
+    }
+  }
+}
 
 function spawnParticle(pos, vel, color, size, life, grow = 1.6, additive = false) {
-  if (particles.length > (quality === 'low' ? 180 : 420)) return;
-  const mat = new THREE.SpriteMaterial({
-    map: additive ? glowTex : cloudTex, color, transparent: true, opacity: additive ? 0.95 : 0.62,
-    blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, depthWrite: false
-  });
-  const sp = new THREE.Sprite(mat);
-  sp.position.copy(pos);
-  sp.scale.setScalar(size);
-  fxGroup.add(sp);
-  particles.push({ mesh: sp, vel: vel.clone(), life, maxLife: life, size, grow, baseOpacity: mat.opacity });
+  if (particles.length >= particleCapacity[quality]) return;
+  particles.push({ pos: pos.clone(), vel: vel.clone(), color: new THREE.Color(color), life, maxLife: life, size, grow, additive, spin: Math.random() * Math.PI * 2 });
 }
 
 function spawnExplosion(pos, scale = 1.0, big = false) {
@@ -1729,7 +1837,10 @@ function spawnExplosion(pos, scale = 1.0, big = false) {
 }
 
 function buildPlayerAircraft() {
-  if (player.mesh) scene.remove(player.mesh);
+  if (player.mesh) {
+    player.mesh.removeFromParent();
+    releaseSceneResources(player.mesh);
+  }
   const spec = JETS[selJetIdx];
   player.mesh = buildJetMesh(spec, true);
   scene.add(player.mesh);
@@ -1790,9 +1901,12 @@ function spawnEnemy(type, pos, extra = {}) {
 }
 
 function clearWorld() {
+  releaseSceneResources(worldGroup);
+  releaseSceneResources(fxGroup);
   worldGroup.clear();
   fxGroup.clear();
   islands = []; enemies = []; bullets = []; missiles = []; flares = []; particles = []; shockwaves = [];
+  renderParticleLayers();
   carrierRef = null; destroyerRefs = [];
   for (let i = 0; i < MAX_ISLANDS; i++) islandUniformData[i].set(99999, 99999, 1, 0);
   for (let i = 0; i < 4; i++) wakeUniformData[i].set(99999, 99999, 0, 0);
@@ -1983,16 +2097,11 @@ function deployFlares() {
   sfx.playFlare();
   const back = new THREE.Vector3(0, 0, 1).applyQuaternion(player.quat);
   const right = new THREE.Vector3(1, 0, 0).applyQuaternion(player.quat);
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < flareBurstSize; i++) {
     const vel = back.clone().multiplyScalar(35 + Math.random() * 25)
       .addScaledVector(right, (i % 2 === 0 ? 1 : -1) * (18 + Math.random() * 22));
     vel.y -= 12 + Math.random() * 14;
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: glowTex, color: 0xfff0a8, blending: THREE.AdditiveBlending, depthWrite: false
-    }));
-    sp.position.copy(player.pos); sp.scale.setScalar(6.5);
-    fxGroup.add(sp);
-    flares.push({ mesh: sp, pos: player.pos.clone(), vel, life: 2.2 });
+    flares.push({ pos: player.pos.clone(), vel, life: 2.2, trailTime: 0 });
   }
   let spoofedAny = false;
   for (const m of missiles) {
@@ -2011,6 +2120,7 @@ function damageEnemy(e, dmg) {
   if (e.hp <= 0) {
     e.alive = false;
     worldGroup.remove(e.mesh);
+    releaseSceneResources(e.mesh);
     missionKills++;
     missionScore += e.score;
     const isBig = e.isBoss || e.type === 'destroyer' || e.type === 'bomber';
@@ -2341,6 +2451,7 @@ function updateProjectilesAndFX(dt) {
       damagePlayer(b.dmg); hit = true;
     }
     if (hit || b.life <= 0 || b.pos.y < 0) {
+      b.mesh.material.dispose();
       fxGroup.remove(b.mesh); bullets.splice(i, 1);
     }
   }
@@ -2384,6 +2495,7 @@ function updateProjectilesAndFX(dt) {
     }
     if (hit || m.life <= 0 || m.pos.y < 1) {
       if (!hit && m.pos.y < 1) spawnExplosion(m.pos, 0.6, false);
+      releaseSceneResources(m.mesh);
       fxGroup.remove(m.mesh); missiles.splice(i, 1);
     }
   }
@@ -2394,24 +2506,22 @@ function updateProjectilesAndFX(dt) {
     f.life -= dt;
     f.vel.y -= 18 * dt;
     f.pos.addScaledVector(f.vel, dt);
-    f.mesh.position.copy(f.pos);
-    f.mesh.material.opacity = Math.max(0, f.life / 2.2);
-    if (frameCount % 3 === 0) spawnParticle(f.pos, new THREE.Vector3(0, 0, 0), 0xffe4b5, 3.5, 0.4, 1.6, false);
-    if (f.life <= 0) { fxGroup.remove(f.mesh); flares.splice(i, 1); }
+    f.trailTime -= dt;
+    if (f.life <= 0) flares.splice(i, 1);
+    else if (f.trailTime <= 0) {
+      f.trailTime += 0.065;
+      spawnParticle(f.pos, new THREE.Vector3(0, 0, 0), 0xffe4b5, 3.5, 0.4, 1.6, false);
+    }
   }
 
   // Particles
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
     p.life -= dt;
-    p.mesh.position.addScaledVector(p.vel, dt);
-    const t = 1 - p.life / p.maxLife;
-    p.mesh.scale.setScalar(p.size * (1 + t * p.grow));
-    p.mesh.material.opacity = p.baseOpacity * (1 - t);
-    if (p.life <= 0) {
-      fxGroup.remove(p.mesh); p.mesh.material.dispose(); particles.splice(i, 1);
-    }
+    p.pos.addScaledVector(p.vel, dt);
+    if (p.life <= 0) particles.splice(i, 1);
   }
+  renderParticleLayers();
 
   // Shockwaves
   for (let i = shockwaves.length - 1; i >= 0; i--) {
@@ -2432,7 +2542,7 @@ function updateProjectilesAndFX(dt) {
     alertEl.style.display = 'block';
     alertEl.textContent = I18N[lang].alertMissile;
     sfx.playAlert(performance.now() / 1000);
-  } else if (player.pos.y < 42) {
+  } else if (player.pos.y - Math.max(0, sampleTerrainHeight(player.pos.x, player.pos.z)) < 42) {
     alertEl.style.display = 'block';
     alertEl.textContent = I18N[lang].alertPullUp;
     sfx.playAlert(performance.now() / 1000);
@@ -2972,7 +3082,10 @@ window.__ACE_DEBUG__ = {
     enemiesAlive: enemies.filter(e => e.alive).length,
     totalTargets: totalMissionTargets,
     activeWeapon: player.activeWeapon,
-    mslAmmo: player.mslAmmo, spwAmmo: player.spwAmmo
+    mslAmmo: player.mslAmmo, spwAmmo: player.spwAmmo,
+    gpu: { ...renderer.info.memory },
+    fx: { particles: particles.length, flares: flares.length, missiles: missiles.length, bullets: bullets.length,
+      smokeInstances: smokeLayer.geometry.instanceCount, glowInstances: glowLayer.geometry.instanceCount }
   }),
   startMission: (mIdx = 0, jIdx = 0) => {
     selMissionIdx = mIdx; selJetIdx = jIdx;

@@ -20,7 +20,7 @@ const server = createServer(async (req, res) => {
 });
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 const origin = `http://127.0.0.1:${server.address().port}`;
-const games = ['cs', 'flappy', 'kart', 'ace', 'prism', 'ironcore'].map(name => `games/${name}.html`);
+const games = ['cs', 'flappy', 'kart', 'ace', 'prism', 'ironcore', 'skyhold'].map(name => `games/${name}.html`);
 let browser;
 try {
   browser = await chromium.launch({ headless: true });

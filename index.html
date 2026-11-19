@@ -61,6 +61,7 @@ h1 span{color:var(--accent)}
   linear-gradient(135deg,#271b38,#12101f)}
 .banner.iron{background:radial-gradient(circle at 85% 20%,rgba(112,222,215,.22),transparent 60%),
   linear-gradient(135deg,#183039,#0b1319)}
+.banner.sky{background:linear-gradient(135deg,#18382b,#111e24)}
 
 .tag-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
 .badge{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:3px 10px;
@@ -71,6 +72,7 @@ h1 span{color:var(--accent)}
 .badge.air{color:#ff7e6b;border-color:rgba(255,126,107,.45)}
 .badge.puzzle{color:#d8b8ff;border-color:rgba(216,184,255,.45)}
 .badge.mech{color:#81e7df;border-color:rgba(129,231,223,.45)}
+.badge.bastion{color:#a7e698;border-color:rgba(167,230,152,.45)}
 .tech{font-family:var(--mono);font-size:11px;color:var(--dim);white-space:nowrap}
 
 .card h2{font-size:clamp(20px,1.8vw,23px);font-weight:800;letter-spacing:.02em;line-height:1.25;
@@ -110,6 +112,7 @@ h1 span{color:var(--accent)}
 .play.air{background:linear-gradient(135deg,#ff8b5e,#ff5247);color:#1f0704}
 .play.puzzle{background:#d8b8ff;color:#24122f}
 .play.mech{background:#81e7df;color:#092427}
+.play.bastion{background:#a7e698;color:#10271b}
 .play:hover{filter:brightness(1.08);transform:translateY(-1px)}
 .file-link{font-family:var(--mono);font-size:12px;color:var(--faint)}
 
@@ -133,7 +136,7 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.0
     <div>
       <div class="eyebrow" data-i18n="eyebrow">SINGLE-FILE GAMES · THREE.JS + WEBGL</div>
       <h1 data-i18n-html="title">3D Games <span>Collection</span></h1>
-      <p class="sub" data-i18n="subtitle">六款单文件 3D 网页游戏：在港口交火、带小鸟穿过管道、驾驶卡丁车漂移、飞越群岛、解开光路谜题，或驾驶机甲守住竞技场。</p>
+      <p class="sub" data-i18n="subtitle">七款单文件 3D 网页游戏，从街机飞行、卡丁车和光学解谜，到港口交火、海岛空战、机甲生存与浮岛塔防。</p>
     </div>
     <div class="lang-switch" role="group" aria-label="Language">
       <button type="button" data-lang="zh" class="on">中文</button>
@@ -377,10 +380,30 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.0
         </div>
       </div>
     </article>
+    <article class="card skyhold-card">
+      <a class="preview" href="games/skyhold.html" aria-labelledby="skyhold-title">
+        <img src="assets/previews/skyhold-bastion.webp" width="960" height="540" decoding="async"
+          alt="浮空要塞实机画面：敌人穿过翠峰螺旋的木桥，沿着山道逼近高处的水晶" data-i18n-alt="skyhold.preview">
+        <span class="preview-label" data-i18n="screenshot">实机截图</span>
+      </a>
+      <div class="banner sky">
+        <div class="tag-row"><span class="badge bastion" data-i18n="skyhold.badge">3D 浮岛塔防</span><span class="tech">Three.js · WebGL 2</span></div>
+        <h2 id="skyhold-title" data-i18n="skyhold.title">浮空要塞 · SKYHOLD BASTION</h2>
+        <p class="tagline" data-i18n="skyhold.tagline">在云海之上，守住山顶的水晶</p>
+      </div>
+      <div class="body">
+        <p class="desc" data-i18n="skyhold.desc">敌人从传送门登岛。找准弯道和桥头的塔位，用金币搭配五种防御塔，拦住通往核心的地面与空中攻势。</p>
+        <ul class="feats" data-i18n-html="skyhold.feats"><li><b>三座浮岛：</b>从翠峰螺旋，到双桥峡谷和云巅圣殿，每张地图都有不同的防线。</li><li><b>掌控节奏：</b>先布塔再开波，也可以暂停调整或提前呼叫下一波赚取额外金币。</li></ul>
+        <div class="keys"><div class="keys-title" data-i18n="controls">核心操作</div>
+          <div class="keys-list" data-i18n-html="skyhold.keys"><span class="k-item"><kbd>1–5</kbd> 选塔</span><span class="k-item"><kbd>左键</kbd> 建造</span><span class="k-item"><kbd>N</kbd> 开波</span><span class="k-item"><kbd>空格</kbd> 暂停</span></div>
+        </div>
+        <div class="actions"><a class="play bastion" href="games/skyhold.html" data-i18n="play">开始游玩 →</a><span class="file-link">games/skyhold.html</span></div>
+      </div>
+    </article>
   </main>
 
   <footer>
-    <span data-i18n="footer.note">请使用支持 WebGL 2 的现代浏览器。部分游戏需要联网加载 Three.js；《棱镜密室》《极速卡丁车》和《铁核竞技场》下载后也可离线游玩。</span>
+    <span data-i18n="footer.note">请使用支持 WebGL 2 的现代浏览器。部分游戏需要联网加载 Three.js；《棱镜密室》《极速卡丁车》《铁核竞技场》和《浮空要塞》下载后也可离线游玩。</span>
     <span>3DGames · MIT License</span>
   </footer>
 </div>
@@ -390,7 +413,7 @@ const TEXT = {
   zh: {
     eyebrow: 'SINGLE-FILE GAMES · THREE.JS + WEBGL',
     title: '3D 网页游戏 <span>合集</span>',
-    subtitle: '六款单文件 3D 网页游戏：在港口交火、带小鸟穿过管道、驾驶卡丁车漂移、飞越群岛、解开光路谜题，或驾驶机甲守住竞技场。',
+    subtitle: '七款单文件 3D 网页游戏，从街机飞行、卡丁车和光学解谜，到港口交火、海岛空战、机甲生存与浮岛塔防。',
     controls: '核心操作',
     play: '开始游玩 →',
     screenshot: '实机截图',
@@ -436,12 +459,19 @@ const TEXT = {
     'ironcore.desc': '在机库选好机甲，进入俯视角竞技场。底盘移动与瞄准相互独立：盯住闸门涌入的敌群，也别错过脚下即将亮起的攻击预警。',
     'ironcore.feats': '<li><b>选一架合手的机甲：</b>先锋用微型导弹追敌，磁轨能一击贯穿一列目标，堡垒则可以展开偏转护盾。</li><li><b>波间改装：</b>清场后从三个模块中选一个，带着升级后的机甲迎接下一扇闸门。</li><li><b>迎战 OMEGA-01：</b>第八波击败铁核巨像后，可以带着本局模块进入无尽超载。</li>',
     'ironcore.keys': '<span class="k-item"><kbd>WASD</kbd> 移动</span><span class="k-item"><kbd>鼠标</kbd> 瞄准</span><span class="k-item"><kbd>左键</kbd> 主武器</span><span class="k-item"><kbd>右键 / E</kbd> 副武器</span><span class="k-item"><kbd>空格 / Shift</kbd> 冲刺</span><span class="k-item"><kbd>Esc / P</kbd> 暂停</span>',
-    'footer.note': '请使用支持 WebGL 2 的现代浏览器。部分游戏需要联网加载 Three.js；《棱镜密室》《极速卡丁车》和《铁核竞技场》下载后也可离线游玩。',
+    'skyhold.preview': '浮空要塞实机画面：敌人穿过翠峰螺旋的木桥，沿着山道逼近高处的水晶',
+    'skyhold.badge': '3D 浮岛塔防',
+    'skyhold.title': '浮空要塞 · SKYHOLD BASTION',
+    'skyhold.tagline': '在云海之上，守住山顶的水晶',
+    'skyhold.desc': '敌人从传送门登岛。找准弯道和桥头的塔位，用金币搭配五种防御塔，拦住通往核心的地面与空中攻势。',
+    'skyhold.feats': '<li><b>三座浮岛：</b>从翠峰螺旋，到双桥峡谷和云巅圣殿，每张地图都有不同的防线。</li><li><b>掌控节奏：</b>先布塔再开波，也可以暂停调整或提前呼叫下一波赚取额外金币。</li>',
+    'skyhold.keys': '<span class="k-item"><kbd>1–5</kbd> 选塔</span><span class="k-item"><kbd>左键</kbd> 建造</span><span class="k-item"><kbd>N</kbd> 开波</span><span class="k-item"><kbd>空格</kbd> 暂停</span>',
+    'footer.note': '请使用支持 WebGL 2 的现代浏览器。部分游戏需要联网加载 Three.js；《棱镜密室》《极速卡丁车》《铁核竞技场》和《浮空要塞》下载后也可离线游玩。',
   },
   en: {
     eyebrow: 'SINGLE-FILE GAMES · THREE.JS + WEBGL',
     title: '3D Games <span>Collection</span>',
-    subtitle: 'Six single-file 3D games: fight through a midnight port, flap between pipes, drift a kart, fly over an archipelago, solve light puzzles, or pilot a mech in the arena.',
+    subtitle: 'Seven single-file 3D games, from arcade flight, kart racing and light puzzles to port skirmishes, island dogfights, mech survival and floating-island tower defense.',
     controls: 'Controls',
     play: 'Play Now →',
     screenshot: 'In-game screenshot',
@@ -487,7 +517,14 @@ const TEXT = {
     'ironcore.desc': 'Pick a mech in the hangar, then drive and aim independently in a top-down arena. Watch the floor for attack warnings and dash out of danger before the next gate opens.',
     'ironcore.feats': '<li><b>Pick your chassis:</b> Vanguard tracks enemies with missiles, Railgunner pierces a line of targets, and Bastion can raise a deflector shield.</li><li><b>Build between waves:</b> Choose one of three modules to upgrade your mech for the next gate.</li><li><b>Face OMEGA-01:</b> Beat the Colossus in wave eight, then carry your modules into Endless Overload.</li>',
     'ironcore.keys': '<span class="k-item"><kbd>WASD</kbd> Drive</span><span class="k-item"><kbd>Mouse</kbd> Aim</span><span class="k-item"><kbd>LMB</kbd> Primary</span><span class="k-item"><kbd>RMB / E</kbd> Secondary</span><span class="k-item"><kbd>Space / Shift</kbd> Dash</span><span class="k-item"><kbd>Esc / P</kbd> Pause</span>',
-    'footer.note': 'Use a modern browser with WebGL 2. Some games load Three.js online; Prism Vault, Turbo Kart and Iron Core Arena also work offline after download.',
+    'skyhold.preview': 'Skyhold Bastion gameplay: enemies cross the wooden bridge on Emerald Spiral and follow the winding road toward the summit crystal',
+    'skyhold.badge': '3D Tower Defense',
+    'skyhold.title': 'SKYHOLD BASTION',
+    'skyhold.tagline': 'Defend a hilltop crystal above a sea of clouds',
+    'skyhold.desc': 'Enemies enter through the island portal. Spend gold on five tower types and use bends and bridges to cover the ground and air routes to the core.',
+    'skyhold.feats': '<li><b>Three islands:</b> Plan a different defense for Emerald Spiral, Twin-Bridge Canyon and Cloudtop Sanctum.</li><li><b>Set the pace:</b> Build before the first wave, pause to adjust, or call the next wave early for bonus gold.</li>',
+    'skyhold.keys': '<span class="k-item"><kbd>1–5</kbd> Choose tower</span><span class="k-item"><kbd>Click</kbd> Build</span><span class="k-item"><kbd>N</kbd> Call wave</span><span class="k-item"><kbd>Space</kbd> Pause</span>',
+    'footer.note': 'Use a modern browser with WebGL 2. Some games load Three.js online; Prism Vault, Turbo Kart, Iron Core Arena and Skyhold Bastion also work offline after download.',
   }
 };
 

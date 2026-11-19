@@ -33,7 +33,7 @@ h1 span{color:var(--accent)}
   font-size:12.5px;font-weight:700;font-family:inherit;transition:background .15s,color .15s}
 .lang-switch button.on{background:var(--fg);color:var(--bg)}
 
-.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;align-items:stretch}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:stretch}
 
 .card{display:flex;flex-direction:column;background:linear-gradient(160deg,rgba(120,160,205,.1),rgba(10,16,26,.86));
   border:1px solid var(--line);border-radius:18px;overflow:hidden;
@@ -55,6 +55,8 @@ h1 span{color:var(--accent)}
   linear-gradient(135deg,#102840,#0a1624)}
 .banner.kart{background:radial-gradient(circle at 85% 20%,rgba(114,240,164,.24),transparent 60%),
   linear-gradient(135deg,#102b28,#091418)}
+.banner.ace{background:radial-gradient(circle at 85% 20%,rgba(255,105,82,.26),transparent 60%),
+  linear-gradient(135deg,#1f162b,#09111f)}
 
 .tag-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
 .badge{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:3px 10px;
@@ -62,6 +64,7 @@ h1 span{color:var(--accent)}
 .badge.tactical{color:var(--accent);border-color:rgba(255,178,62,.4)}
 .badge.arcade{color:var(--cool);border-color:rgba(111,214,255,.4)}
 .badge.racing{color:var(--ok);border-color:rgba(114,240,164,.4)}
+.badge.air{color:#ff7e6b;border-color:rgba(255,126,107,.45)}
 .tech{font-family:var(--mono);font-size:11px;color:var(--dim);white-space:nowrap}
 
 .card h2{font-size:clamp(20px,1.8vw,23px);font-weight:800;letter-spacing:.02em;line-height:1.25;
@@ -77,6 +80,7 @@ h1 span{color:var(--accent)}
 .feats li::before{content:"▸";position:absolute;left:0;top:0;color:var(--cool);font-weight:700}
 .card.cs-card .feats li::before{color:var(--accent)}
 .card.kart-card .feats li::before{color:var(--ok)}
+.card.ace-card .feats li::before{color:#ff7e6b}
 .feats b{color:var(--fg);font-weight:600}
 .feats kbd,.keys kbd{font-family:var(--mono);font-size:11px;padding:1px 6px;border-radius:4px;
   background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);color:var(--fg);
@@ -95,6 +99,7 @@ h1 span{color:var(--accent)}
 .play.primary{background:var(--accent);color:#1a1002}
 .play.cool{background:var(--cool);color:#041624}
 .play.ok{background:var(--ok);color:#042012}
+.play.air{background:linear-gradient(135deg,#ff8b5e,#ff5247);color:#1f0704}
 .play:hover{filter:brightness(1.08);transform:translateY(-1px)}
 .file-link{font-family:var(--mono);font-size:12px;color:var(--faint)}
 
@@ -244,6 +249,47 @@ footer{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.0
         </div>
       </div>
     </article>
+
+    <!-- Ace Archipelago -->
+    <article class="card ace-card">
+      <a class="preview" href="games/ace.html" aria-labelledby="ace-title">
+        <img src="assets/previews/ace-archipelago.webp" width="960" height="540" decoding="async"
+          alt="王牌群岛实机画面：隐身战斗机在黄昏火山峡湾上空追击敌机并发射制导导弹" data-i18n-alt="ace.preview">
+        <span class="preview-label" data-i18n="screenshot">实机截图</span>
+      </a>
+      <div class="banner ace">
+        <div class="tag-row">
+          <span class="badge air" data-i18n="ace.badge">3D 现代空战 · Dogfight</span>
+          <span class="tech">Three.js r160 · GLSL · Bloom</span>
+        </div>
+        <h2 id="ace-title" data-i18n="ace.title">王牌群岛 · ACE ARCHIPELAGO</h2>
+        <p class="tagline" data-i18n="ace.tagline">海岛峡湾与雷暴航母 · 多目标导弹齐射 · 3D 座舱</p>
+      </div>
+      <div class="body">
+        <p class="desc" data-i18n="ace.desc">驾驶三款现代隐身战机穿梭晴空火山群岛、黄昏天然石拱门峡湾与闪电雷暴海域，迎战敌方编队、防空雷达、300 米级航空母舰与王牌长机「绯红一号」。</p>
+        <ul class="feats" data-i18n-html="ace.feats">
+          <li><b>电影级海空 GLSL 渲染：</b>IBL 环境反射、HDR 辉光、海岸白浪与舰船尾迹动态海面、坡度混合火山地貌及受光立体云海。</li>
+          <li><b>3 架隐身战机与专属特武：</b>F-22X 猛禽（4AAM 四目标齐射）、SU-57X 女武神（QAAM 高过载格斗弹）、F-35X 雷霆（LASM 六联装反舰弹）。</li>
+          <li><b>直觉空战与双视角：</b>鼠标引导压坡转向 + 动态机炮提前量圈 + 热诱弹反制，按 <kbd>V</kbd> 一键切换电影追尾与 3D 座舱视角。</li>
+        </ul>
+        <div class="keys">
+          <div class="keys-title" data-i18n="controls">核心操作</div>
+          <div class="keys-list" data-i18n-html="ace.keys">
+            <span class="k-item"><kbd>鼠标</kbd> 转向</span>
+            <span class="k-item"><kbd>W/S</kbd> 加力/减速</span>
+            <span class="k-item"><kbd>左键</kbd> 机炮</span>
+            <span class="k-item"><kbd>右键/空格</kbd> 导弹</span>
+            <span class="k-item"><kbd>Q</kbd> 特武</span>
+            <span class="k-item"><kbd>F</kbd> 热诱弹</span>
+            <span class="k-item"><kbd>V</kbd> 座舱</span>
+          </div>
+        </div>
+        <div class="actions">
+          <a class="play air" href="games/ace.html" data-i18n="play">开始游玩 →</a>
+          <span class="file-link">games/ace.html</span>
+        </div>
+      </div>
+    </article>
   </main>
 
   <footer>
@@ -257,13 +303,14 @@ const TEXT = {
   zh: {
     eyebrow: 'ZERO-ASSET WEBGL GAMES · PURE PROCEDURAL 3D',
     title: '3D 网页游戏 <span>合集</span>',
-    subtitle: '三款完全基于 Three.js 构建的单文件网页 3D 游戏——无任何外部贴图、模型或音频文件，所有画面、几何体与音效均由代码实时生成。',
+    subtitle: '四款完全基于 Three.js 构建的单文件网页 3D 游戏——无任何外部贴图、模型或音频文件，所有画面、几何体与音效均由代码实时生成。',
     controls: '核心操作',
     play: '开始游玩 →',
     screenshot: '实机截图',
     'cs.preview': '午夜港口实机画面：手持步枪，在灯光照亮的集装箱堆场中进行第一人称战斗',
     'fb.preview': '像素飞鸟实机画面：蓝色立体小鸟在青山与云朵之间飞行，穿过绿色管道的空隙',
     'kart.preview': '极速卡丁车实机画面：第三人称跟车视角下，橙色卡丁车与对手驶过海滨赛道',
+    'ace.preview': '王牌群岛实机画面：隐身战斗机在黄昏火山峡湾上空追击敌机并发射制导导弹',
     'cs.badge': '3D 战术射击 · FPS',
     'cs.title': '午夜港口 · MIDNIGHT PORT',
     'cs.tagline': '7 号码头集装箱堆场 · 双阵营夜战',
@@ -282,18 +329,25 @@ const TEXT = {
     'kart.desc': '主机级体验的 3D 卡丁车锦标赛：3 位鲜活卡通车手与专属旗舰赛车、3 条多层奇观赛道、彩虹道具箱 6 大攻防道具与四阶漂移双喷系统。',
     'kart.feats': '<li><b>3 款 PBR 赛车与车手：</b>赤焰 GT-K1（红尾巾皮蛋）、星澜 Aero-X（涡扇长耳宝宝）、雷神 Titan-V8（外露 V8 引擎双马尾黑妞）。</li><li><b>3 大多层奇观赛道：</b>阳光海滨（跨海大桥与海底玻璃隧道）、森林峡谷（瀑布与水晶神庙）、雪山冰道（动态极光与冰晶隧道）。</li><li><b>道具对抗与漂移特技：</b>导弹、水泡、香蕉皮、护盾、磁铁与超级氮气；支持四阶漂移火花、断位双喷、尾流与跳台 360° 空翻。</li>',
     'kart.keys': '<span class="k-item"><kbd>WASD</kbd><kbd>↑↓←→</kbd> 驾驶</span><span class="k-item"><kbd>Shift</kbd> 漂移</span><span class="k-item"><kbd>空格</kbd> 氮气</span><span class="k-item"><kbd>E</kbd><kbd>右键</kbd> 道具</span><span class="k-item"><kbd>V</kbd> 视角</span>',
+    'ace.badge': '3D 现代空战 · Dogfight',
+    'ace.title': '王牌群岛 · ACE ARCHIPELAGO',
+    'ace.tagline': '海岛峡湾与雷暴航母 · 多目标导弹齐射 · 3D 座舱',
+    'ace.desc': '驾驶三款现代隐身战机穿梭晴空火山群岛、黄昏天然石拱门峡湾与闪电雷暴海域，迎战敌方编队、防空雷达、300 米级航空母舰与王牌长机「绯红一号」。',
+    'ace.feats': '<li><b>电影级海空 GLSL 渲染：</b>IBL 环境反射、HDR 辉光、海岸白浪与舰船尾迹动态海面、坡度混合火山地貌及受光立体云海。</li><li><b>3 架隐身战机与专属特武：</b>F-22X 猛禽（4AAM 四目标齐射）、SU-57X 女武神（QAAM 高过载格斗弹）、F-35X 雷霆（LASM 六联装反舰弹）。</li><li><b>直觉空战与双视角：</b>鼠标引导压坡转向 + 动态机炮提前量圈 + 热诱弹反制，按 <kbd>V</kbd> 一键切换电影追尾与 3D 座舱视角。</li>',
+    'ace.keys': '<span class="k-item"><kbd>鼠标</kbd> 转向</span><span class="k-item"><kbd>W/S</kbd> 加力/减速</span><span class="k-item"><kbd>左键</kbd> 机炮</span><span class="k-item"><kbd>右键/空格</kbd> 导弹</span><span class="k-item"><kbd>Q</kbd> 特武</span><span class="k-item"><kbd>F</kbd> 热诱弹</span><span class="k-item"><kbd>V</kbd> 座舱</span>',
     'footer.note': '提示：所有游戏均通过 CDN 加载 Three.js，请联网并使用现代 WebGL 浏览器打开。',
   },
   en: {
     eyebrow: 'ZERO-ASSET WEBGL GAMES · PURE PROCEDURAL 3D',
     title: '3D Games <span>Collection</span>',
-    subtitle: 'Three single-file 3D browser games built with Three.js — zero external textures, models, or audio files. Everything is generated procedurally in code.',
+    subtitle: 'Four single-file 3D browser games built with Three.js — zero external textures, models, or audio files. Everything is generated procedurally in code.',
     controls: 'Controls',
     play: 'Play Now →',
     screenshot: 'In-game screenshot',
     'cs.preview': 'Midnight Port gameplay: a first-person rifle view through a floodlit container yard at night',
     'fb.preview': 'Flappy Bird gameplay: a blue 3D bird flies between green pipes with mountains and clouds behind it',
     'kart.preview': 'Turbo Kart gameplay: a third-person chase view of an orange kart racing opponents on a coastal circuit',
+    'ace.preview': 'Ace Archipelago gameplay: a stealth fighter firing homing missiles over a golden-hour volcanic fjord',
     'cs.badge': 'Tactical FPS · 3D',
     'cs.title': 'MIDNIGHT PORT',
     'cs.tagline': 'Pier 7 Container Yard · CT vs T Night Raid',
@@ -312,6 +366,12 @@ const TEXT = {
     'kart.desc': 'Console-grade 3D kart racing featuring 3 expressive cartoon drivers with custom karts, 3 multi-route landmark tracks, item roulette, and 4-stage drift boosts.',
     'kart.feats': '<li><b>3 PBR Karts & Drivers:</b> Blaze GT-K1 (Formula + Dao), Frost Aero-X (twin-turbine + Bazzi), and Volt Titan-V8 (supercharged V8 + Dizni).</li><li><b>3 Landmark Tracks:</b> Sunny Coast (cable bridge & glass sea tunnel), Emerald Canyon (waterfall & crystal temple), and Aurora Alpine (GLSL aurora & ice cave).</li><li><b>Item Combat & Stunts:</b> Homing missiles, water bombs, bananas, shields, magnets, 4-stage drift sparks, slipstream drafting, and 360° jump tricks.</li>',
     'kart.keys': '<span class="k-item"><kbd>WASD</kbd><kbd>↑↓←→</kbd> Drive</span><span class="k-item"><kbd>Shift</kbd> Drift</span><span class="k-item"><kbd>Space</kbd> N2O</span><span class="k-item"><kbd>E</kbd><kbd>RMB</kbd> Item</span><span class="k-item"><kbd>V</kbd> Camera</span>',
+    'ace.badge': '3D Modern Air Combat',
+    'ace.title': 'ACE ARCHIPELAGO',
+    'ace.tagline': 'Volcanic Fjords & Storm Carrier · Multi-Lock · 3D Cockpit',
+    'ace.desc': 'Pilot three stealth fighters across sunlit islands, a golden-hour volcanic sea arch, and a lightning-storm carrier fleet culminating in a duel against Ace Crimson-1.',
+    'ace.feats': '<li><b>Cinematic Sea & Sky GLSL:</b> Procedural IBL reflections, HDR bloom, Gerstner ocean with shoreline foam & ship wakes, slope-blended volcanic terrain, and lit volumetric-style clouds.</li><li><b>3 Stealth Jets & Special Weapons:</b> F-22X Raptor (4AAM multi-lock), SU-57X Valkyrie (high-G QAAM), and F-35X Striker (6-pod LASM anti-ship salvo).</li><li><b>Mouse-Aim & Dual Views:</b> Intuitive banking flight with dynamic cannon lead reticle, flare countermeasures, and instant <kbd>V</kbd> toggle between chase cam & 3D cockpit.</li>',
+    'ace.keys': '<span class="k-item"><kbd>Mouse</kbd> Steer</span><span class="k-item"><kbd>W/S</kbd> Thrust</span><span class="k-item"><kbd>LMB</kbd> Gun</span><span class="k-item"><kbd>RMB/Space</kbd> Missile</span><span class="k-item"><kbd>Q</kbd> SPW</span><span class="k-item"><kbd>F</kbd> Flares</span><span class="k-item"><kbd>V</kbd> Cockpit</span>',
     'footer.note': 'Note: All games load Three.js from a CDN; an internet connection and modern WebGL browser are required.',
   }
 };

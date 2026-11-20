@@ -6800,6 +6800,14 @@ void main() {
         push(-1, "trim", extrudeDown(coping.shapes(), 0.07, 0.12, 0.025, uvFloor));
         const water = new THREE.ShapeGeometry(pool.shapes());
         water.rotateX(Math.PI / 2);
+        // The raster's second axis is world +Z. Reverse winding, not the footprint or ripple UVs.
+        const indices = water.index.array;
+        for (let offset = 0; offset < indices.length; offset += 3) {
+          const second = indices[offset + 1];
+          indices[offset + 1] = indices[offset + 2];
+          indices[offset + 2] = second;
+        }
+        water.computeVertexNormals();
         const wm = new THREE.Mesh(water, MAT.water);
         wm.position.y = -0.16;
         wm.receiveShadow = true;

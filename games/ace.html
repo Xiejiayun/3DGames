@@ -1318,6 +1318,20 @@ function aircraftSkin() {
       else indices.push(rim[0], rim[idx], rim[idx + 1]);
     }
   }
+  function band(front, back, paint) {
+    for (let edge = 0; edge < front.length; edge++) {
+      const next = (edge + 1) % front.length;
+      face([front[edge], front[next], back[next], back[edge]], typeof paint === 'function' ? paint(edge) : paint);
+    }
+  }
+  function inlet(mouth, shoulder, tail, depth, paint, edge) {
+    const center = [0, 1].map(axis => mouth.reduce((sum, point) => sum + point[axis], 0) / mouth.length);
+    const inset = (scale, setback) => mouth.map(([across, up, station]) =>
+      [center[0] + (across - center[0]) * scale, center[1] + (up - center[1]) * scale, station + setback]);
+    const lip = inset(0.78, 0.035), recess = inset(0.59, depth);
+    band(mouth, shoulder, paint); band(shoulder, tail, paint); face(tail, paint);
+    band(lip, mouth, edge); band(recess, lip, 0x354858); face(recess, 0x101b23, true);
+  }
   function loft(stations, paint, facets = 12, centerX = 0, cap = paint) {
     let previous;
     for (const [station, [z, width, height, centerY, coat = paint]] of stations.entries()) {
@@ -1363,7 +1377,7 @@ function aircraftSkin() {
     part.castShadow = part.receiveShadow = material.isMeshStandardMaterial === true;
     return part;
   }
-  return { face, loft, foil, mesh };
+  return { face, band, inlet, loft, foil, mesh };
 }
 
 function cockpitDisplay(code) {
@@ -1634,6 +1648,7 @@ function buildJetMesh(spec, isPlayer = false) {
   const flash = new THREE.Color(paint).lerp(new THREE.Color(0xc0ccd0), 0.44);
   const leading = new THREE.Color(paint).lerp(flash, 0.55);
   const panel = new THREE.Color(paint).lerp(new THREE.Color(trim), 0.50);
+  const tailBand = isPlayer ? (single ? 0xc29d6f : swept ? 0xb48b62 : 0x97b8c5) : new THREE.Color(trim).lerp(flash, 0.27);
   const graphite = 0x262e36, titanium = 0x596068;
   const skin = aircraftSkin();
   skin.loft([[nose, 0.045, 0.055, -0.07, trim], [nose * 0.76, 0.56, 0.31, 0, trim],
@@ -1646,15 +1661,17 @@ function buildJetMesh(spec, isPlayer = false) {
 
   const ailerons = [], stabilators = [], fins = [], flames = [];
   for (const side of [-1, 1]) {
-    const wingPoint = (width, height, z) => [side * width, 0.16 - width * 0.018 + height, z];
     const knuckle = span * (swept ? 0.43 : 0.46);
+    const tipRise = swept ? 0.92 : single ? 0.42 : 0.55;
+    const wingPoint = (width, height, station) => [side * width,
+      0.16 - width * 0.018 + height + Math.max(0, width - knuckle) * tipRise / (span - knuckle), station];
     const tipFore = swept ? 2.42 : single ? 0.58 : 1.42;
     const innerFore = swept ? -1.7 : -1.45;
     const nearTip = inset => tipFore - (tipFore - innerFore) * inset / (span - knuckle);
     skin.foil([[0.7, swept ? -5.75 : -3.85, hinge + 1.0, 0.36],
       [knuckle, innerFore, hinge, 0.2, leading, panel], [span * 0.68, nearTip(span * 0.32), hinge, 0.15, leading, paint],
       [span - 0.6, nearTip(0.6), hinge, 0.095, paint, panel],
-      [span - 0.39, nearTip(0.39), hinge, 0.08, flash], [span - 0.09, nearTip(0.09), hinge, 0.065, trim],
+      [span - 0.39, nearTip(0.39), hinge, 0.105, flash], [span - 0.09, nearTip(0.09), hinge, 0.095, trim],
       [span, tipFore, hinge, 0.045, side < 0 ? 0xc24641 : 0x579e83]], wingPoint, paint, side < 0);
 
     const movable = aircraftSkin();
@@ -1678,7 +1695,8 @@ function buildJetMesh(spec, isPlayer = false) {
     const cant = side * (swept ? 0.58 : 0.37);
     const finPoint = (height, thickness, z) => [cant * height - thickness, height, z];
     const finHinge = aft - 0.52;
-    skin.foil([[0, aft - 3.35, finHinge, 0.145], [finH * 0.79, aft - 1.8, finHinge, 0.08],
+    skin.foil([[0, aft - 3.35, finHinge, 0.145], [finH * 0.65, aft - 2.08, finHinge, 0.093],
+      [finH * 0.74, aft - 1.90, finHinge, 0.084, tailBand], [finH * 0.79, aft - 1.8, finHinge, 0.08],
       [finH, aft - 1.38, finHinge, 0.055, trim]],
       (height, thickness, z) => [side * finX + cant * height - thickness, 0.21 + height, z], paint);
     const rudderSkin = aircraftSkin();
@@ -1689,10 +1707,14 @@ function buildJetMesh(spec, isPlayer = false) {
     fins.push(fin);
     exterior.add(flap, tail, fin);
 
-    const intake = swept ? -3.65 : single ? -2.35 : -2.85;
-    skin.loft([[intake, 0.39, 0.32, -0.19, flash], [intake + 0.15, 0.49, 0.39, -0.16],
-      [0.55, 0.64, 0.49, -0.12], [aft - 1.0, 0.38, 0.3, -0.12]],
-      paint, 8, side * (beam - 0.01), graphite);
+    const inletZ = swept ? -4.1 : single ? -3.35 : -3.75;
+    const inletRing = (center, width, height, station, rake) => {
+      const rim = [[1,0.28], [0.68,0.96], [-0.62,0.81], [-1,0.14], [-0.67,-0.87], [0.48,-1]].map(([across, up]) =>
+        [side * (center + width * across), -0.21 + height * up, station + rake * (across - up)]);
+      return side < 0 ? rim.reverse() : rim;
+    };
+    skin.inlet(inletRing(beam + 0.25, 0.60, 0.47, inletZ, 0.20), inletRing(beam + 0.21, 0.66, 0.51, inletZ + 0.87, 0.07),
+      inletRing(beam - 0.10, 0.43, 0.33, aft - 1.0, 0), 0.70, paint, flash);
   }
 
   const radius = single ? 0.77 : swept ? 0.51 : 0.55;
@@ -1700,26 +1722,37 @@ function buildJetMesh(spec, isPlayer = false) {
   for (const [index, socket] of sockets.entries()) {
     skin.loft([[swept ? -2.8 : 0.5, radius * 0.86, radius * 0.97, -0.07],
       [aft - 1.38, radius * 1.23, radius * 1.14, -0.08],
-      [aft - 0.72, radius * 1.12, radius * 1.08, -0.08, graphite],
-      [aft - 0.22, radius, radius * 0.97, -0.08, titanium],
-      [aft, radius * 0.96, radius * 0.93, -0.08, 0x929497],
-      [aft, radius * 0.79, radius * 0.76, -0.08, titanium],
-      [aft - radius * 0.42, radius * 0.63, radius * 0.60, -0.08, 0x463c3d]], paint, 16, socket, 0x302a2b);
+      [aft - 0.78, radius * 1.17, radius * 1.13, -0.08, graphite],
+      [aft - radius * 0.82, radius * 1.06, radius * 1.06 * 0.97, -0.08, titanium]], paint, 16, socket, graphite);
+    const ring = (scale, setback, scallop = 0) => Array.from({ length:16 }, (_, corner) => {
+      const angle = (corner + 0.5) * Math.PI / 8;
+      return [socket + radius * scale * Math.cos(angle), -0.08 + radius * scale * 0.97 * Math.sin(angle),
+        aft + radius * (setback + (corner % 2) * scallop)];
+    });
+    const tips = ring(0.98, 0.09, -0.18), edge = ring(0.78, 0.04, -0.16), well = ring(0.62, -0.51);
+    skin.band(ring(1.06, -0.82), tips, corner => corner % 2 ? 0x73818b : 0x9ca5a6);
+    skin.band(tips, edge, 0xb4aaaa); skin.band(edge, well, corner => corner % 2 ? 0x5b4545 : 0x493c40);
+    skin.face(well, 0x302a2b);
     const flame = index === 0 ? plume : plume.clone();
     flame.position.set(socket, -0.08, aft - radius * 0.32);
     flame.scale.set(0.60, 0.60, 0.14);
     exterior.add(flame);
     flames.push(flame);
   }
-  exterior.add(skin.mesh(alloy, 'Airframe'));
-
   const eyeZ = swept ? -3.35 : single ? -2.55 : -2.9;
   const canopy = aircraftSkin();
-  canopy.loft([[eyeZ - 2.05, 0.09, 0.07, 0.42], [eyeZ - 1.1, 0.56, 0.45, 0.55],
-    [eyeZ, single ? 0.80 : 0.69, 0.73, 0.65], [eyeZ + 0.80, 0.71, 0.65, 0.65],
-    [eyeZ + 0.87, 0.72, 0.66, 0.65, graphite], [eyeZ + 1.04, 0.72, 0.64, 0.65, graphite],
-    [eyeZ + 1.12, 0.69, 0.59, 0.65], [eyeZ + 2.0, 0.34, 0.28, 0.61]],
-    single ? 0x9b8064 : swept ? 0x46667a : 0x466d81, 16);
+  const glazing = single ? 0xaf8862 : swept ? 0x426b78 : 0x487890;
+  canopy.loft([[eyeZ - 2.05, 0.09, 0.07, 0.42], [eyeZ - 1.1, 0.56, 0.45, 0.55, single ? 0xd5b18a : 0x94bfc9],
+    [eyeZ, single ? 0.80 : 0.69, 0.73, 0.65], [eyeZ + 0.84, 0.71, 0.65, 0.65],
+    [eyeZ + 1.40, 0.63, 0.48, 0.65, single ? 0x746348 : 0x385464], [eyeZ + 2.0, 0.31, 0.24, 0.61]], glazing, 16);
+  skin.loft([[eyeZ - 2.24, 0.12, 0.07, 0.42], [eyeZ - 0.95, 0.73, 0.16, 0.55],
+    [eyeZ + 0.10, single ? 0.92 : 0.84, 0.15, 0.60], [eyeZ + 0.93, 0.83, 0.15, 0.60],
+    [eyeZ + 2.12, 0.34, 0.09, 0.59]], leading, 12);
+  for (const [station, width, height, centerY] of [[eyeZ - 0.77, single ? 0.72 : 0.69, 0.63, 0.59], [eyeZ + 0.88, 0.79, 0.72, 0.65]]) {
+    skin.loft([[station - 0.12, width * 0.97, height * 0.96, centerY, graphite], [station - 0.05, width, height, centerY, flash],
+      [station + 0.07, width, height, centerY, leading], [station + 0.13, width * 0.97, height * 0.96, centerY, graphite]], paint, 16);
+  }
+  exterior.add(skin.mesh(alloy, 'Airframe'));
   exterior.add(canopy.mesh(new THREE.MeshPhysicalMaterial({ vertexColors: true, metalness: 0.47,
     roughness: 0.18, clearcoat: 1.0, clearcoatRoughness: 0.12 }), 'Canopy'));
   const cockpit = isPlayer ? buildAircraftCockpit(eyeZ, spec.code ?? spec.id) : null;
@@ -1737,6 +1770,8 @@ function buildBomberMesh() {
     [7.6, 0.93, 0.88, 0.43], [11.1, 0.22, 0.34, 0.74]], paint, 16);
   skin.loft([[-10.15, 0.28, 0.14, 0.68], [-8.7, 1.05, 0.58, 0.85],
     [-7.65, 1.04, 0.55, 0.94], [-6.6, 0.73, 0.29, 1.14]], 0x263e50);
+  skin.loft([[-10.17, 0.06, 0.05, 0.81], [-8.70, 0.11, 0.09, 1.42], [-7.65, 0.11, 0.09, 1.48],
+    [-6.58, 0.07, 0.06, 1.42]], flash, 8);
   for (const side of [-1, 1]) {
     skin.foil([[0.9, -4.95, 1.45, 0.43], [5.1, -2.82, 2.18, 0.32], [10.55, 0.88, 3.6, 0.18],
       [11.0, 1.18, 3.73, 0.16, flash], [13.1, 2.63, 4.13, 0.07], [13.6, 3.13, 4.15, 0.045, trim]],
@@ -1745,8 +1780,15 @@ function buildBomberMesh() {
       (width, thickness, z) => [side * width, 0.83 + width * 0.075 + thickness, z], paint, side < 0);
     for (const width of [4.4, 7.5]) {
       const shift = (width - 4.4) * 0.59;
-      skin.loft([[shift - 3.72, 0.58, 0.51, -0.16, trim], [shift - 3.45, 0.68, 0.62, -0.12],
-        [shift - 1.2, 0.7, 0.68, -0.06], [shift + 1.33, 0.42, 0.45, 0.0, trim]], paint, 12, side * width, 0x222b32);
+      const podHeight = width > 6 ? -0.97 : -0.71;
+      const mountHeight = 0.80 - Math.abs(width - 4.8) * 0.092, mountZ = (width - 4.4) * 0.36 - 0.10;
+      skin.foil([[podHeight + 0.25, -0.85, 0.95, 0.19], [mountHeight, -0.56, 0.48, 0.13]],
+        (height, thickness, station) => [side * width - thickness, height, mountZ + station], trim);
+      const podRing = (station, wide, high) => Array.from({ length:12 }, (_, corner) => {
+        const angle = (corner + 0.5) * Math.PI / 6;
+        return [side * width + wide * Math.cos(angle), podHeight + high * Math.sin(angle), shift + station];
+      });
+      skin.inlet(podRing(-3.79, 0.77, 0.71), podRing(-2.87, 0.83, 0.77), podRing(1.35, 0.44, 0.47), 0.89, paint, flash);
     }
   }
   skin.foil([[0, 4.15, 10.5, 0.23], [3.46, 7.65, 10.35, 0.13], [4.18, 8.49, 10.3, 0.09, trim]],

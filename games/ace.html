@@ -1820,7 +1820,7 @@ function buildVolcanicIsland(cx, cz, radius, peakH, seed, mCfg) {
     return { x, z, height, dx, dz, dh: endH - height, inverseLengthSq: 1 / (dx * dx + dz * dz) };
   });
 
-  function bedrock(x, z) {
+  function bedrock(x, z, withLedges = true) {
     const along = (x * axisX + z * axisZ) / radius, across = (z * axisX - x * axisZ) / radius;
     const angle = Math.atan2(across, along);
     const inlet = 0.25 * smooth(across, 0.20, 0.82) * (1 - smooth(Math.abs(along - 0.18), 0.04, 0.55));
@@ -1847,6 +1847,13 @@ function buildVolcanicIsland(cx, cz, radius, peakH, seed, mCfg) {
     const buttress = (0.15 * (flutes - 0.44) + 0.10 * outcrop) * smooth(ridge + scarp, 0.03, 0.19);
     const shore = inland < 0 ? Math.max(-20, 140 * inland) : (46 + 60 * folds) * inland / (1 + 1.4 * inland);
     let height = shore + peakH * ((ridge * (0.90 + 0.22 * folds) + buttress) * smooth(inland, -0.015, 0.30) + scarp * smooth(inland, -0.025, 0.14));
+    if (withLedges && inland > 0 && inland < 0.54) {
+      const headland = smooth(0.55 * Math.cos(2 * angle - phase) + 0.32 * Math.sin(3 * angle + phase) + 0.55 * (folds - 0.5) - 1.7 * inlet, -0.22, 0.42);
+      const setback = inland + 0.046 * (flutes - 0.5) + 0.036 * (slip - 0.5);
+      const lower = Math.min(20, peakH * 0.10) * (0.78 + 0.38 * flutes) * smooth(setback, 0.040, 0.087);
+      const upper = Math.min(15, peakH * 0.075) * smooth(setback + 0.039 * Math.sin(5.3 * along + 7.6 * across + phase), 0.175, 0.228);
+      height += headland * (lower + upper) * (1 - smooth(inland, 0.26, 0.54));
+    }
     if (channel) {
       const east = x + cx - channel.x, south = z + cz - channel.z;
       const run = east * channel.sin + south * channel.cos;
@@ -1860,7 +1867,8 @@ function buildVolcanicIsland(cx, cz, radius, peakH, seed, mCfg) {
 
   const pads = (mCfg.pads || []).map(pad => {
     const x = pad.x - cx, z = pad.z - cz;
-    return { ...pad, x, z, height: pad.height ?? bedrock(x, z) };
+    // Keep established facility elevations while sculpting the coast around their pads.
+    return { ...pad, x, z, height: pad.height ?? bedrock(x, z, false) };
   });
   for (let index = 0; index < pos.count; index++) {
     const x = pos.getX(index), z = pos.getZ(index);
@@ -1911,6 +1919,7 @@ function buildVolcanicIsland(cx, cz, radius, peakH, seed, mCfg) {
 
 function volcanicSurface(faceted = false) {
   const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, flatShading: faceted });
+  if (!faceted) material.defines = { ...material.defines, ISLAND_COAST: 1 };
   // Modulate albedo only: r160 still owns lights, shadow maps, fog and output color.
   material.onBeforeCompile = shader => {
     shader.vertexShader = 'varying vec4 vGeology;\n' + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -1935,8 +1944,19 @@ function volcanicSurface(faceted = false) {
       float deposit = rockGrain(vec3(vGeology.x * 0.012, dip + 0.76 * beds, vGeology.z * 0.010));
       float layer = smoothstep(0.23, 0.77, deposit);
       float fissure = (1.0 - smoothstep(0.025, 0.115, abs(deposit - 0.46))) * smoothstep(0.43, 0.72, beds) * exposure;
-      diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(0.68, 0.77, 0.89), vec3(1.24, 1.16, 1.03), layer), exposure);
       float detail = 1.0 - smoothstep(560.0, 1650.0, vViewPosition.z);
+      #ifdef ISLAND_COAST
+        float tide = vGeology.y + 3.2 * (beds - 0.5);
+        float dry = smoothstep(2.0, 8.0, tide);
+        float face = smoothstep(0.022, 0.17, vGeology.w);
+        vec3 sand = mix(vec3(0.14, 0.16, 0.15), vec3(0.66, 0.52, 0.31), dry);
+        vec3 rock = mix(vec3(0.048, 0.066, 0.074), vec3(0.27, 0.22, 0.17), dry);
+        diffuseColor.rgb = mix(mix(sand, rock, face), diffuseColor.rgb, smoothstep(9.0, 24.0, tide));
+        float bedding = fract(tide * 0.055 + dot(vGeology.xz, vec2(0.0016, -0.0008)) + 0.65 * beds);
+        float seam = 1.0 - smoothstep(0.07, 0.30, abs(bedding - 0.5));
+        diffuseColor.rgb *= 1.0 - 0.36 * seam * face * (1.0 - smoothstep(34.0, 68.0, tide)) * detail;
+      #endif
+      diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(0.68, 0.77, 0.89), vec3(1.24, 1.16, 1.03), layer), exposure);
       diffuseColor.rgb *= 0.77 + 0.44 * beds + detail * (0.32 * (grain - 0.5) - 0.25 * fissure);`);
   };
   return material;
@@ -2050,28 +2070,47 @@ function buildAirbaseLandmark(x, y, z) {
   const strip = landmarkLoft(clippedPlan(22, 145, 2), [[-0.8,1,1,0x8c8170], [0.7,1,1]], 0xffffff, true);
   landmarkMesh(root, strip, [trim, new THREE.MeshStandardMaterial({ map: runwayTex, roughness: 0.94 })]);
   const blocks = [
-    [43,-0.1,-13,42,1.25,209,0xa69e87], [46,1.4,-104,17,2,18,0x767875],
+    [45.2,-0.05,-13,37.6,1.34,209,0xa69e87], [46,1.4,-104,17,2,18,0x767875],
     [46,12,-104,7,21,8,0xd1c9a7], [46,15,-104,7.3,3,8.3,0xce704c],
     [46,34,-104,1,7,1,0x515e62], [46,35.9,-104,3.6,1,3.6,0x63767b], [46,39,-104,3.3,0.8,3.3,0x58686a],
-    [44,3.8,-87,9,6.6,10,0x94a39b], [27,0.7,-8,0.85,0.22,151,0xcead65]
+    [44,3.8,-87,9,6.6,10,0x94a39b], [30.5,0.66,0,0.8,0.08,150,0xcead65]
   ];
-  const profile = new THREE.Shape([[-16,0],[-16,7],[-13,11.3],[-7,14],[7,14],[13,11.3],[16,7],[16,0]].map(([across, up]) => new THREE.Vector2(across, up)));
-  const shell = new THREE.ExtrudeGeometry(profile, { depth: 26, bevelEnabled: false }); shell.rotateY(Math.PI / 2);
-  const roof = new THREE.MeshStandardMaterial({ color: 0xbfc4b7, roughness: 0.82, metalness: 0.18 });
-  for (const bay of [-51, 0, 51]) {
-    landmarkMesh(root, shell, roof, 35, 0.5, bay);
-    blocks.push([31,0.7,bay,8,0.22,0.85,0xcead65], [48,14.7,bay,12.4,0.7,5.2,0x749095]);
-    for (const rib of [-6.4, 0, 6.4]) blocks.push([48 + rib,15.2,bay,0.65,0.45,5.8,0xc3c4b1]);
-    for (const wall of [34.8, 61.2]) {
-      blocks.push([wall,5,bay,0.65,9.3,23,0x354c53], [wall,10.6,bay,1.8,1.6,26,0xd78955],
-        [wall,4.7,bay,0.85,8.2,0.55,0x91a29d]);
+  for (const crossing of [-75, 75]) {
+    blocks.push([24.2,-0.05,crossing,4.4,1.34,12,0x88877b], [26.05,0.66,crossing,8.1,0.08,0.8,0xcead65]);
+  }
+  const section = [[-16,0],[-16,6.9],[-13.7,10.6],[-8,13.8],[-6,14.2],[6,14.2],[8,13.8],[13.7,10.6],[16,6.9],[16,0],
+    [12.5,0],[12.5,7.1],[10.9,9.3],[7,10.8],[-7,10.8],[-10.9,9.3],[-12.5,7.1],[-12.5,0]];
+  const profile = new THREE.Shape(section.map(([across, up]) => new THREE.Vector2(across, up)));
+  const shell = new THREE.ExtrudeGeometry(profile, { depth: 26, bevelEnabled: false, steps: 4 }); shell.rotateY(Math.PI / 2);
+  const positions = shell.attributes.position, normals = shell.attributes.normal, colors = new Float32Array(positions.count * 3);
+  const tint = new THREE.Color();
+  for (let vertex = 0; vertex < positions.count; vertex++) {
+    const up = normals.getY(vertex), inward = up < -0.1 || positions.getZ(vertex) * normals.getZ(vertex) < -1;
+    tint.setHex(inward ? 0x667474 : Math.abs(normals.getX(vertex)) > 0.9 ? 0xcec4a8 : up > 0.5 ? 0x9caeaa : 0x84938e);
+    if (inward) tint.multiplyScalar(1 - 0.42 * THREE.MathUtils.smoothstep(positions.getX(vertex), 0, 22));
+    tint.toArray(colors, vertex * 3);
+  }
+  shell.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const lights = [[46,37.3,-104,2.4,2.8,2.4,0xff784b]];
+  for (const [index, bay] of [-51, 0, 51].entries()) {
+    landmarkMesh(root, shell, trim, 35, 0.62, bay);
+    blocks.push([33.05,0.66,bay,4.3,0.08,0.8,0xcead65], [48,0.69,bay,25.6,0.18,26,0x86867a],
+      [60.2,6.0,bay,1.6,11.0,25.2,0x47585d], [59.22,7.15,bay,0.38,1.0,23.8,0x8c8a77],
+      [59.0,3.0,bay + 6.7,0.8,4.7,3.85,0xa09d87], [58.53,2.85,bay + 6.7,0.18,4.3,3.1,0x5c7277],
+      [55.6,1.63,bay - 8.25,2.5,1.75,4.2,0x8e7862], [56.6,3.25,bay - 8.3,1.7,1.5,2.9,0x929482],
+      [35.55,10.58,bay,1.9,2,23.3,0xbe8055], [48,15.03,bay,13.8,0.58,5.8,0x617c83]);
+    for (let mark = 0; mark <= index; mark++) blocks.push([34.51,10.58,bay - 9.3 + mark * 1.55,0.2,1.32,0.85,0xe2d6ad]);
+    lights.push([59.11,9.05,bay + 6.7,0.70,0.35,3.6,0xd4c59f]);
+    for (const rib of [-6.5, 0, 6.5]) blocks.push([48 + rib,15.43,bay,0.68,0.28,6.2,0xb6b8a7]);
+    for (const side of [-1, 1]) {
+      blocks.push([36.25,5.04,bay + side * 11.6,2.4,8.7,1.8,0x708482], [35.36,2.3,bay + side * 11.55,0.8,3.1,1.85,0xc99b62]);
+      for (const frame of [43.4, 52.3]) blocks.push([frame,4.28,bay + side * 12.22,0.95,7.2,0.72,0x83918b]);
     }
   }
   const lantern = landmarkLoft(clippedPlan(8, 7, 2.4), [[21,0.60,0.60,0x687777], [23.4,1,1,0xe4ddbd],
     [24.5,1,1,0x386975], [29.3,1.06,1.06,0xe7dcb9], [30.8,1.13,1.13]], 0x879597);
   landmarkMesh(root, lantern, trim, 46, 0, -104);
   landmarkBlocks(root, blocks);
-  const lights = [[46,37.3,-104,2.4,2.8,2.4,0xff784b]];
   for (const side of [-1, 1]) for (let mark = -132; mark <= 132; mark += 44) {
     lights.push([side * 21,0.97,mark,1.4,0.55,2.2,0xffdd94]);
   }

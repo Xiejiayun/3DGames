@@ -61,7 +61,7 @@
 
 ### 部署规则
 
-- `Validate site` 任务负责测试、构建和发布包 dry-run，不上传文件、不读取部署凭据；Pull Request 只运行此校验任务。
+- PR 并行运行 `Validate site content`（其他站点测试、构建、发布包 dry-run）、`Validate Prism WebGL`（棱镜解谜与渲染回归）及 `Validate Ace WebGL`。前两项都成功，汇总检查 `Validate site` 才通过。校验不读取部署凭据，不向 Cloudflare 发布。
 - `Deploy production (main only)` 是独立的正式部署任务，仅在 `main` 的 push 或手动运行事件中、且校验任务成功后执行，检出同一次运行的准确提交重新构建并部署。PR 和其他分支会跳过此任务。
 - 构建脚本将所有已加入 Git 的 HTML 和 `assets/previews/*.webp` 预览图复制到 `dist/`，保留文件名及子目录结构；只部署该目录。新增 HTML 和该目录下的 WebP 无需修改工作流。如果以后增加其他独立 CSS、JS 或图片等资源，需要同步调整 `scripts/build-site.mjs` 的收集规则。
 - `index.html` 为首页，各游戏的直达路径见游戏列表。不存在的路径返回 404。

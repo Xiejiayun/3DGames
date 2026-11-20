@@ -1401,6 +1401,42 @@ function buildAircraftCockpit(eyeZ, code) {
   return cockpit;
 }
 
+function refreshLandscapeLegends() {
+  const legends = player.mesh?.userData.legends;
+  if (!legends) return;
+  const language = innerWidth > innerHeight && innerHeight <= 460 && innerWidth <= 960 ? lang : null;
+  if (legends.language === language) return;
+  const { map, image, code } = legends;
+  const { width, height } = image, band = Math.ceil(height * 0.32);
+  const ctx = image.getContext('2d');
+  if (!legends.originalBand) {
+    const original = document.createElement('canvas');
+    original.width = width; original.height = band;
+    original.getContext('2d').drawImage(image, 0, 0, width, band, 0, 0, width, band);
+    legends.originalBand = original;
+  }
+  if (language === null) {
+    ctx.drawImage(legends.originalBand, 0, 0);
+  } else {
+    ctx.save();
+    ctx.fillStyle = '#091b22'; ctx.fillRect(0, 0, width, band);
+    ctx.font = `bold ${Math.ceil(height * 0.40)}px system-ui,sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    const labels = language === 'zh' ? ['系统', code, '推力'] : ['SYS', code, 'THR'];
+    labels.forEach((label, index) => {
+      const center = (index + 0.5) * width / 3, ink = ctx.measureText(label);
+      const scale = Math.min(height * 0.265 / (ink.actualBoundingBoxAscent + ink.actualBoundingBoxDescent), width * 0.245 / ink.width);
+      ctx.save(); ctx.translate(center, band * 0.48); ctx.scale(scale, scale);
+      ctx.fillStyle = '#dafff3'; ctx.fillText(label, 0, (ink.actualBoundingBoxAscent - ink.actualBoundingBoxDescent) / 2);
+      ctx.restore();
+      ctx.fillStyle = '#467c78'; ctx.fillRect(center - width * 0.12, band - 2, width * 0.24, 2);
+    });
+    ctx.restore();
+  }
+  legends.language = language;
+  if (map.image === image) map.needsUpdate = true;
+}
+
 function buildAircraftExhaust(radius, tint) {
   // Soft camera-facing slices share one draw per nozzle, even looking straight up the plume.
   const positions = [], uvs = [], indices = [];
@@ -2383,6 +2419,9 @@ function buildPlayerAircraft() {
   const spec = JETS[selJetIdx];
   player.mesh = buildJetMesh(spec, true);
   scene.add(player.mesh);
+  const map = player.mesh.userData.cockpit.getObjectByName('Instruments').material.map;
+  player.mesh.userData.legends = { map, image:map.image, code:spec.code, language:null };
+  refreshLandscapeLegends();
   player.maxHp = spec.maxHp;
   player.hp = spec.maxHp;
   player.spwAmmo = spec.spw.ammo;
@@ -3534,6 +3573,7 @@ document.getElementById('langBtn').onclick = () => {
   const radio = document.getElementById('radioBox');
   const message = Object.keys(I18N[lang]).find(key => I18N[lang][key] === radio.textContent);
   lang = lang === 'zh' ? 'en' : 'zh';
+  refreshLandscapeLegends();
   renderHangarUI();
   if (message) radio.textContent = I18N[lang][message];
   if (mode === 'playing' || mode === 'paused') updateHUDDom();
@@ -3709,6 +3749,7 @@ function onResize() {
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
   renderer.setDrawingBufferSize(width, height, dpr);
+  refreshLandscapeLegends();
   const shadow = sunLight.shadow;
   const size = Math.min(tier.shadow, renderer.capabilities.maxTextureSize);
   if (shadow.map && (!size || shadow.map.width !== size)) {

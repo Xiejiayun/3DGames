@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { checkTouchGestures } from './test-prism-touch.mjs';
 import { checkTrayChoices } from './test-prism-tray.mjs';
+import { checkArchSightlines } from './test-prism-arch.mjs';
+import { checkRelayTravel } from './test-prism-relays.mjs';
+import { checkCampaignEnding } from './test-prism-ending.mjs';
 
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
@@ -200,8 +203,53 @@ try {
   }
   await touch.setViewportSize({ width: 390, height: 844 });
   await checkTrayChoices(touch, true);
+  const checkLessonSpace = async () => {
+    const clear = await touch.locator('#guide').evaluate(guide => {
+      const lesson = guide.getBoundingClientRect(), controls = document.querySelector('#ctx').getBoundingClientRect();
+      return lesson.width > 0 && controls.width > 0 && (lesson.right <= controls.left || controls.right <= lesson.left || lesson.bottom <= controls.top || controls.bottom <= lesson.top);
+    });
+    assert.ok(clear, 'the lesson does not cover the active instrument controls');
+  };
+  for (const [width, height, lang] of [[480, 320, 'en'], [480, 320, 'zh'], [320, 280, 'en']]) {
+    await touch.setViewportSize({ width, height });
+    await touch.goto(new URL(`../dist/games/prism.html?manual&lvl=1&q=low&mute=1&lang=${lang}`, import.meta.url).href);
+    await touch.locator('#boot').waitFor({ state: 'detached' });
+    await settleTouch();
+    await touch.locator('#tray [data-key="flat"]').tap();
+    await settleTouch();
+    assert.match(await touch.locator('#guide .gt').textContent(), /2\/4.*A/);
+    await tapTargets('#guide-socket, #guide .gx, #ctx button:enabled');
+    await checkLessonSpace();
+    await touch.locator('#guide-socket').tap();
+    assert.match(await touch.locator('#guide .gt').textContent(), /3\/4/);
+    await tapTargets('#guide .gx, #ctx button:enabled');
+    await checkLessonSpace();
+    if (width === 320) await touch.locator('#guide .gx').tap();
+    await touch.locator('[data-c="rotate"]').tap();
+    await settleTouch();
+    if (width === 320) {
+      await touch.locator('[data-s="stay"]').tap();
+      await touch.locator('[data-a="undo"]').tap();
+      assert.equal(await touch.locator('#guide').isVisible(), false, 'a dismissed lesson stays closed');
+      await touch.locator('[data-c="rotate"]').tap();
+      await settleTouch();
+    }
+    await touch.locator('[data-s="next"]').tap();
+    await touch.waitForFunction(() => PRISM.state().level === 2);
+    await touch.evaluate(() => { PRISM.load(7); PRISM.step(1); });
+    const cards = touch.locator('#tray .card');
+    assert.equal(await cards.count(), 4);
+    await tapTargets('#tray .card, #acts button');
+    for (const card of await cards.all()) {
+      await card.tap();
+      assert.equal(await touch.evaluate(() => PRISM.state().held), await card.getAttribute('data-key'));
+    }
+  }
+  await checkArchSightlines(touch);
+  await checkRelayTravel(browser);
+  await checkCampaignEnding(browser);
   assert.deepEqual(errors, []);
-  console.log(`PASS Prism Vault: ${checks.length} puzzle checks, offline WebGL, dialog input isolation, board controls, preview lifetimes, compact touch controls, pinch and interruption recovery, first-mirror lesson, safe tray selection and language continuity`);
+  console.log(`PASS Prism Vault: ${checks.length} puzzle checks, offline WebGL, dialog input isolation, board controls, preview lifetimes, compact touch controls, pinch and interruption recovery, first-mirror lesson, safe tray selection, Quantum Arch sightlines, relay travel and language continuity`);
 } finally {
   await browser.close();
 }

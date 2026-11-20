@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { checkReflections } from './test-prism-reflections.mjs';
 import { checkFloorResources } from './test-prism-floors.mjs';
+import { checkDustResources } from './test-prism-dust.mjs';
+import { checkBloomReadability } from './test-prism-bloom.mjs';
+import { checkPondSurface } from './test-prism-pond.mjs';
+import { checkPlantResources } from './test-prism-plants.mjs';
+import { checkRoundCutouts } from './test-prism-cutouts.mjs';
 
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
@@ -99,6 +104,11 @@ try {
   await page.close();
   await checkReflections(browser);
   await checkFloorResources(browser);
+  await checkDustResources(browser);
+  await checkBloomReadability(browser);
+  await checkPondSurface(browser);
+  await checkPlantResources(browser);
+  await checkRoundCutouts(browser);
 } finally {
   await browser.close();
 }

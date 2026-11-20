@@ -51,6 +51,18 @@ function installProbes() {
   };
   window.aceQA = {
     step, cycle: cycleQuality,
+    sampleFrames(count) {
+      const renderScene = renderer.render, start = missionTimer;
+      let scenes = 0, calls = 0;
+      renderer.render = function (...args) {
+        const result = renderScene.apply(this, args);
+        if (args[0] === scene) { scenes++; calls += this.info.render.calls; }
+        return result;
+      };
+      try { for (let index = 0; index < count; index++) step(); }
+      finally { renderer.render = renderScene; }
+      return { scenes, calls, elapsed:missionTimer - start };
+    },
     info: () => ({ revision: THREE.REVISION, webgl: renderer.capabilities.isWebGL2 ? 2 : 1, quality, hdr: supportsHDR(), post: !!composer,
       size: [gl.drawingBufferWidth, gl.drawingBufferHeight], dpr: renderer.getPixelRatio(),
       postSize: composer && [composer.readBuffer.width, composer.readBuffer.height],
@@ -139,6 +151,48 @@ function installProbes() {
       player.pos.sub(shift); camera.position.sub(shift); followSun(); render();
       return result;
     },
+    impactProbe({ mission, tier, view, big, distance, frames }) {
+      while (quality !== tier) cycleQuality();
+      window.seedImpact(160);
+      window.__ACE_DEBUG__.startMission(mission, 0);
+      window.__ACE_DEBUG__.setCameraMode(view); step();
+      const point = camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(distance).add(camera.position);
+      window.seedImpact(1060);
+      spawnExplosion(point, 0.85, big);
+      window.seedImpact(1160);
+      for (let frame = 0; frame < frames; frame++) step();
+      const ring = shockwaves[0].mesh;
+      ring.visible = smokeLayer.visible = glowLayer.visible = false; render(); const background = pixels();
+      smokeLayer.visible = glowLayer.visible = true; render(); const core = pixels(), without = renderer.info.render.calls;
+      ring.visible = true; render(); const complete = pixels(), draws = composer ? null : renderer.info.render.calls - without;
+      const rgbDelta = (left, right, offset) => Math.abs(left[offset] - right[offset]) + Math.abs(left[offset + 1] - right[offset + 1]) + Math.abs(left[offset + 2] - right[offset + 2]);
+      let changed = 0, newlyWhite = 0, corePixels = 0, energy = 0;
+      for (let offset = 0; offset < core.length; offset += 4) {
+        if (rgbDelta(background, core, offset) > 24) corePixels++;
+        const delta = rgbDelta(core, complete, offset);
+        if (delta > 12) changed++;
+        energy += delta;
+        if (Math.min(complete[offset], complete[offset + 1], complete[offset + 2]) >= 245 && Math.min(core[offset], core[offset + 1], core[offset + 2]) < 230) newlyWhite++;
+      }
+      return { changed, newlyWhite, energy, corePixels, area: complete.length / 4, draws, png: glCanvas.toDataURL() };
+    },
+    impactOwnership() {
+      window.__ACE_DEBUG__.startMission(0, 0); step();
+      const point = camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(110).add(camera.position);
+      spawnExplosion(point, 1, false); spawnExplosion(point, 1, true);
+      const [short, long] = shockwaves, geometry = short.mesh.geometry;
+      let geometryDisposals = 0, materialDisposals = 0;
+      const onGeometry = () => geometryDisposals++, onMaterial = () => materialDisposals++;
+      geometry.addEventListener('dispose', onGeometry);
+      for (const wave of shockwaves) wave.mesh.material.addEventListener('dispose', onMaterial);
+      updateProjectilesAndFX(0.45); render();
+      const survivor = shockwaves.length === 1 && shockwaves[0] === long;
+      window.__ACE_DEBUG__.startMission(0, 0);
+      const cleared = shockwaves.length === 0;
+      spawnExplosion(point, 1, false);
+      geometry.removeEventListener('dispose', onGeometry);
+      return { shared: geometry === long.mesh.geometry && geometry === shockwaves[0].mesh.geometry, survivor, cleared, geometryDisposals, materialDisposals };
+    },
     coastProbe() {
       const island = islands[0];
       let land = 0, sea = island.radius * 1.25;
@@ -205,6 +259,7 @@ try {
   });
   await context.addInitScript(() => {
     let seed = 160;
+    window.seedImpact = value => { seed = value; };
     Math.random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
   });
   const page = await context.newPage();
@@ -213,6 +268,29 @@ try {
   const capture = name => page.screenshot({ path: join(output, `${name}.png`) });
   const info = () => page.evaluate(() => aceQA.info());
   await page.goto(url); await page.waitForFunction(() => window.aceQA && window.__ACE_DEBUG__);
+  report.impacts = {};
+  for (const [label, mission, tier, view, big, distance, frames] of [
+    ['day', 0, 'low', '1p', false, 100, 12], ['reduced', 0, 'low', '1p', false, 100, 12], ['storm', 2, 'high', '3p', true, 250, 32]
+  ]) {
+    await page.emulateMedia({ reducedMotion: label === 'reduced' ? 'reduce' : 'no-preference' });
+    const { png, ...sample } = await page.evaluate(options => aceQA.impactProbe(options), { mission, tier, view, big, distance, frames });
+    await writeFile(join(output, `impact-${label}.png`), Buffer.from(png.split(',')[1], 'base64'));
+    report.impacts[label] = sample;
+    await page.reload(); await page.waitForFunction(() => window.aceQA && window.__ACE_DEBUG__);
+  }
+  report.impactOwnership = await page.evaluate(() => aceQA.impactOwnership());
+  await writeFile(join(output, 'impacts.json'), JSON.stringify({ images: report.impacts, ownership: report.impactOwnership }, null, 2));
+  for (const label of ['day', 'storm']) {
+    const sample = report.impacts[label];
+    assert.ok(sample.corePixels > 150 && sample.changed > 100, `${label}: both fireball and pressure edge must remain visible`);
+    assert.ok(sample.newlyWhite < sample.area * 0.001, `${label}: the ring alone whites out ${sample.newlyWhite} pixels`);
+    assert.ok(sample.changed < sample.area * 0.11, `${label}: the pressure edge covers ${sample.changed} pixels`);
+  }
+  assert.equal(report.impacts.day.draws, 1);
+  assert.ok(report.impacts.reduced.energy < report.impacts.day.energy * 0.5);
+  assert.equal(report.impacts.reduced.corePixels, report.impacts.day.corePixels);
+  assert.deepEqual(report.impactOwnership, { shared: true, survivor: true, cleared: true, geometryDisposals: 0, materialDisposals: 2 });
+  await page.reload(); await page.waitForFunction(() => window.aceQA && window.__ACE_DEBUG__);
   await page.evaluate(() => aceQA.step());
   const initial = await info();
   assert.equal(initial.revision, '160'); assert.ok(initial.hdr && initial.post); report.gpu = initial.gpu;
@@ -307,6 +385,27 @@ try {
     if (state.post) assert.deepEqual(state.postSize, state.size);
   }
   await metrics.send('Emulation.clearDeviceMetricsOverride');
+  await page.locator('#pauseBtn').click();
+  const sampleFrames = count => page.evaluate(count => aceQA.sampleFrames(count), count);
+  assert.equal((await sampleFrames(3)).scenes, 1, 'Pause submits one frozen frame');
+  const frozen = await info();
+  const idle = await sampleFrames(40);
+  assert.deepEqual(idle, { scenes:0, calls:0, elapsed:0 });
+  assert.deepEqual((await info()).memory, frozen.memory);
+  await page.setViewportSize({ width:736, height:414 });
+  await page.waitForFunction(() => aceQA.info().size[0] === 736);
+  assert.equal((await sampleFrames(3)).scenes, 1, 'Resize redraws once while paused');
+  for (const tier of ['med', 'low', 'high']) {
+    await page.locator('#pauseQualBtn').click();
+    const changed = await sampleFrames(3);
+    assert.ok(changed.scenes === 1 && changed.calls > 0 && changed.elapsed === 0, `${tier}: refresh graphics without resuming`);
+    assert.equal((await info()).quality, tier);
+  }
+  await capture('pause-idle');
+  await page.locator('#btnResume').click();
+  const resumed = await sampleFrames(3);
+  assert.ok(resumed.scenes === 3 && resumed.calls > 0 && Math.abs(resumed.elapsed - 3/60) < 1e-5);
+  report.pause = { idle, resumed };
   await page.evaluate(() => aceQA.lose());
   await page.waitForFunction(() => document.querySelector('#bootErr').textContent.includes('Restoring'));
   await page.evaluate(() => aceQA.restore());
@@ -314,6 +413,7 @@ try {
   await page.evaluate(() => aceQA.step());
   assert.equal(await page.evaluate(() => __ACE_DEBUG__.getState().mode), 'paused');
   const recovered = await info(); assert.ok(recovered.post && recovered.environment && recovered.environment !== before.environment);
+  await page.locator('#btnResume').click();
   await page.evaluate(() => aceQA.failPost()); assert.equal((await info()).post, false);
   await page.evaluate(() => aceQA.step());
 
@@ -348,6 +448,11 @@ try {
       assert.ok(!state.hdr && !state.post && state.environment === null && sky[2] > 90);
       report.fallbacks[available] = { webgl: state.webgl, sky, post: state.post, environment: state.environment };
       await fallback.screenshot({ path: join(output, `${available}-direct.png`) });
+      if (available === 'webgl1') {
+        const { changed, newlyWhite, corePixels, draws, area } = await fallback.evaluate(() => aceQA.impactProbe({ mission: 0, tier: 'low', view: '1p', big: false, distance: 100, frames: 12 }));
+        assert.ok(changed > 100 && newlyWhite < area * 0.001 && corePixels > 150); assert.equal(draws, 1);
+        report.fallbacks[available].impact = { changed, newlyWhite, corePixels, draws };
+      }
     } else {
       await fallback.locator('#bootErr').waitFor({ state: 'visible' });
       assert.match(await fallback.locator('#bootErr').textContent(), /WebGL unavailable/);

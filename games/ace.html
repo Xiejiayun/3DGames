@@ -98,6 +98,7 @@ canvas{display:block}
   font-family:var(--mono);font-size:11px;padding:2px 6px;border-radius:4px;margin-right:4px;
   background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:var(--fg);font-weight:700;
 }
+.flight-bindings{display:contents}.sight-legend{flex-basis:100%;color:var(--fg)}
 .sortie-btn{
   border:0;border-radius:12px;padding:14px 36px;font-size:16px;font-weight:900;letter-spacing:.1em;
   text-transform:uppercase;background:linear-gradient(135deg,#ffb944,#ff7e21);color:#1d0d00;
@@ -115,8 +116,16 @@ canvas{display:block}
   padding:7px 18px;text-align:center;min-width:290px;backdrop-filter:blur(6px);
 }
 #objMission{font-size:10.5px;letter-spacing:.18em;color:var(--cyan);text-transform:uppercase;font-weight:700}
+#contactCue{margin-top:3px;color:#a1ffc9;font:700 12px/1.35 var(--font)}
+#contactCue:not([hidden]) ~ #launchGuide:is([data-state="align"],[data-state="approach"]){display:none}
 #objText{font-family:var(--font);font-size:13.5px;font-weight:700;color:var(--fg);margin-top:2px}
 #objStats{font-size:11px;color:var(--hud);margin-top:2px;display:flex;justify-content:center;gap:14px}
+.assist-option{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:700;color:var(--fg)}
+.assist-option input{width:17px;height:17px;accent-color:var(--hud);flex:none}
+.assist-option small{display:block;color:var(--dim);font-weight:400;line-height:1.35}
+#launchGuide{margin-top:4px;padding-top:3px;border-top:1px solid var(--line);font:600 12px/1.35 var(--font);color:var(--fg)}
+#launchGuide[data-state="tracking"]{color:#ffdc91}
+#launchGuide[data-state="ready"],#launchGuide[data-state="hit"]{color:#a1ffc9}
 
 #radioBox{
   padding:6px 16px;border-radius:8px;background:rgba(5,16,28,.75);border-left:3px solid var(--cyan);
@@ -126,6 +135,7 @@ canvas{display:block}
 #radioBox:not(.show){display:none}
 #radioBox.show{opacity:1}
 #radioBox.warn{border-left-color:var(--danger);color:#ffd2d2}
+#objMission.airspace{color:#ffdc91;font:700 12px/1.3 var(--font);letter-spacing:.02em;text-transform:none}
 
 #alertBanner{
   padding:5px 16px;border-radius:6px;background:rgba(180,18,18,.78);border:1px solid #ff7a7a;
@@ -143,6 +153,7 @@ canvas{display:block}
   border:1px solid transparent;color:var(--dim)}
 .wp-row.on{background:rgba(86,245,164,.14);border-color:rgba(86,245,164,.5);color:var(--hud);font-weight:700}
 .wp-row .k{font-size:10px;opacity:.75}
+#offscreenHit{position:absolute;right:0;bottom:calc(100% + 4px);white-space:nowrap;padding:3px 7px;border-radius:4px;background:var(--panel-hi);color:var(--amber);font:700 12px var(--font)}
 .bar-wrap{display:flex;flex-direction:column;gap:3px}
 .bar-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--hud)}
 .bar-track{height:7px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden}
@@ -208,10 +219,11 @@ canvas{display:block}
 .touch-flight #camBadge{display:none}
 .touch-flight #touchControls{position:fixed;display:flex;align-items:center;justify-content:space-between;gap:4px;left:max(6px,env(safe-area-inset-left));right:max(6px,env(safe-area-inset-right));bottom:max(4px,env(safe-area-inset-bottom))}
 .touch-bank{display:grid;grid-auto-columns:minmax(44px,auto);grid-template-rows:repeat(2,44px);grid-auto-flow:column;gap:3px}
+.touch-center{min-width:44px;max-width:92px;margin-right:auto;grid-template-columns:minmax(0,1fr)}
 .touch-bank button{pointer-events:auto;touch-action:none;padding:0 3px;border:1px solid var(--line-hi);border-radius:8px;background:var(--panel-hi);color:var(--cyan);font:700 11px var(--font);-webkit-touch-callout:none}
 .touch-bank button.held{background:var(--cyan);color:var(--bg)}
 .touch-bank [data-flight="cannon"],.touch-bank [data-flight="launch"]{color:var(--amber);border-color:var(--amber)}
-#touchHint{max-width:92px;text-align:center;font:700 11px var(--font);color:var(--fg);text-shadow:0 1px 3px #000;background:var(--panel);padding:3px;border-radius:4px}
+#touchHint{place-self:center;text-align:center;font:700 11px var(--font);color:var(--fg);text-shadow:0 1px 3px #000;background:var(--panel);padding:3px;border-radius:4px}
 #stickBase.active{position:fixed;display:grid;place-items:center;width:84px;height:84px;margin:-42px;border-radius:50%;border:1px solid var(--cyan);background:rgba(4,16,24,.24)}
 #stickKnob{width:18px;height:18px;border-radius:50%;background:var(--cyan)}
 
@@ -291,11 +303,12 @@ canvas{display:block}
     <div class="panel-box">
       <div class="sec-title"><span data-i18n="selectMission">战役任务</span><span id="missionCode">M-01</span></div>
       <div class="choice-list" id="missionList"></div>
+      <label class="assist-option"><input type="checkbox" id="hangarAssist" checked><span><span data-i18n="assistName">辅助发射</span><small data-i18n="assistHelp">按住发射，锁定后发出一次；松手取消。</small></span></label>
     </div>
   </div>
 
   <div class="hangar-foot">
-    <details class="flight-help"><summary data-i18n="flightHelp">操作指南</summary><div class="controls-strip" data-i18n-html="controls"></div></details>
+    <details class="flight-help"><summary data-i18n="flightHelp">操作指南</summary><div class="controls-strip"><span class="sight-legend" data-i18n="sightLegend"></span><div class="flight-bindings" data-i18n-html="controls"></div></div></details>
     <button class="sortie-btn" id="sortieBtn" data-i18n="sortie">立即出击 · SORTIE</button>
   </div>
 </section>
@@ -304,13 +317,15 @@ canvas{display:block}
 <section id="hud" class="hidden">
   <div id="missionHud">
     <div id="objBox">
-      <div id="objMission">MISSION 01</div>
+      <div id="objMission" role="status" aria-atomic="true">MISSION 01</div>
       <div id="objText">—</div>
+      <div id="contactCue" role="status" aria-atomic="true" hidden></div>
       <div id="objStats">
         <span id="hudTargets">TGT 0/0</span>
         <span id="hudScore">SCORE 0</span>
         <span id="hudTime">00:00</span>
       </div>
+      <div id="launchGuide" role="status" aria-atomic="true"></div>
     </div>
     <div id="alertBanner"></div>
     <div id="radioBox"></div>
@@ -321,6 +336,7 @@ canvas{display:block}
   <div id="flightKeys" data-i18n="flightKeys"></div>
 
   <div id="weaponPanel">
+    <span id="offscreenHit" data-i18n="offscreenHit" hidden>✓ 画外命中</span>
     <div id="telemetry"><span id="hudSpeed"></span><span id="hudAltitude"></span></div>
     <div class="wp-row" id="wpGun"><span data-i18n="cannon">机炮</span><span class="k">∞</span></div>
     <div class="wp-row on" id="wpMsl"><span>MSL</span><span id="mslCount">2 / 2</span></div>
@@ -340,7 +356,10 @@ canvas{display:block}
       <button data-flight="boost" data-i18n="boost">加速</button><button data-flight="brake" data-i18n="brake">减速</button>
       <button data-flight="rollLeft" data-i18n="rollLeft">左滚</button><button data-flight="rollRight" data-i18n="rollRight">右滚</button>
     </div>
-    <span id="touchHint" data-i18n="touchHint">拖动天空转向</span>
+    <div class="touch-bank touch-center">
+      <span id="touchHint" data-i18n="touchHint">拖动转向</span>
+      <button data-flight="level" data-i18n="levelFlight" aria-keyshortcuts="R">改平</button>
+    </div>
     <div class="touch-bank">
       <button data-flight="target" data-i18n="target">目标</button><button data-flight="view" data-i18n="view">视角</button>
       <button data-flight="swap" data-i18n="swap">切换</button><button data-flight="flare" data-i18n="flare">热诱弹</button>
@@ -354,6 +373,7 @@ canvas{display:block}
   <div class="modal-card">
     <div class="modal-title" id="pauseTitle" data-i18n="paused">战术暂停</div>
     <div id="pauseUtilities"></div>
+    <label class="assist-option"><input type="checkbox" id="pauseAssist" checked><span><span data-i18n="assistName">辅助发射</span><small data-i18n="assistHelp">按住发射，锁定后发出一次；松手取消。</small></span></label>
     <div class="opt-row">
       <label data-i18n="sens" for="sensSlider">转向灵敏度</label>
       <input type="range" id="sensSlider" min="0.5" max="1.8" step="0.1" value="1.0">
@@ -361,8 +381,8 @@ canvas{display:block}
     <div class="opt-row">
       <label data-i18n="steeringResponse" for="steeringResponse">转向手感</label>
       <select class="btn-ghost" id="steeringResponse">
-        <option value="comfort" data-i18n="comfortResponse">舒适（平转）</option>
-        <option value="classic" data-i18n="classicResponse">经典（机身轴）</option>
+        <option value="comfort" data-i18n="comfortResponse">舒适（平转微调）</option>
+        <option value="classic" data-i18n="classicResponse">经典（线性）</option>
       </select>
     </div>
     <div class="opt-row">
@@ -373,7 +393,7 @@ canvas{display:block}
       <span data-i18n="quality">渲染画质</span>
       <button class="btn-ghost" id="pauseQualBtn">HIGH</button>
     </div>
-    <details class="flight-help"><summary data-i18n="flightHelp">操作指南</summary><div class="controls-strip" data-i18n-html="controls"></div></details>
+    <details class="flight-help"><summary data-i18n="flightHelp">操作指南</summary><div class="controls-strip"><span class="sight-legend" data-i18n="sightLegend"></span><div class="flight-bindings" data-i18n-html="controls"></div></div></details>
     <div class="btn-grid">
       <button class="btn-ghost" id="btnHangar" data-i18n="toHangar">返回机库</button>
       <button class="btn-ghost" id="btnRestart" data-i18n="restart">重新出击</button>
@@ -408,6 +428,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // ============================================================================
 // 1. I18N & GAME DATA (3 JETS, 3 MISSIONS)
@@ -420,27 +441,34 @@ const I18N = {
     subtitle:'驾驶隐身战机穿梭晴空群岛、黄昏峡湾与雷暴航母编队——体验鼠标引导空战、多目标导弹齐射与 3D 座舱双视角。',
     selectJet:'战机机库', selectMission:'战役任务', sortie:'立即出击 · SORTIE',
     flare:'热诱弹', hull:'装甲', paused:'战术暂停',
-    steeringResponse:'转向手感', comfortResponse:'舒适（平转）', classicResponse:'经典（机身轴）',
+    steeringResponse:'转向手感', comfortResponse:'舒适（平转微调）', classicResponse:'经典（线性）', levelFlight:'改平',
     sens:'转向灵敏度', invertY:'反转俯仰 Y 轴', quality:'渲染画质',
     toHangar:'返回机库', restart:'重新出击', resume:'继续战斗',
     dKills:'击毁目标', dTime:'任务耗时', dHull:'剩余装甲', dScore:'战役积分',
+    edgeWarning:'空域边缘 · 请掉头', edgeReturn:'正在辅助掉头 · 仍可转向',
     retry:'再战一次', nextMission:'下一关',
     statSpd:'极速', statMob:'机动', statArm:'装甲',
     cam3p:'第三人称 [V]', cam1p:'3D 座舱 [V]',
     ready:'就绪', reloading:'装填中',
+    assistName:'辅助发射', assistHelp:'按住发射，锁定后发出一次；松手取消。',
+    guide:{search:'寻找下一个方框', approach:'目标还远，继续接近', align:'转向选中的目标方框', tracking:'保持朝向，正在锁定', ready:'已锁定', sent:'已发射', reload:'正在装填', empty:'特武已用完，切回 MSL', hit:'✓ 已命中', held:'已按住', keyHold:'按住空格', touchHold:'按住「发射」', keyFire:'按空格发射', touchFire:'点「发射」'},
     alertMissile:'导弹来袭 · 释放热诱弹', alertPullUp:'高度过低 · 拉起',
-    flightHelp:'操作指南', touchHint:'拖动天空转向', boost:'加速', brake:'减速', rollLeft:'左滚', rollRight:'右滚', target:'目标', view:'视角', swap:'换装', cannon:'机炮', launch:'发射',
-    flightKeys:'↑↓←→ 转向 · J 机炮 · 空格 发射 · E 目标',
+    flightHelp:'操作指南', touchHint:'拖动转向', boost:'加速', brake:'减速', rollLeft:'左滚', rollRight:'右滚', target:'目标', view:'视角', swap:'换装', cannon:'机炮', launch:'发射',
+    flightKeys:'↑↓←→ 转向 · R 改平 · J 机炮 · 空格 发射 · E 目标',
     targets:'目标', score:'积分', speed:'速度', altitude:'高度', on:'开', off:'关',
-    controls:'<span><kbd>鼠标 / 方向键</kbd>转向</span><span><kbd>W/S</kbd>加速/减速</span><span><kbd>A/D</kbd>滚转</span><span><kbd>左键 / J</kbd>按住机炮</span><span><kbd>右键 / 空格</kbd>发射</span><span><kbd>Q / Tab</kbd>换装</span><span><kbd>E</kbd>切换目标</span><span><kbd>F / Shift</kbd>热诱弹</span><span><kbd>V / C</kbd>视角</span><span><kbd>Esc / P</kbd>暂停</span><span>触屏：在天空中拖动转向，松开回中；另一只手可同时按住机炮或点按动作键。</span>',
+    controls:'<span><kbd>鼠标 / 方向键</kbd>转向</span><span><kbd>R / 改平</kbd>保持朝向，恢复水平；转向或滚转即可接管</span><span><kbd>W/S</kbd>加速/减速</span><span><kbd>A/D</kbd>滚转</span><span><kbd>左键 / J</kbd>按住机炮</span><span><kbd>右键 / 空格</kbd>发射</span><span><kbd>Q / Tab</kbd>换装</span><span><kbd>E</kbd>切换目标</span><span><kbd>F / Shift</kbd>热诱弹</span><span><kbd>V / C</kbd>视角</span><span><kbd>Esc / P</kbd>暂停</span><span>触屏：在天空中拖动转向，松开回中；另一只手可同时按住机炮或点按动作键。</span>',
     winTitle:'任务完成 · MISSION CLEAR', failTitle:'战机坠毁 · MISSION FAILED',
     winSub:'空域已肃清，干得漂亮，王牌！', failSub:'机身结构解体，调整战术再次出击。',
     radioLaunch:'AWACS 预警机：弹射起飞完成，全频段雷达已上线，祝武运昌隆！',
     radioM1W2:'AWACS：敌方重型轰炸机编队进入群岛空域，优先拦截！',
     radioM2Start:'AWACS：峡湾共有十个目标。切换目标可查看下一个标记。',
+    offscreen:{left:'← 目标在左侧',right:'目标在右侧 →',above:'↑ 目标在上方',below:'↓ 目标在下方',
+      upperLeft:'↖ 目标在左上方',upperRight:'目标在右上方 ↗',lowerLeft:'↙ 目标在左下方',lowerRight:'目标在右下方 ↘',
+      rearLeft:'← 目标在后方 · 向左转',rearRight:'目标在后方 · 向右转 →'},
     radioM3Start:'AWACS：发现敌方航母打击群！摧毁驱逐舰护航并瘫痪航母！',
     radioAce:'CRIMSON-1：竟敢闯入风暴眼……让我看看你的本事吧！',
     radioSplash:'AWACS：目标确认击毁！Splash one!',
+    sightLegend:'开口十字是机炮准星，小圆圈是转向输入；出现「命中」才算打中。', impactHit:'命中', offscreenHit:'✓ 画外命中',
     radioFlare:'热诱弹已释放，成功甩开敌方导弹！',
     objM1:'第 1/2 波 · 清除截击机', objM1Final:'第 2/2 波 · 清除轰炸机与护航机',
     objM2:'摧毁高地雷达站、防空阵地与拦截机',
@@ -454,23 +482,30 @@ const I18N = {
     selectJet:'AIRCRAFT HANGAR', selectMission:'CAMPAIGN MISSIONS', sortie:'LAUNCH SORTIE',
     flare:'Flares', hull:'Hull', paused:'TACTICAL PAUSE',
     sens:'Steering sensitivity', invertY:'Invert Pitch Y', quality:'Graphics Quality',
-    steeringResponse:'Steering response', comfortResponse:'Comfort (level turns)', classicResponse:'Classic (body axes)',
+    steeringResponse:'Steering response', comfortResponse:'Comfort (level turns)', classicResponse:'Classic (linear)', levelFlight:'Level',
     toHangar:'Hangar', restart:'Restart', resume:'Resume',
     dKills:'Targets Destroyed', dTime:'Mission Time', dHull:'Hull Integrity', dScore:'Mission Score',
+    edgeWarning:'Airspace edge · turn back', edgeReturn:'Turning back · you can steer',
     retry:'Retry Mission', nextMission:'Next Mission',
     statSpd:'SPEED', statMob:'AGILITY', statArm:'ARMOR',
     cam3p:'3RD PERSON [V]', cam1p:'3D COCKPIT [V]',
     ready:'READY', reloading:'RELOAD',
+    assistName:'Assisted launch', assistHelp:'Hold to fire once on lock. Release to cancel.',
+    guide:{search:'Find the next marker', approach:'Fly closer', align:'Turn toward the marked target', tracking:'Keep it ahead to lock', ready:'Locked', sent:'Launched', reload:'Reloading', empty:'Special empty; switch to MSL', hit:'✓ Hit confirmed', held:'Holding', keyHold:'Hold Space', touchHold:'Hold Launch', keyFire:'Press Space to fire', touchFire:'Tap Launch'},
     alertMissile:'INCOMING · USE FLARES', alertPullUp:'LOW ALTITUDE · PULL UP',
-    flightHelp:'Flight controls', touchHint:'Drag sky to steer', boost:'Boost', brake:'Brake', rollLeft:'Roll L', rollRight:'Roll R', target:'Target', view:'View', swap:'Swap', cannon:'Cannon', launch:'Launch',
-    flightKeys:'↑↓←→ Steer · J Cannon · Space Launch · E Target',
+    flightHelp:'Flight controls', touchHint:'Drag to steer', boost:'Boost', brake:'Brake', rollLeft:'Roll L', rollRight:'Roll R', target:'Target', view:'View', swap:'Swap', cannon:'Cannon', launch:'Launch',
+    flightKeys:'↑↓←→ Steer · R Level · J Cannon · Space Launch · E Target',
     targets:'TGT', score:'Score', speed:'SPD', altitude:'ALT', on:'On', off:'Off',
-    controls:'<span><kbd>Mouse / Arrows</kbd>Steer</span><span><kbd>W/S</kbd>Boost/Brake</span><span><kbd>A/D</kbd>Roll</span><span><kbd>LMB / J</kbd>Hold cannon</span><span><kbd>RMB / Space</kbd>Launch</span><span><kbd>Q / Tab</kbd>Swap</span><span><kbd>E</kbd>Cycle target</span><span><kbd>F / Shift</kbd>Flares</span><span><kbd>V / C</kbd>View</span><span><kbd>Esc / P</kbd>Pause</span><span>Touch: drag the sky to steer; release to center. Hold Cannon or tap actions with your other thumb.</span>',
+    controls:'<span><kbd>Mouse / Arrows</kbd>Steer</span><span><kbd>R / Level</kbd>Return to level flight on this heading. Steer or roll to take over.</span><span><kbd>W/S</kbd>Boost/Brake</span><span><kbd>A/D</kbd>Roll</span><span><kbd>LMB / J</kbd>Hold cannon</span><span><kbd>RMB / Space</kbd>Launch</span><span><kbd>Q / Tab</kbd>Swap</span><span><kbd>E</kbd>Cycle target</span><span><kbd>F / Shift</kbd>Flares</span><span><kbd>V / C</kbd>View</span><span><kbd>Esc / P</kbd>Pause</span><span>Touch: drag the sky to steer; release to center. Hold Cannon or tap actions with your other thumb.</span>',
     winTitle:'MISSION ACCOMPLISHED', failTitle:'AIRCRAFT DESTROYED',
+    sightLegend:'The open cross is the cannon sight. The small circle shows steering input. HIT confirms contact.', impactHit:'HIT', offscreenHit:'✓ Offscreen hit',
     winSub:'Airspace secured. Outstanding flying, Ace!', failSub:'Airframe lost. Regroup and sortie again.',
     radioLaunch:'AWACS: Launch confirmed. All tactical sensors online. Good hunting!',
     radioM1W2:'AWACS: Second wave over the archipelago. Clear the bombers and their escorts!',
     radioM2Start:'AWACS: Ten contacts in the fjord. Cycle targets to highlight another marker.',
+    offscreen:{left:'← Target left',right:'Target right →',above:'↑ Target above',below:'↓ Target below',
+      upperLeft:'↖ Target upper left',upperRight:'Target upper right ↗',lowerLeft:'↙ Target lower left',lowerRight:'Target lower right ↘',
+      rearLeft:'← Target behind · turn left',rearRight:'Target behind · turn right →'},
     radioM3Start:'AWACS: Enemy Carrier Strike Group sighted in the storm! Sink the fleet!',
     radioAce:'CRIMSON-1: Entering my storm? Let us see if you deserve your wings!',
     radioSplash:'AWACS: Direct hit! Target destroyed!',
@@ -1296,6 +1331,20 @@ function aircraftSkin() {
       else indices.push(rim[0], rim[idx], rim[idx + 1]);
     }
   }
+  function band(front, back, paint) {
+    for (let edge = 0; edge < front.length; edge++) {
+      const next = (edge + 1) % front.length;
+      face([front[edge], front[next], back[next], back[edge]], typeof paint === 'function' ? paint(edge) : paint);
+    }
+  }
+  function inlet(mouth, shoulder, tail, depth, paint, edge) {
+    const center = [0, 1].map(axis => mouth.reduce((sum, point) => sum + point[axis], 0) / mouth.length);
+    const inset = (scale, setback) => mouth.map(([across, up, station]) =>
+      [center[0] + (across - center[0]) * scale, center[1] + (up - center[1]) * scale, station + setback]);
+    const lip = inset(0.78, 0.035), recess = inset(0.59, depth);
+    band(mouth, shoulder, paint); band(shoulder, tail, paint); face(tail, paint);
+    band(lip, mouth, edge); band(recess, lip, 0x354858); face(recess, 0x101b23, true);
+  }
   function loft(stations, paint, facets = 12, centerX = 0, cap = paint) {
     let previous;
     for (const [station, [z, width, height, centerY, coat = paint]] of stations.entries()) {
@@ -1341,7 +1390,78 @@ function aircraftSkin() {
     part.castShadow = part.receiveShadow = material.isMeshStandardMaterial === true;
     return part;
   }
-  return { face, loft, foil, mesh };
+  return { face, band, inlet, loft, foil, mesh };
+}
+
+function cockpitDisplay(code) {
+  const display = document.createElement('canvas');
+  display.width = 960; display.height = 180;
+  const ctx = display.getContext('2d');
+  const accent = code === 'SU-57X' ? '#9ce2b3' : code === 'F-35X' ? '#93d8ff' : '#8be1d8';
+  for (const [index, title] of ['SYSTEMS', 'ATTITUDE', 'ENGINE'].entries()) {
+    ctx.save(); ctx.translate(index * 320, 0);
+    const glass = ctx.createLinearGradient(0, 0, 0, 180);
+    glass.addColorStop(0, '#19333a'); glass.addColorStop(1, '#06131a');
+    ctx.fillStyle = glass; ctx.fillRect(0, 0, 320, 180);
+    ctx.fillStyle = accent; ctx.font = 'bold 19px monospace'; ctx.fillText(title, 18, 30);
+    ctx.fillStyle = '#9aaeaf'; ctx.font = '15px monospace'; ctx.fillText(['BUS 1', code, 'THR'][index], 232, 29);
+    ctx.fillStyle = '#486167'; ctx.fillRect(16, 40, 288, 2);
+    if (index === 0) {
+      ctx.font = 'bold 17px monospace';
+      for (const [row, label] of ['PWR','NAV','COM'].entries()) {
+        const top = 60 + row * 38;
+        ctx.fillStyle = '#adcccd'; ctx.fillText(label, 22, top + 16);
+        ctx.fillStyle = accent; ctx.fillRect(80, top + 3, 5, 14);
+        for (let lamp = 0; lamp < 5; lamp++) ctx.fillRect(100 + lamp * 36, top + 5, 26, 10);
+      }
+    } else if (index === 1) {
+      ctx.strokeStyle = '#526e73'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(160, 97, 52, 0, 2 * Math.PI); ctx.stroke();
+      for (let tick = -3; tick <= 3; tick++) {
+        const angle = tick * Math.PI / 9;
+        ctx.beginPath(); ctx.moveTo(160 + 46 * Math.sin(angle), 97 - 46 * Math.cos(angle));
+        ctx.lineTo(160 + 52 * Math.sin(angle), 97 - 52 * Math.cos(angle)); ctx.stroke();
+      }
+      ctx.strokeStyle = '#ffd57b'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(141, 96); ctx.lineTo(153, 96); ctx.lineTo(160, 101);
+      ctx.lineTo(167, 96); ctx.lineTo(179, 96); ctx.stroke();
+    } else {
+      ctx.fillStyle = '#44616a'; ctx.fillRect(28, 112, 264, 18);
+      ctx.fillStyle = accent; ctx.font = '16px monospace'; ctx.fillText('IDLE', 28, 83); ctx.fillText('MAX', 260, 83);
+      for (let tick = 0; tick <= 10; tick++) ctx.fillRect(28 + tick * 26.4, 137, 2, tick % 5 ? 7 : 12);
+    }
+    ctx.restore();
+  }
+  const map = new THREE.CanvasTexture(display);
+  map.colorSpace = THREE.SRGBColorSpace;
+  return map;
+}
+
+function makeCockpitCoat() {
+  const grain = new Uint8Array(64 * 64 * 4);
+  for (let pixel = 0; pixel < 64 * 64; pixel++) {
+    const value = 220 + Math.floor(35 * hash2(pixel % 64, Math.floor(pixel / 64)));
+    grain.fill(value, pixel * 4, pixel * 4 + 3);
+    grain[pixel * 4 + 3] = 255;
+  }
+  const coat = new THREE.DataTexture(grain, 64, 64);
+  coat.wrapS = coat.wrapT = THREE.RepeatWrapping;
+  coat.generateMipmaps = true; coat.minFilter = THREE.LinearMipmapLinearFilter; coat.magFilter = THREE.LinearFilter;
+  coat.colorSpace = THREE.SRGBColorSpace; coat.needsUpdate = true;
+  return coat;
+}
+const cockpitCoat = makeCockpitCoat();
+
+function cockpitHousing(shell) {
+  const housing = shell.mesh(new THREE.MeshStandardMaterial({ map:cockpitCoat, vertexColors:true, roughness:0.67, metalness:0.24 }), 'Coaming');
+  const position = housing.geometry.getAttribute('position'), normal = housing.geometry.getAttribute('normal');
+  const uvs = [];
+  for (let index = 0; index < position.count; index++) {
+    const vertical = Math.abs(normal.getY(index)) > 0.7, lateral = Math.abs(normal.getX(index)) > 0.7;
+    uvs.push(3 * (lateral ? position.getZ(index) : position.getX(index)), 3 * (vertical ? position.getZ(index) : position.getY(index)));
+  }
+  housing.geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  return housing;
 }
 
 function buildAircraftCockpit(eyeZ, code) {
@@ -1352,61 +1472,134 @@ function buildAircraftCockpit(eyeZ, code) {
   const lip = [[-1.42, -0.64, -0.79], [-0.86, -0.44, -1.12], [-0.58, -0.37, -1.19],
     [0.58, -0.37, -1.19], [0.86, -0.44, -1.12], [1.42, -0.64, -0.79]];
   const bottom = point => [point[0] * 1.08, -1.18, point[2] + 0.18];
+  const piping = point => [point[0] * 0.99, point[1] + 0.016, point[2] + 0.008];
+  const pad = point => [point[0] * 0.97, point[1] + 0.033, point[2] - 0.028];
   const crest = point => [point[0] * 0.92, point[1] + 0.035, point[2] - 0.17];
   const deck = point => [point[0] * 0.71, point[1] - 0.19, point[2] - 0.69];
   for (let idx = 1; idx < lip.length; idx++) {
     const left = lip[idx - 1], right = lip[idx];
     shell.face([bottom(left), bottom(right), right, left], 0x222e39);
-    shell.face([left, right, crest(right), crest(left)], 0x4b575c);
+    shell.face([left, right, piping(right), piping(left)], 0x616d70);
+    shell.face([piping(left), piping(right), pad(right), pad(left)], 0x3c474c);
+    shell.face([pad(left), pad(right), crest(right), crest(left)], 0x495252);
     shell.face([crest(left), crest(right), deck(right), deck(left)], 0x303c45);
   }
-  cockpit.add(shell.mesh(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.79 }), 'Coaming'));
-
   const bow = new THREE.CatmullRomCurve3([[-1.28,-0.58,-0.84], [-1.12,0.12,-1.03],
     [-0.83,0.63,-1.18], [-0.46,0.82,-1.23], [0,0.87,-1.24], [0.46,0.82,-1.23],
     [0.83,0.63,-1.18], [1.12,0.12,-1.03], [1.28,-0.58,-0.84]].map(point => new THREE.Vector3(...point)));
-  cockpit.add(new THREE.Mesh(new THREE.TubeGeometry(bow, 28, 0.029, 8, false),
-    new THREE.MeshStandardMaterial({ color: 0x38434c, metalness: 0.31, roughness: 0.48 })));
+  const enamel = code === 'SU-57X' ? 0x567169 : code === 'F-35X' ? 0x52667c : 0x536575;
+  const railPaint = [0x232e36, 0x80939e, enamel, 0x2d3f4b, 0x17232b, 0x343f49];
+  let priorRail;
+  for (let step = 0; step <= 36; step++) {
+    const along = step / 36, center = bow.getPointAt(along), tangent = bow.getTangentAt(along);
+    const width = 0.025 + 0.028 * (2 * along - 1) ** 2;
+    const rib = [6, 12, 24, 30].includes(step) ? 0.009 : 0;
+    const rim = [[-1,0.012],[-0.78,0.032],[-0.46,0.039],[0.65,0.032],[1,0.012],[0.70,-0.030]]
+      .map(([radial, depth]) => [center.x - tangent.y * width * radial, center.y + tangent.x * width * radial, center.z + depth + rib]);
+    if (priorRail) for (let edge = 0; edge < rim.length; edge++) {
+      const next = (edge + 1) % rim.length;
+      shell.face([priorRail[edge], rim[edge], rim[next], priorRail[next]], railPaint[edge]);
+    }
+    priorRail = rim;
+  }
+  for (const along of [0.17, 0.31, 0.69, 0.83]) {
+    const center = bow.getPointAt(along);
+    const head = Array.from({ length:6 }, (_, index) => {
+      const angle = index * Math.PI / 3;
+      return [center.x + 0.010 * Math.cos(angle), center.y + 0.010 * Math.sin(angle), center.z + 0.044];
+    });
+    shell.face(head, 0xb7bbb7);
+  }
+
+  const sweep = 0.18, depthAt = offset => Math.max(0, Math.abs(offset) - 0.25) * sweep;
+  const pitch = -0.25, cosine = Math.cos(pitch), sine = Math.sin(pitch);
+  const panelPoint = (horizontal, vertical, relief) => {
+    const depth = depthAt(horizontal) + relief;
+    return [horizontal, -0.56 + vertical * cosine - depth * sine, -1.04 + vertical * sine + depth * cosine];
+  };
+  function ring(center, height, halfWidth, halfHeight, depth, cut) {
+    return [[-halfWidth+cut,-halfHeight],[halfWidth-cut,-halfHeight],[halfWidth,-halfHeight+cut],[halfWidth,halfHeight-cut],
+      [halfWidth-cut,halfHeight],[-halfWidth+cut,halfHeight],[-halfWidth,halfHeight-cut],[-halfWidth,-halfHeight+cut]]
+      .map(([horizontal, vertical]) => panelPoint(center + horizontal, height + vertical, depth));
+  }
+  function band(outer, inner, paint) {
+    for (let edge = 0; edge < outer.length; edge++) {
+      const next = (edge + 1) % outer.length;
+      shell.face([outer[edge], outer[next], inner[next], inner[edge]], paint);
+    }
+  }
+  function keycap(center, height, halfWidth, halfHeight, depth, paint) {
+    const cut = Math.min(halfHeight, halfWidth) * 0.38;
+    const foot = ring(center, height, halfWidth, halfHeight, depth, cut);
+    const crown = ring(center, height, halfWidth * 0.88, halfHeight * 0.85, depth + 0.009, cut * 0.8);
+    band(foot, crown, 0x48535a); shell.face(crown, paint);
+  }
+  const panes = [[-0.49, 0.178], [0, 0.224], [0.49, 0.178]];
+  const vertices = [], uvs = [], indices = [];
+  for (const [index, [center, half]] of panes.entries()) {
+    const height = 0.098;
+    const foot = ring(center, 0, half + 0.043, height + 0.046, -0.035, 0.026);
+    const shoulder = ring(center, 0, half + 0.032, height + 0.033, 0.026, 0.019);
+    const seal = ring(center, 0, half + 0.009, height + 0.010, 0.030, 0.009);
+    const aperture = ring(center, 0, half - 0.003, height - 0.003, 0.003, 0.004);
+    band(foot, shoulder, enamel); band(shoulder, seal, 0x57616a); band(seal, aperture, 0x18272c);
+    for (const side of [-1, 1]) for (const row of [-1, 1]) {
+      keycap(center + side * (half + 0.015), row * (height + 0.015), 0.006, 0.006, 0.032, 0xb7bbb4);
+    }
+    for (let key = -1; key <= 1; key++) keycap(center + key * 0.051, -0.12, 0.018, 0.008, 0.033, 0x222e35);
+    const first = vertices.length / 3;
+    indices.push(first, first + 1, first + 2, first, first + 2, first + 3);
+    for (const [horizontal, vertical] of [[-1,-1],[1,-1],[1,1],[-1,1]]) {
+      const offset = center + half * horizontal;
+      vertices.push(offset, height * vertical, depthAt(offset));
+      uvs.push((index * 320 + (horizontal < 0 ? 1 : 319)) / 960, vertical < 0 ? 0 : 1);
+    }
+  }
+  for (const side of [-1, 1]) {
+    keycap(side * 0.83, -0.018, 0.092, 0.095, -0.018, enamel);
+    for (let slot = -2; slot <= 2; slot++) keycap(side * 0.83, -0.018 + slot * 0.024, 0.069, 0.005, -0.006, 0x17252c);
+    const bracket = [[0.263,-0.398,-1.42],[0.296,-0.398,-1.42],[0.364,-0.386,-1.15],[0.32,-0.386,-1.15]];
+    const top = bracket.map(([horizontal, vertical, depth]) => [side * horizontal, vertical + 0.042, depth]);
+    const base = bracket.map(([horizontal, vertical, depth]) => [side * horizontal, vertical - 0.038, depth]);
+    for (let edge = 0; edge < top.length; edge++) {
+      const next = (edge + 1) % top.length;
+      shell.face([base[edge], top[edge], top[next], base[next]], enamel, side < 0);
+    }
+    shell.face(top, 0x778893, side > 0);
+    const stripe = [[0.300,-1.275],[0.335,-1.275],[0.341,-1.255],[0.307,-1.255]];
+    shell.face(stripe.map(([horizontal, depth]) => [side * horizontal, -0.347, depth]), 0xc3a260, side > 0);
+  }
+  cockpit.add(cockpitHousing(shell));
   const glass = aircraftSkin();
   glass.face([[-0.36,-0.39,-1.38], [0.36,-0.39,-1.38], [0.36,0.14,-1.45],
     [0.28,0.22,-1.46], [-0.28,0.22,-1.46], [-0.36,0.14,-1.45]], 0xffffff);
   cockpit.add(glass.mesh(new THREE.MeshBasicMaterial({ color: 0x93d9cb, transparent: true,
     opacity: 0.105, depthWrite: false }), 'Combiner'));
 
-  const display = document.createElement('canvas');
-  display.width = 768; display.height = 128;
-  const ctx = display.getContext('2d');
-  ctx.fillStyle = '#17242b'; ctx.fillRect(0, 0, 768, 128);
-  ctx.font = 'bold 17px monospace'; ctx.lineWidth = 2;
-  for (const [left, width, label] of [[10, 211, 'SYS / BUS'], [237, 284, code], [537, 221, 'ENG / THR']]) {
-    ctx.fillStyle = '#07181e'; ctx.fillRect(left, 6, width, 116);
-    ctx.strokeStyle = '#53676c'; ctx.strokeRect(left, 6, width, 116);
-    ctx.fillStyle = '#98cbbd'; ctx.fillText(label, left + 14, 31);
-    ctx.fillStyle = '#355152'; ctx.fillRect(left + 13, 39, width - 26, 2);
-  }
-  for (let idx = 0; idx < 3; idx++) {
-    const row = 57 + idx * 22;
-    ctx.fillStyle = '#70b5ad'; ctx.fillText(['PWR', 'NAV', 'COM'][idx], 28, row + 9);
-    for (let lamp = 0; lamp < 5; lamp++) ctx.fillRect(86 + lamp * 21, row, 14, 7);
-  }
-  ctx.strokeStyle = '#77b5ad';
-  ctx.beginPath(); ctx.moveTo(379, 47); ctx.lineTo(388, 76); ctx.lineTo(436, 91);
-  ctx.lineTo(432, 99); ctx.lineTo(387, 90); ctx.lineTo(386, 108); ctx.lineTo(372, 108);
-  ctx.lineTo(371, 90); ctx.lineTo(326, 99); ctx.lineTo(322, 91); ctx.lineTo(370, 76); ctx.closePath(); ctx.stroke();
-  ctx.fillStyle = '#365654'; ctx.fillRect(553, 69, 188, 18);
-  for (let idx = 0; idx <= 8; idx++) ctx.fillRect(553 + idx * 23, 92, 2, idx % 2 ? 5 : 10);
-  const map = new THREE.CanvasTexture(display);
-  map.colorSpace = THREE.SRGBColorSpace;
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.40, 0.235), new THREE.MeshBasicMaterial({ map, toneMapped: false }));
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  const screen = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ map: cockpitDisplay(code), toneMapped: false }));
   screen.name = 'Instruments';
-  screen.position.set(0, -0.56, -1.04); screen.rotation.x = -0.25;
-  const barGeo = new THREE.PlaneGeometry(1.40 * 188 / 768, 0.018);
-  barGeo.translate(1.40 * 94 / 768, 0, 0);
+  screen.position.set(0, -0.56, -1.04); screen.rotation.x = pitch;
+  const [engineCenter, engineHalf] = panes[2];
+  const start = engineCenter + (28 / 320 - 0.5) * 2 * engineHalf;
+  const length = 2 * engineHalf * (264 / 320) * Math.hypot(1, sweep);
+  const barGeo = new THREE.PlaneGeometry(length, 0.017);
+  barGeo.translate(length / 2, 0, 0);
   const powerBar = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: 0x84d8bd, toneMapped: false }));
-  powerBar.position.set(1.40 * (553 / 768 - 0.5), -0.026, 0.002);
-  screen.add(powerBar);
+  powerBar.position.set(start, -0.034, depthAt(start) + 0.002); powerBar.rotation.y = -Math.atan(sweep);
+  const marks = aircraftSkin();
+  for (const side of [-1, 1]) {
+    marks.face([[side*0.018,-0.002,0],[side*0.069,-0.002,0],[side*0.069,0.002,0],[side*0.018,0.002,0]], 0xa2e9dd, side < 0);
+  }
+  const horizon = marks.mesh(new THREE.MeshBasicMaterial({ vertexColors:true, toneMapped:false }), 'Horizon');
+  horizon.position.z = 0.004;
+  screen.add(powerBar, horizon);
   cockpit.add(screen);
   cockpit.userData.powerBar = powerBar;
+  cockpit.userData.horizon = horizon;
   return cockpit;
 }
 
@@ -1468,6 +1661,7 @@ function buildJetMesh(spec, isPlayer = false) {
   const flash = new THREE.Color(paint).lerp(new THREE.Color(0xc0ccd0), 0.44);
   const leading = new THREE.Color(paint).lerp(flash, 0.55);
   const panel = new THREE.Color(paint).lerp(new THREE.Color(trim), 0.50);
+  const tailBand = isPlayer ? (single ? 0xc29d6f : swept ? 0xb48b62 : 0x97b8c5) : new THREE.Color(trim).lerp(flash, 0.27);
   const graphite = 0x262e36, titanium = 0x596068;
   const skin = aircraftSkin();
   skin.loft([[nose, 0.045, 0.055, -0.07, trim], [nose * 0.76, 0.56, 0.31, 0, trim],
@@ -1480,15 +1674,17 @@ function buildJetMesh(spec, isPlayer = false) {
 
   const ailerons = [], stabilators = [], fins = [], flames = [];
   for (const side of [-1, 1]) {
-    const wingPoint = (width, height, z) => [side * width, 0.16 - width * 0.018 + height, z];
     const knuckle = span * (swept ? 0.43 : 0.46);
+    const tipRise = swept ? 0.92 : single ? 0.42 : 0.55;
+    const wingPoint = (width, height, station) => [side * width,
+      0.16 - width * 0.018 + height + Math.max(0, width - knuckle) * tipRise / (span - knuckle), station];
     const tipFore = swept ? 2.42 : single ? 0.58 : 1.42;
     const innerFore = swept ? -1.7 : -1.45;
     const nearTip = inset => tipFore - (tipFore - innerFore) * inset / (span - knuckle);
     skin.foil([[0.7, swept ? -5.75 : -3.85, hinge + 1.0, 0.36],
       [knuckle, innerFore, hinge, 0.2, leading, panel], [span * 0.68, nearTip(span * 0.32), hinge, 0.15, leading, paint],
       [span - 0.6, nearTip(0.6), hinge, 0.095, paint, panel],
-      [span - 0.39, nearTip(0.39), hinge, 0.08, flash], [span - 0.09, nearTip(0.09), hinge, 0.065, trim],
+      [span - 0.39, nearTip(0.39), hinge, 0.105, flash], [span - 0.09, nearTip(0.09), hinge, 0.095, trim],
       [span, tipFore, hinge, 0.045, side < 0 ? 0xc24641 : 0x579e83]], wingPoint, paint, side < 0);
 
     const movable = aircraftSkin();
@@ -1512,7 +1708,8 @@ function buildJetMesh(spec, isPlayer = false) {
     const cant = side * (swept ? 0.58 : 0.37);
     const finPoint = (height, thickness, z) => [cant * height - thickness, height, z];
     const finHinge = aft - 0.52;
-    skin.foil([[0, aft - 3.35, finHinge, 0.145], [finH * 0.79, aft - 1.8, finHinge, 0.08],
+    skin.foil([[0, aft - 3.35, finHinge, 0.145], [finH * 0.65, aft - 2.08, finHinge, 0.093],
+      [finH * 0.74, aft - 1.90, finHinge, 0.084, tailBand], [finH * 0.79, aft - 1.8, finHinge, 0.08],
       [finH, aft - 1.38, finHinge, 0.055, trim]],
       (height, thickness, z) => [side * finX + cant * height - thickness, 0.21 + height, z], paint);
     const rudderSkin = aircraftSkin();
@@ -1523,10 +1720,14 @@ function buildJetMesh(spec, isPlayer = false) {
     fins.push(fin);
     exterior.add(flap, tail, fin);
 
-    const intake = swept ? -3.65 : single ? -2.35 : -2.85;
-    skin.loft([[intake, 0.39, 0.32, -0.19, flash], [intake + 0.15, 0.49, 0.39, -0.16],
-      [0.55, 0.64, 0.49, -0.12], [aft - 1.0, 0.38, 0.3, -0.12]],
-      paint, 8, side * (beam - 0.01), graphite);
+    const inletZ = swept ? -4.1 : single ? -3.35 : -3.75;
+    const inletRing = (center, width, height, station, rake) => {
+      const rim = [[1,0.28], [0.68,0.96], [-0.62,0.81], [-1,0.14], [-0.67,-0.87], [0.48,-1]].map(([across, up]) =>
+        [side * (center + width * across), -0.21 + height * up, station + rake * (across - up)]);
+      return side < 0 ? rim.reverse() : rim;
+    };
+    skin.inlet(inletRing(beam + 0.25, 0.60, 0.47, inletZ, 0.20), inletRing(beam + 0.21, 0.66, 0.51, inletZ + 0.87, 0.07),
+      inletRing(beam - 0.10, 0.43, 0.33, aft - 1.0, 0), 0.70, paint, flash);
   }
 
   const radius = single ? 0.77 : swept ? 0.51 : 0.55;
@@ -1534,26 +1735,37 @@ function buildJetMesh(spec, isPlayer = false) {
   for (const [index, socket] of sockets.entries()) {
     skin.loft([[swept ? -2.8 : 0.5, radius * 0.86, radius * 0.97, -0.07],
       [aft - 1.38, radius * 1.23, radius * 1.14, -0.08],
-      [aft - 0.72, radius * 1.12, radius * 1.08, -0.08, graphite],
-      [aft - 0.22, radius, radius * 0.97, -0.08, titanium],
-      [aft, radius * 0.96, radius * 0.93, -0.08, 0x929497],
-      [aft, radius * 0.79, radius * 0.76, -0.08, titanium],
-      [aft - radius * 0.42, radius * 0.63, radius * 0.60, -0.08, 0x463c3d]], paint, 16, socket, 0x302a2b);
+      [aft - 0.78, radius * 1.17, radius * 1.13, -0.08, graphite],
+      [aft - radius * 0.82, radius * 1.06, radius * 1.06 * 0.97, -0.08, titanium]], paint, 16, socket, graphite);
+    const ring = (scale, setback, scallop = 0) => Array.from({ length:16 }, (_, corner) => {
+      const angle = (corner + 0.5) * Math.PI / 8;
+      return [socket + radius * scale * Math.cos(angle), -0.08 + radius * scale * 0.97 * Math.sin(angle),
+        aft + radius * (setback + (corner % 2) * scallop)];
+    });
+    const tips = ring(0.98, 0.09, -0.18), edge = ring(0.78, 0.04, -0.16), well = ring(0.62, -0.51);
+    skin.band(ring(1.06, -0.82), tips, corner => corner % 2 ? 0x73818b : 0x9ca5a6);
+    skin.band(tips, edge, 0xb4aaaa); skin.band(edge, well, corner => corner % 2 ? 0x5b4545 : 0x493c40);
+    skin.face(well, 0x302a2b);
     const flame = index === 0 ? plume : plume.clone();
     flame.position.set(socket, -0.08, aft - radius * 0.32);
     flame.scale.set(0.60, 0.60, 0.14);
     exterior.add(flame);
     flames.push(flame);
   }
-  exterior.add(skin.mesh(alloy, 'Airframe'));
-
   const eyeZ = swept ? -3.35 : single ? -2.55 : -2.9;
   const canopy = aircraftSkin();
-  canopy.loft([[eyeZ - 2.05, 0.09, 0.07, 0.42], [eyeZ - 1.1, 0.56, 0.45, 0.55],
-    [eyeZ, single ? 0.80 : 0.69, 0.73, 0.65], [eyeZ + 0.80, 0.71, 0.65, 0.65],
-    [eyeZ + 0.87, 0.72, 0.66, 0.65, graphite], [eyeZ + 1.04, 0.72, 0.64, 0.65, graphite],
-    [eyeZ + 1.12, 0.69, 0.59, 0.65], [eyeZ + 2.0, 0.34, 0.28, 0.61]],
-    single ? 0x9b8064 : swept ? 0x46667a : 0x466d81, 16);
+  const glazing = single ? 0xaf8862 : swept ? 0x426b78 : 0x487890;
+  canopy.loft([[eyeZ - 2.05, 0.09, 0.07, 0.42], [eyeZ - 1.1, 0.56, 0.45, 0.55, single ? 0xd5b18a : 0x94bfc9],
+    [eyeZ, single ? 0.80 : 0.69, 0.73, 0.65], [eyeZ + 0.84, 0.71, 0.65, 0.65],
+    [eyeZ + 1.40, 0.63, 0.48, 0.65, single ? 0x746348 : 0x385464], [eyeZ + 2.0, 0.31, 0.24, 0.61]], glazing, 16);
+  skin.loft([[eyeZ - 2.24, 0.12, 0.07, 0.42], [eyeZ - 0.95, 0.73, 0.16, 0.55],
+    [eyeZ + 0.10, single ? 0.92 : 0.84, 0.15, 0.60], [eyeZ + 0.93, 0.83, 0.15, 0.60],
+    [eyeZ + 2.12, 0.34, 0.09, 0.59]], leading, 12);
+  for (const [station, width, height, centerY] of [[eyeZ - 0.77, single ? 0.72 : 0.69, 0.63, 0.59], [eyeZ + 0.88, 0.79, 0.72, 0.65]]) {
+    skin.loft([[station - 0.12, width * 0.97, height * 0.96, centerY, graphite], [station - 0.05, width, height, centerY, flash],
+      [station + 0.07, width, height, centerY, leading], [station + 0.13, width * 0.97, height * 0.96, centerY, graphite]], paint, 16);
+  }
+  exterior.add(skin.mesh(alloy, 'Airframe'));
   exterior.add(canopy.mesh(new THREE.MeshPhysicalMaterial({ vertexColors: true, metalness: 0.47,
     roughness: 0.18, clearcoat: 1.0, clearcoatRoughness: 0.12 }), 'Canopy'));
   const cockpit = isPlayer ? buildAircraftCockpit(eyeZ, spec.code ?? spec.id) : null;
@@ -1571,6 +1783,8 @@ function buildBomberMesh() {
     [7.6, 0.93, 0.88, 0.43], [11.1, 0.22, 0.34, 0.74]], paint, 16);
   skin.loft([[-10.15, 0.28, 0.14, 0.68], [-8.7, 1.05, 0.58, 0.85],
     [-7.65, 1.04, 0.55, 0.94], [-6.6, 0.73, 0.29, 1.14]], 0x263e50);
+  skin.loft([[-10.17, 0.06, 0.05, 0.81], [-8.70, 0.11, 0.09, 1.42], [-7.65, 0.11, 0.09, 1.48],
+    [-6.58, 0.07, 0.06, 1.42]], flash, 8);
   for (const side of [-1, 1]) {
     skin.foil([[0.9, -4.95, 1.45, 0.43], [5.1, -2.82, 2.18, 0.32], [10.55, 0.88, 3.6, 0.18],
       [11.0, 1.18, 3.73, 0.16, flash], [13.1, 2.63, 4.13, 0.07], [13.6, 3.13, 4.15, 0.045, trim]],
@@ -1579,8 +1793,15 @@ function buildBomberMesh() {
       (width, thickness, z) => [side * width, 0.83 + width * 0.075 + thickness, z], paint, side < 0);
     for (const width of [4.4, 7.5]) {
       const shift = (width - 4.4) * 0.59;
-      skin.loft([[shift - 3.72, 0.58, 0.51, -0.16, trim], [shift - 3.45, 0.68, 0.62, -0.12],
-        [shift - 1.2, 0.7, 0.68, -0.06], [shift + 1.33, 0.42, 0.45, 0.0, trim]], paint, 12, side * width, 0x222b32);
+      const podHeight = width > 6 ? -0.97 : -0.71;
+      const mountHeight = 0.80 - Math.abs(width - 4.8) * 0.092, mountZ = (width - 4.4) * 0.36 - 0.10;
+      skin.foil([[podHeight + 0.25, -0.85, 0.95, 0.19], [mountHeight, -0.56, 0.48, 0.13]],
+        (height, thickness, station) => [side * width - thickness, height, mountZ + station], trim);
+      const podRing = (station, wide, high) => Array.from({ length:12 }, (_, corner) => {
+        const angle = (corner + 0.5) * Math.PI / 6;
+        return [side * width + wide * Math.cos(angle), podHeight + high * Math.sin(angle), shift + station];
+      });
+      skin.inlet(podRing(-3.79, 0.77, 0.71), podRing(-2.87, 0.83, 0.77), podRing(1.35, 0.44, 0.47), 0.89, paint, flash);
     }
   }
   skin.foil([[0, 4.15, 10.5, 0.23], [3.46, 7.65, 10.35, 0.13], [4.18, 8.49, 10.3, 0.09, trim]],
@@ -1612,7 +1833,7 @@ function buildVolcanicIsland(cx, cz, radius, peakH, seed, mCfg) {
     return { x, z, height, dx, dz, dh: endH - height, inverseLengthSq: 1 / (dx * dx + dz * dz) };
   });
 
-  function bedrock(x, z) {
+  function bedrock(x, z, withLedges = true) {
     const along = (x * axisX + z * axisZ) / radius, across = (z * axisX - x * axisZ) / radius;
     const angle = Math.atan2(across, along);
     const inlet = 0.25 * smooth(across, 0.20, 0.82) * (1 - smooth(Math.abs(along - 0.18), 0.04, 0.55));
@@ -1639,6 +1860,13 @@ function buildVolcanicIsland(cx, cz, radius, peakH, seed, mCfg) {
     const buttress = (0.15 * (flutes - 0.44) + 0.10 * outcrop) * smooth(ridge + scarp, 0.03, 0.19);
     const shore = inland < 0 ? Math.max(-20, 140 * inland) : (46 + 60 * folds) * inland / (1 + 1.4 * inland);
     let height = shore + peakH * ((ridge * (0.90 + 0.22 * folds) + buttress) * smooth(inland, -0.015, 0.30) + scarp * smooth(inland, -0.025, 0.14));
+    if (withLedges && inland > 0 && inland < 0.54) {
+      const headland = smooth(0.55 * Math.cos(2 * angle - phase) + 0.32 * Math.sin(3 * angle + phase) + 0.55 * (folds - 0.5) - 1.7 * inlet, -0.22, 0.42);
+      const setback = inland + 0.046 * (flutes - 0.5) + 0.036 * (slip - 0.5);
+      const lower = Math.min(20, peakH * 0.10) * (0.78 + 0.38 * flutes) * smooth(setback, 0.040, 0.087);
+      const upper = Math.min(15, peakH * 0.075) * smooth(setback + 0.039 * Math.sin(5.3 * along + 7.6 * across + phase), 0.175, 0.228);
+      height += headland * (lower + upper) * (1 - smooth(inland, 0.26, 0.54));
+    }
     if (channel) {
       const east = x + cx - channel.x, south = z + cz - channel.z;
       const run = east * channel.sin + south * channel.cos;
@@ -1652,7 +1880,8 @@ function buildVolcanicIsland(cx, cz, radius, peakH, seed, mCfg) {
 
   const pads = (mCfg.pads || []).map(pad => {
     const x = pad.x - cx, z = pad.z - cz;
-    return { ...pad, x, z, height: pad.height ?? bedrock(x, z) };
+    // Keep established facility elevations while sculpting the coast around their pads.
+    return { ...pad, x, z, height: pad.height ?? bedrock(x, z, false) };
   });
   for (let index = 0; index < pos.count; index++) {
     const x = pos.getX(index), z = pos.getZ(index);
@@ -1703,6 +1932,7 @@ function buildVolcanicIsland(cx, cz, radius, peakH, seed, mCfg) {
 
 function volcanicSurface(faceted = false) {
   const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, flatShading: faceted });
+  if (!faceted) material.defines = { ...material.defines, ISLAND_COAST: 1 };
   // Modulate albedo only: r160 still owns lights, shadow maps, fog and output color.
   material.onBeforeCompile = shader => {
     shader.vertexShader = 'varying vec4 vGeology;\n' + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -1727,8 +1957,19 @@ function volcanicSurface(faceted = false) {
       float deposit = rockGrain(vec3(vGeology.x * 0.012, dip + 0.76 * beds, vGeology.z * 0.010));
       float layer = smoothstep(0.23, 0.77, deposit);
       float fissure = (1.0 - smoothstep(0.025, 0.115, abs(deposit - 0.46))) * smoothstep(0.43, 0.72, beds) * exposure;
-      diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(0.68, 0.77, 0.89), vec3(1.24, 1.16, 1.03), layer), exposure);
       float detail = 1.0 - smoothstep(560.0, 1650.0, vViewPosition.z);
+      #ifdef ISLAND_COAST
+        float tide = vGeology.y + 3.2 * (beds - 0.5);
+        float dry = smoothstep(2.0, 8.0, tide);
+        float face = smoothstep(0.022, 0.17, vGeology.w);
+        vec3 sand = mix(vec3(0.14, 0.16, 0.15), vec3(0.66, 0.52, 0.31), dry);
+        vec3 rock = mix(vec3(0.048, 0.066, 0.074), vec3(0.27, 0.22, 0.17), dry);
+        diffuseColor.rgb = mix(mix(sand, rock, face), diffuseColor.rgb, smoothstep(9.0, 24.0, tide));
+        float bedding = fract(tide * 0.055 + dot(vGeology.xz, vec2(0.0016, -0.0008)) + 0.65 * beds);
+        float seam = 1.0 - smoothstep(0.07, 0.30, abs(bedding - 0.5));
+        diffuseColor.rgb *= 1.0 - 0.36 * seam * face * (1.0 - smoothstep(34.0, 68.0, tide)) * detail;
+      #endif
+      diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(0.68, 0.77, 0.89), vec3(1.24, 1.16, 1.03), layer), exposure);
       diffuseColor.rgb *= 0.77 + 0.44 * beds + detail * (0.32 * (grain - 0.5) - 0.25 * fissure);`);
   };
   return material;
@@ -1808,16 +2049,22 @@ function buildSeaArch(x, z, rotY) {
     [40,102,148,28,-5], [65,96,164,30,3], [83,75,158,33,8], [101,50,146,34,11],
     [112,8,121,42,12], [128,-18,119,47,10], [151,-18,83,44,4], [169,-18,47,34,1], [190,-18,27,22,-4]
   ];
-  const section = [[0,-0.46], [0.09,-0.82], [0.36,-1], [0.64,-0.91], [0.84,-0.84], [1,-0.42],
-    [0.97,0.38], [0.80,0.80], [0.73,0.91], [0.49,0.98], [0.32,1.01], [0.08,0.82], [0,0.44]];
+  const section = [[0,-0.46],[0.09,-0.82],[0.19,-0.98],[0.29,-0.97],[0.41,-1],[0.64,-0.91],[0.84,-0.84],[1,-0.42],
+    [0.97,0.38],[0.80,0.80],[0.68,0.95],[0.49,0.98],[0.40,1.01],[0.29,0.99],[0.19,1],[0.11,0.95],[0.06,0.80],[0,0.44]];
   const positions = [], colors = [], indices = [];
   const basalt = new THREE.Color(0x585352), ash = new THREE.Color(0xb29878), moss = new THREE.Color(0x7d8554), tint = new THREE.Color();
   spans.forEach(([along, low, high, depth, sweep], ring) => {
+    const shoulder = THREE.MathUtils.smoothstep(Math.abs(along), 77, 125), dip = 0.018 * Math.sin(along * 0.077);
     section.forEach(([rise, face], edge) => {
       const chip = hash2(ring, edge) - 0.5, height = low + (high - low) * rise + chip * 4;
-      positions.push(along + chip * 5, height, sweep + depth * face + chip * 3);
+      const course = rise + dip;
+      const notch = 1 - THREE.MathUtils.smoothstep(Math.abs(course - 0.28), 0.035, 0.11);
+      const toe = 1 - THREE.MathUtils.smoothstep(Math.abs(course - 0.125), 0.014, 0.082);
+      const relief = shoulder * THREE.MathUtils.smoothstep(Math.abs(face), 0.48, 0.84) * (10 * toe - 16 * notch);
+      positions.push(along + chip * 5, height, sweep + depth * face + Math.sign(face) * relief + chip * 3);
       const grit = 0.32 + 0.19 * Math.sin(height * 0.12 + along * 0.015) + chip * 0.24;
       tint.copy(basalt).lerp(ash, grit).lerp(moss, THREE.MathUtils.smoothstep(rise, 0.80, 1) * (0.50 + chip * 0.6));
+      tint.multiplyScalar(0.82 + 0.18 * THREE.MathUtils.smoothstep(rise, 0.01, 0.10) - 0.25 * shoulder * notch);
       colors.push(tint.r, tint.g, tint.b);
       if (ring + 1 < spans.length) {
         const first = ring * section.length + edge, next = ring * section.length + (edge + 1) % section.length;
@@ -1827,6 +2074,26 @@ function buildSeaArch(x, z, rotY) {
   });
   const last = (spans.length - 1) * section.length;
   for (let edge = 1; edge < section.length - 1; edge++) indices.push(0, edge + 1, edge, last, last + edge, last + edge + 1);
+  const splinter = [[-0.8,-0.72],[-1,0.18],[-0.63,0.90],[0.22,1],[0.92,0.42],[0.83,-0.58],[0.16,-1]];
+  function buttress(centerX, centerZ, width, depth, courses) {
+    const base = positions.length / 3, sides = splinter.length;
+    courses.forEach(([height, scale, lean, sweep, ochre], tier) => {
+      splinter.forEach(([across, fore], edge) => {
+        const chip = hash2(tier + centerX, edge) - 0.5;
+        positions.push(centerX + lean + width * across * scale + 2 * chip, height + 4 * chip, centerZ + sweep + depth * fore * scale);
+        tint.copy(basalt).lerp(ash, ochre + 0.17 * chip); colors.push(tint.r, tint.g, tint.b);
+        if (tier === 0) return;
+        const lower = base + (tier - 1) * sides, corner = lower + edge, next = lower + (edge + 1) % sides;
+        indices.push(corner, next, next + sides, corner, next + sides, corner + sides);
+      });
+    });
+    const top = base + (courses.length - 1) * sides;
+    for (let edge = 1; edge < sides - 1; edge++) indices.push(top, top + edge, top + edge + 1, base, base + edge + 1, base + edge);
+  }
+  buttress(-157, 37, 22, 18, [[-19,1.30,1,1,0.18],[26,1.06,-2,3,0.24],[45,0.74,0,2,0.18],
+    [54,0.93,0,4,0.55],[100,0.68,2,6,0.36],[133,0.48,-4,9,0.48],[143,0.22,-6,9,0.56]]);
+  buttress(145, -30, 25, 16, [[-19,1.22,0,-1,0.20],[24,1.01,0,-3,0.27],[37,0.74,-2,-4,0.18],
+    [46,0.95,-4,-3,0.53],[68,0.64,-7,0,0.38],[81,0.26,-9,2,0.52]]);
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3)); geo.setIndex(indices); geo.computeVertexNormals();
@@ -1842,28 +2109,47 @@ function buildAirbaseLandmark(x, y, z) {
   const strip = landmarkLoft(clippedPlan(22, 145, 2), [[-0.8,1,1,0x8c8170], [0.7,1,1]], 0xffffff, true);
   landmarkMesh(root, strip, [trim, new THREE.MeshStandardMaterial({ map: runwayTex, roughness: 0.94 })]);
   const blocks = [
-    [43,-0.1,-13,42,1.25,209,0xa69e87], [46,1.4,-104,17,2,18,0x767875],
+    [45.2,-0.05,-13,37.6,1.34,209,0xa69e87], [46,1.4,-104,17,2,18,0x767875],
     [46,12,-104,7,21,8,0xd1c9a7], [46,15,-104,7.3,3,8.3,0xce704c],
     [46,34,-104,1,7,1,0x515e62], [46,35.9,-104,3.6,1,3.6,0x63767b], [46,39,-104,3.3,0.8,3.3,0x58686a],
-    [44,3.8,-87,9,6.6,10,0x94a39b], [27,0.7,-8,0.85,0.22,151,0xcead65]
+    [44,3.8,-87,9,6.6,10,0x94a39b], [30.5,0.66,0,0.8,0.08,150,0xcead65]
   ];
-  const profile = new THREE.Shape([[-16,0],[-16,7],[-13,11.3],[-7,14],[7,14],[13,11.3],[16,7],[16,0]].map(([across, up]) => new THREE.Vector2(across, up)));
-  const shell = new THREE.ExtrudeGeometry(profile, { depth: 26, bevelEnabled: false }); shell.rotateY(Math.PI / 2);
-  const roof = new THREE.MeshStandardMaterial({ color: 0xbfc4b7, roughness: 0.82, metalness: 0.18 });
-  for (const bay of [-51, 0, 51]) {
-    landmarkMesh(root, shell, roof, 35, 0.5, bay);
-    blocks.push([31,0.7,bay,8,0.22,0.85,0xcead65], [48,14.7,bay,12.4,0.7,5.2,0x749095]);
-    for (const rib of [-6.4, 0, 6.4]) blocks.push([48 + rib,15.2,bay,0.65,0.45,5.8,0xc3c4b1]);
-    for (const wall of [34.8, 61.2]) {
-      blocks.push([wall,5,bay,0.65,9.3,23,0x354c53], [wall,10.6,bay,1.8,1.6,26,0xd78955],
-        [wall,4.7,bay,0.85,8.2,0.55,0x91a29d]);
+  for (const crossing of [-75, 75]) {
+    blocks.push([24.2,-0.05,crossing,4.4,1.34,12,0x88877b], [26.05,0.66,crossing,8.1,0.08,0.8,0xcead65]);
+  }
+  const section = [[-16,0],[-16,6.9],[-13.7,10.6],[-8,13.8],[-6,14.2],[6,14.2],[8,13.8],[13.7,10.6],[16,6.9],[16,0],
+    [12.5,0],[12.5,7.1],[10.9,9.3],[7,10.8],[-7,10.8],[-10.9,9.3],[-12.5,7.1],[-12.5,0]];
+  const profile = new THREE.Shape(section.map(([across, up]) => new THREE.Vector2(across, up)));
+  const shell = new THREE.ExtrudeGeometry(profile, { depth: 26, bevelEnabled: false, steps: 4 }); shell.rotateY(Math.PI / 2);
+  const positions = shell.attributes.position, normals = shell.attributes.normal, colors = new Float32Array(positions.count * 3);
+  const tint = new THREE.Color();
+  for (let vertex = 0; vertex < positions.count; vertex++) {
+    const up = normals.getY(vertex), inward = up < -0.1 || positions.getZ(vertex) * normals.getZ(vertex) < -1;
+    tint.setHex(inward ? 0x667474 : Math.abs(normals.getX(vertex)) > 0.9 ? 0xcec4a8 : up > 0.5 ? 0x9caeaa : 0x84938e);
+    if (inward) tint.multiplyScalar(1 - 0.42 * THREE.MathUtils.smoothstep(positions.getX(vertex), 0, 22));
+    tint.toArray(colors, vertex * 3);
+  }
+  shell.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const lights = [[46,37.3,-104,2.4,2.8,2.4,0xff784b]];
+  for (const [index, bay] of [-51, 0, 51].entries()) {
+    landmarkMesh(root, shell, trim, 35, 0.62, bay);
+    blocks.push([33.05,0.66,bay,4.3,0.08,0.8,0xcead65], [48,0.69,bay,25.6,0.18,26,0x86867a],
+      [60.2,6.0,bay,1.6,11.0,25.2,0x47585d], [59.22,7.15,bay,0.38,1.0,23.8,0x8c8a77],
+      [59.0,3.0,bay + 6.7,0.8,4.7,3.85,0xa09d87], [58.53,2.85,bay + 6.7,0.18,4.3,3.1,0x5c7277],
+      [55.6,1.63,bay - 8.25,2.5,1.75,4.2,0x8e7862], [56.6,3.25,bay - 8.3,1.7,1.5,2.9,0x929482],
+      [35.55,10.58,bay,1.9,2,23.3,0xbe8055], [48,15.03,bay,13.8,0.58,5.8,0x617c83]);
+    for (let mark = 0; mark <= index; mark++) blocks.push([34.51,10.58,bay - 9.3 + mark * 1.55,0.2,1.32,0.85,0xe2d6ad]);
+    lights.push([59.11,9.05,bay + 6.7,0.70,0.35,3.6,0xd4c59f]);
+    for (const rib of [-6.5, 0, 6.5]) blocks.push([48 + rib,15.43,bay,0.68,0.28,6.2,0xb6b8a7]);
+    for (const side of [-1, 1]) {
+      blocks.push([36.25,5.04,bay + side * 11.6,2.4,8.7,1.8,0x708482], [35.36,2.3,bay + side * 11.55,0.8,3.1,1.85,0xc99b62]);
+      for (const frame of [43.4, 52.3]) blocks.push([frame,4.28,bay + side * 12.22,0.95,7.2,0.72,0x83918b]);
     }
   }
   const lantern = landmarkLoft(clippedPlan(8, 7, 2.4), [[21,0.60,0.60,0x687777], [23.4,1,1,0xe4ddbd],
     [24.5,1,1,0x386975], [29.3,1.06,1.06,0xe7dcb9], [30.8,1.13,1.13]], 0x879597);
   landmarkMesh(root, lantern, trim, 46, 0, -104);
   landmarkBlocks(root, blocks);
-  const lights = [[46,37.3,-104,2.4,2.8,2.4,0xff784b]];
   for (const side of [-1, 1]) for (let mark = -132; mark <= 132; mark += 44) {
     lights.push([side * 21,0.97,mark,1.4,0.55,2.2,0xffdd94]);
   }
@@ -1913,26 +2199,35 @@ function buildCarrierMesh() {
   const steel = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.76, metalness: 0.16 });
   const hull = [[-18,-145],[-23,-130],[-24,44],[-20,95],[-11,126],[0,149],
     [11,126],[20,95],[24,44],[23,-130],[18,-145]];
-  landmarkMesh(root, landmarkLoft(hull, [[-9,0.70,0.94,0x775654], [0.8,0.86,0.98,0x43575f],
-    [4.1,0.90,0.989,0x7d9196], [12,1,1,0x566774], [16.4,1,1]], 0x88969a), steel);
+  const hullGeo = landmarkLoft(hull, [[-9,0.70,0.94,0x775654], [0.8,0.86,0.98,0x43575f],
+    [4.1,0.90,0.989,0x7d9196], [10.6,1,1,0xa0aaa6], [11.4,0.89,0.985,0x485c65], [16.4,0.89,0.985]], 0x88969a);
   const deck = [[-21,-150],[-29,-139],[-31,-58],[-38,9],[-38,34],[-28,61],[-21,95],[-18,137],[-8,150],
     [12,150],[22,136],[25,88],[30,67],[30,-81],[27,-126],[20,-150]];
   const deckGeo = landmarkLoft(deck, [[15.8,0.92,0.987,0x657980], [18.5,1,1,0xc0bda6], [20,1,1]], 0xffffff, true);
   landmarkMesh(root, deckGeo, [steel, new THREE.MeshStandardMaterial({ map: carrierDeckTex, roughness: 0.89, metalness: 0.08 })]);
   const house = landmarkLoft(clippedPlan(7.8, 24, 4), [[20,1,1,0x8a9b9e], [29,0.91,0.93,0x536773],
     [31,0.94,0.95,0xb7c2bf], [37,0.76,0.76]], 0x66767d);
-  landmarkMesh(root, house, steel, 19.5, 0, 7);
   const bridge = landmarkLoft(clippedPlan(8.7, 11, 3.2), [[34,0.67,0.71,0x788b91], [37.6,1,1,0xbac7c3],
     [38.6,1.02,1.02,0x376073], [41.7,1.08,1.08,0xd1d2bc], [43,1.13,1.13]], 0x8c9c9b);
-  landmarkMesh(root, bridge, steel, 19, 0, 19);
   const mast = landmarkLoft(clippedPlan(3.2, 4, 1.1), [[43,1,1,0x738a90], [52,0.58,0.55,0xadbbb9], [60,0.29,0.28]], 0xa2b1ad);
-  landmarkMesh(root, mast, steel, 19, 0, 17);
-  landmarkBlocks(root, [[20,39,-6,8.5,7,9,0xb3bab1], [20,42.7,-6,9,1.6,9.5,0xc67c54], [20,44,-6,7.8,1.2,8.6,0x475c66],
-    [19,51.4,17,10,1.1,2.4,0x99a9ad], [-23.8,12,-63,2.3,2,90,0x384e59], [23.8,12,-63,2.3,2,90,0x384e59]]);
+  landmarkMesh(root, mergeGeometries([hullGeo, house.translate(19.5, 0, 7), bridge.translate(19, 0, 19), mast.translate(19, 0, 17)]), steel);
+  const fittings = [[20,39,-6,8.5,7,9,0xb3bab1],[20,42.7,-6,9,1.6,9.5,0xc67c54],[20,44,-6,7.8,1.2,8.6,0x475c66],
+    [19,51.4,17,10,1.1,2.4,0x99a9ad],[17.6,31.0,-11,11.8,1.1,13,0x929e9d],[17.6,33.6,-13,7.7,4.2,7.7,0x677c80]];
+  for (const side of [-1, 1]) {
+    fittings.push([side * 23.8,10.96,-27,6.6,1.25,117,0x879597], [19 + side * 8.7,37.7,19,4.8,1.0,12,0xb8b8a4],
+      [19 + side * 8.1,35.9,19,1.1,3.8,5.5,0x657983]);
+    for (const along of [-78, -52, -26, 0, 26]) {
+      fittings.push([side * 25.4,13.8,along,2.1,5.4,3.2,0x8c9995]);
+    }
+    for (const along of [-69, -17, 15]) fittings.push([side * 21.1,13.25,along,1.45,3.25,6.6,0xa28b72]);
+    for (const along of [13, 19, 25]) fittings.push([19 + side * 8.9,40.2,along,0.9,3.1,1.0,0xa9aaa0]);
+  }
+  landmarkBlocks(root, fittings);
   const dish = landmarkBlocks(root, [[0,0,0,1.7,4.2,1.7,0xaabdc1], [0,2.1,0,12.5,1.5,1.6,0xd1d6c9],
     [-4.3,3.8,0,3.2,2.5,1.4,0x8baab1], [4.3,3.8,0,3.2,2.5,1.4,0x8baab1]]);
   dish.position.set(19, 59, 17); root.userData.radarDish = dish;
   const lights = [[19,58.4,17,1.9,1.4,1.9,0xff945d]];
+  for (const side of [-1, 1]) for (const along of [-69, -17, 15]) lights.push([side * 21.5,15.2,along,1.2,0.65,2.1,0xc0ad89]);
   for (const [port, starboard, along] of [[-27,26,-112],[-29,28,-67],[-32,28,-26],[-36,28,14],[-29,28,52],[-21,23,87],[-17,20,124]]) {
     lights.push([port,20.25,along,1.2,0.5,3.2,0xffce84], [starboard,20.25,along,1.2,0.5,3.2,0xb0dacf]);
   }
@@ -1946,21 +2241,27 @@ function buildDestroyerMesh() {
   const steel = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.15, roughness: 0.74 });
   const hull = [[-7.5,-71],[-10.4,-61],[-12.5,-19],[-12,26],[-8.5,53],[-3.4,71],[0,80],
     [3.4,71],[8.5,53],[12,26],[12.5,-19],[10.4,-61],[7.5,-71]];
-  landmarkMesh(root, landmarkLoft(hull, [[-6,0.55,0.93,0x795957], [1,0.79,0.975,0x455b67],
-    [3.5,0.91,0.99,0x899da4], [9,1,1,0xb9c4ba], [10,1,1]], 0x61737e), steel);
+  const hullGeo = landmarkLoft(hull, [[-6,0.55,0.93,0x795957], [1,0.79,0.975,0x455b67],
+    [3.5,0.91,0.99,0x899da4], [9,1,1,0xb9c4ba], [10,1,1]], 0x61737e);
+  const foredeck = [[-11.2,-26],[-11.8,-18],[-8.3,7],[-3.4,24],[0,33.5],[3.4,24],[8.3,7],[11.8,-18],[11.2,-26]];
+  const bow = landmarkLoft(foredeck, [[9.55,0.97,0.99,0x526771],[11.65,1,1,0xc0beaa],[12.25,1,1]], 0x758486);
   const bridge = landmarkLoft(clippedPlan(9, 17.5, 3.6), [[10,1,1,0xa8b5b3], [18.5,0.75,0.76,0x84989e],
     [20,0.81,0.80,0x385c6c], [23.1,0.74,0.69,0xd0d2bd], [24.3,0.80,0.73]], 0x889b9f);
-  landmarkMesh(root, bridge, steel, 0, 0, 13);
   const mast = landmarkLoft(clippedPlan(3.2, 4.2, 1.4), [[24.3,1,1,0x8d9fa3], [33,0.48,0.48,0xbac6bf],
     [39,0.22,0.22]], 0x899da0);
-  landmarkMesh(root, mast, steel, 0, 0, 11);
   const stack = landmarkLoft(clippedPlan(5, 6, 1.8), [[10,1,1,0x94a4a6], [17.6,0.78,0.78,0xc7875f],
     [19.9,0.78,0.78,0x445861], [21,0.80,0.80]], 0x394b59);
-  landmarkMesh(root, stack, steel, 0, 0, -17);
+  const launch = landmarkLoft([[-1.9,-6.8],[-2.2,-4.4],[-2.3,2.5],[-1.3,6.2],[0,7.8],[1.3,6.2],[2.3,2.5],[2.2,-4.4],[1.9,-6.8]],
+    [[0,0.54,0.87,0x555f60],[1.4,1,1,0xc48256],[2.45,0.94,0.96,0xceb894],[3.30,0.68,0.77]], 0xbeb9a3);
+  landmarkMesh(root, mergeGeometries([hullGeo, bow.translate(0, 0, 46), bridge.translate(0, 0, 13), mast.translate(0, 0, 11),
+    stack.translate(0, 0, -17), launch.clone().translate(-9, 13.35, -13), launch.translate(9, 13.35, -13)]), steel);
   const pad = new THREE.RingGeometry(6.7, 7.6, 20); pad.rotateX(-Math.PI / 2);
   landmarkMesh(root, pad, new THREE.MeshStandardMaterial({ color: 0xe4ddbb, polygonOffset: true, polygonOffsetFactor: -1 }), 0, 10.1, -48);
   landmarkBlocks(root, [[0,31.8,11,8.4,0.95,1.6,0x92a6aa], [0,37.8,11,5.5,1.3,1.3,0xc1cdc6],
-    [0,10.15,56,3,0.30,1.5,0xdac6a0], [0,10.15,52,5.5,0.30,1.5,0xdac6a0], [0,10.15,48,8,0.30,1.5,0xdac6a0],
+    [0,12.39,56,3,0.30,1.5,0xdac6a0], [0,12.39,52,5.5,0.30,1.5,0xdac6a0], [0,12.39,48,8,0.30,1.5,0xdac6a0],
+    ...[-1, 1].flatMap(side => [[side*8.6,12.8,-13,4.3,1.2,14.2,0x7c8987], [side*8.3,11.25,-17,1.2,2.9,1.5,0x899897],
+      [side*8.3,11.25,-9,1.2,2.9,1.5,0x899897], [side*6.9,20.0,14,3.8,0.85,13,0x9ca9a7],
+      [side*9,16.98,-13.7,2.1,0.84,6.8,0x4c666d], [side*9,17.50,-13.7,2.35,0.34,7.2,0xc3bb99]]),
     [-2,10.22,-48,1.0,0.4,6,0xd6d5bd], [2,10.22,-48,1.0,0.4,6,0xd6d5bd], [0,10.22,-48,3.2,0.4,1.1,0xd6d5bd]]);
   landmarkBlocks(root, [[0,40,11,1.4,1.9,1.4,0xff8a59]], new THREE.MeshBasicMaterial());
   return root;
@@ -2098,10 +2399,15 @@ scene.add(fxGroup);
 
 let lang = 'zh';
 let mode = 'hangar'; // 'hangar' | 'playing' | 'paused' | 'debrief'
+let redrawPausedScene = false;
 let selJetIdx = 0;
 let selMissionIdx = 0;
 let mouseSens = 1.0;
 let invertY = false;
+let assistedLaunch = true;
+let launchPending = false;
+let hitNoticeUntil = 0;
+let launchNoticeUntil = 0;
 let cameraMode = '3p'; // '3p' | '1p'
 
 let islands = [];
@@ -2127,6 +2433,7 @@ let lightningVal = 0;
 let nextLightning = 5;
 let radioTimer = 0;
 let hitMarkerTimer = 0;
+const lastHit = { point:new THREE.Vector3(), labelUntil:0 };
 let frameCount = 0;
 
 // Player state
@@ -2164,8 +2471,12 @@ const heldInputs = new Map();
 const capturedPointers = new Map();
 const aim = { x:0, y:0 };
 const stick = { x:0, y:0 };
+const pilotSteering = new Set(['up', 'down', 'left', 'right', 'rollLeft', 'rollRight']);
 let steerDrag = null;
 let comfortSteering = true;
+let leveling = false;
+const steeringDeadZone = 0.08;
+const flightAngles = new THREE.Euler(0, 0, 0, 'YXZ');
 const turnStep = new THREE.Euler(0, 0, 0, 'YXZ');
 
 // Reusable math temporaries
@@ -2174,6 +2485,45 @@ const _v2 = new THREE.Vector3();
 const _v3 = new THREE.Vector3();
 const _q1 = new THREE.Quaternion();
 const _m1 = new THREE.Matrix4();
+
+const AREA_WARNING = 3450, AREA_ASSIST = 4050, AREA_LIMIT = 4600;
+let edgeTurn = 0, edgeHint = '';
+
+function advanceThroughAirspace(forward, dt) {
+  const {x, z} = player.pos, radiusSq = x * x + z * z;
+  edgeHint = '';
+  if (radiusSq >= AREA_WARNING * AREA_WARNING) {
+    const radius = Math.sqrt(radiusSq), flat = Math.hypot(forward.x, forward.z);
+    const outward = flat > 1e-4 ? (forward.x * x + forward.z * z) / (radius * flat) : -1;
+    if (outward > (edgeTurn ? -0.82 : 0)) {
+      edgeHint = 'edgeWarning';
+      if (edgeTurn || radius >= AREA_ASSIST) {
+        const cross = (forward.x * z - forward.z * x) / (radius * flat);
+        // Straight out, either arc works. Prefer the stick, then the current contact; latch the side.
+        if (Math.abs(cross) > 0.20) edgeTurn = Math.sign(cross);
+        else if (Math.abs(stick.x) > 0.15) edgeTurn = -Math.sign(stick.x);
+        else if (!edgeTurn) {
+          const contact = player.primaryTarget;
+          const contactSide = Math.abs(cross) < 0.03 && contact?.alive
+            ? forward.z * (contact.pos.x - x) - forward.x * (contact.pos.z - z) : 0;
+          edgeTurn = Math.sign(contactSide) || Math.sign(cross) || -1;
+        }
+        const rate = 0.28 + 1.9 * THREE.MathUtils.smoothstep(radius, AREA_ASSIST, AREA_LIMIT);
+        _q1.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, edgeTurn * rate * dt);
+        player.quat.premultiply(_q1);
+        forward.applyQuaternion(_q1);
+        edgeHint = 'edgeReturn';
+      }
+    }
+  }
+  if (!edgeHint) edgeTurn = 0;
+  player.pos.addScaledVector(forward, player.speed * dt);
+  const nextSq = player.pos.x ** 2 + player.pos.z ** 2;
+  if (nextSq > AREA_LIMIT * AREA_LIMIT) {
+    const scale = AREA_LIMIT / Math.sqrt(nextSq);
+    player.pos.x *= scale; player.pos.z *= scale;
+  }
+}
 
 function showRadio(text, warn = false, dur = 4.2) {
   const el = document.getElementById('radioBox');
@@ -2230,12 +2580,35 @@ function setAtmosphere(mCfg) {
 }
 
 // --- Particle & Explosion FX ---
+function makeShockwaveGeometry() {
+  const inner = 4.2, outer = 5.5;
+  const geometry = new THREE.RingGeometry(inner, outer, 48, 2);
+  const positions = geometry.getAttribute('position');
+  const colors = new THREE.Float32BufferAttribute(new Float32Array(positions.count * 4), 4);
+  for (let index = 0; index < positions.count; index++) {
+    const horizontal = positions.getX(index), vertical = positions.getY(index);
+    const angle = Math.atan2(vertical, horizontal);
+    const band = (Math.hypot(horizontal, vertical) - inner) / (outer - inner);
+    const crest = Math.max(0, 1 - Math.abs(2 * band - 1));
+    const ripple = 1 + 0.015 * Math.sin(5 * angle) + 0.008 * Math.cos(9 * angle);
+    positions.setXY(index, horizontal * ripple, vertical * ripple);
+    const density = 0.54 + 0.27 * Math.sin(3 * angle + 0.7) + 0.15 * Math.cos(5 * angle - 0.8);
+    colors.setXYZW(index, 1, 1, 1, crest * density);
+  }
+  geometry.setAttribute('color', colors);
+  return geometry;
+}
+
+function shockwaveOpacity(remaining) {
+  return (reduceFlashes.matches ? 0.14 : 0.48) * Math.max(0, remaining) ** 1.25;
+}
+
 const sharedSphereGeo = new THREE.SphereGeometry(1, 8, 6);
 const sharedTracerGeo = new THREE.BoxGeometry(0.28, 0.28, 12);
 const sharedMissileGeo = new THREE.CylinderGeometry(0.18, 0.24, 3.6, 6);
 sharedMissileGeo.rotateX(Math.PI / 2);
 const sharedEffectGeometry = new Set([sharedSphereGeo, sharedTracerGeo, sharedMissileGeo]);
-const sharedSceneTextures = new Set([cloudTex, glowTex, carrierDeckTex, runwayTex]);
+const sharedSceneTextures = new Set([cloudTex, glowTex, carrierDeckTex, runwayTex, cockpitCoat]);
 
 function releaseSceneResources(root) {
   const owned = new Set();
@@ -2253,6 +2626,9 @@ function releaseSceneResources(root) {
   });
   for (const resource of owned) resource.dispose();
 }
+
+const sharedShockwaveGeo = makeShockwaveGeometry();
+sharedEffectGeometry.add(sharedShockwaveGeo);
 
 const particleCapacity = { low: 180, med: 280, high: 420 };
 const flareBurstSize = 8;
@@ -2348,7 +2724,12 @@ function renderParticleLayers() {
   for (const layer of [smokeLayer, glowLayer]) {
     layer.visible = layer.geometry.instanceCount > 0;
     if (layer.visible) {
-      for (const name of ['centerSize', 'tintAlpha', 'spin']) layer.geometry.attributes[name].needsUpdate = true;
+      for (const name of ['centerSize', 'tintAlpha', 'spin']) {
+        const attribute = layer.geometry.attributes[name];
+        attribute.clearUpdateRanges();
+        attribute.addUpdateRange(0, layer.geometry.instanceCount * attribute.itemSize);
+        attribute.needsUpdate = true;
+      }
     }
   }
 }
@@ -2372,8 +2753,8 @@ function spawnExplosion(pos, scale = 1.0, big = false) {
   }
   // Expanding Shockwave Ring
   const ring = new THREE.Mesh(
-    new THREE.RingGeometry(2, 5.5, 28),
-    new THREE.MeshBasicMaterial({ color: 0xffd28a, transparent: true, opacity: 0.9, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false })
+    sharedShockwaveGeo,
+    new THREE.MeshBasicMaterial({ color: 0xf3ddc6, vertexColors: true, transparent: true, opacity: shockwaveOpacity(1), depthWrite: false })
   );
   ring.position.copy(pos);
   ring.lookAt(camera.position);
@@ -2434,7 +2815,7 @@ function spawnEnemy(type, pos, extra = {}) {
   mesh.position.copy(pos);
   worldGroup.add(mesh);
   const e = {
-    type, label, mesh, pos: pos.clone(), quat: new THREE.Quaternion(),
+    type, label, mesh, pos: pos.clone(), previousPos: pos.clone(), quat: new THREE.Quaternion(),
     hp, maxHp: hp, speed, radius, score, isAir, isBoss, alive: true,
     fireCd: 1.5 + Math.random() * 2.5,
     mslCd: 5 + Math.random() * 6,
@@ -2520,13 +2901,18 @@ function loadMissionScene(mIdx, previewOnly = false) {
   missionTimer = 0; missionScore = 0; missionKills = 0;
   m1Wave2Spawned = false; m3AceSpawned = false;
   timeScale = 1.0; slowMoTimer = 0; shakeAmt = 0;
+  offscreenHit.hidden = true;
+  lastHit.labelUntil = 0;
   hitMarkerTimer = 0;
+  hitNoticeUntil = 0;
+  launchNoticeUntil = 0;
   document.getElementById('alertBanner').style.display = 'none';
 
   player.pos.set(0, 250, 1650);
   player.quat.identity();
   player.speed = JETS[selJetIdx].cruiseSpeed;
   player.throttle = 0.55;
+  edgeTurn = 0; edgeHint = '';
   player.alive = true;
   player.pitchRate = 0; player.yawRate = 0; player.rollRate = 0;
   player.gunCd = 0; player.terrainGrace = 0;
@@ -2574,20 +2960,45 @@ function sampleTerrainHeight(wx, wz) {
 // ============================================================================
 // 7. WEAPONS, LOCK-ON, FLARES & DAMAGE
 // ============================================================================
+function readCannonAxis(origin, forward) {
+  forward.set(0, 0, -1).applyQuaternion(player.quat);
+  origin.copy(player.pos).addScaledVector(forward, 7);
+}
+
 function fireCannon() {
   if (player.gunCd > 0) return;
   player.gunCd = 0.085;
   sfx.playCannon();
-  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quat);
-  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(player.quat);
-  const side = (frameCount % 2 === 0 ? 1 : -1) * 1.1;
-  const pos = player.pos.clone().addScaledVector(fwd, 7).addScaledVector(right, side);
-  const vel = fwd.clone().multiplyScalar(player.speed + 920);
+  const pos = new THREE.Vector3(), vel = new THREE.Vector3();
+  readCannonAxis(pos, vel);
+  vel.multiplyScalar(player.speed + 920);
   const mesh = new THREE.Mesh(sharedTracerGeo, new THREE.MeshBasicMaterial({ color: 0xffe48a }));
   mesh.position.copy(pos);
   mesh.quaternion.copy(player.quat);
   fxGroup.add(mesh);
   bullets.push({ mesh, pos, vel, fromPlayer: true, dmg: 14, life: 1.45 });
+}
+
+function launchRange() {
+  return player.activeWeapon === 'spw' ? JETS[selJetIdx].spw.range : 1250;
+}
+
+function launchState() {
+  const special = player.activeWeapon === 'spw';
+  if (special && player.spwAmmo <= 0) return 'empty';
+  if (special ? player.spwReload > 0 : player.mslAmmo <= 0) return 'reload';
+  const target = player.primaryTarget;
+  if (!target?.alive) return 'search';
+  if (target.pos.distanceToSquared(player.pos) > launchRange() ** 2) return 'approach';
+  if (player.lockedTargets[0] !== target) return 'align';
+  return player.lockProgress >= 0.99 ? 'ready' : 'tracking';
+}
+
+function requestLaunch() {
+  if (!assistedLaunch) return fireMissile();
+  const state = launchState();
+  if (state === 'ready') fireMissile();
+  else launchPending = state !== 'empty';
 }
 
 function fireMissile() {
@@ -2617,6 +3028,7 @@ function fireMissile() {
       offsetSide: (player.mslAmmo % 2 === 0 ? -1.8 : 1.8), color: 0xffb23e
     });
   }
+  launchNoticeUntil = missionTimer + 0.65;
   updateWeaponUI();
 }
 
@@ -2667,10 +3079,13 @@ function deployFlares() {
   if (spoofedAny) showRadio(I18N[lang].radioFlare, false, 2.6);
 }
 
-function damageEnemy(e, dmg) {
+function damageEnemy(e, dmg, contactPoint) {
   if (!e.alive) return;
+  lastHit.point.copy(contactPoint);
+  lastHit.labelUntil = missionTimer + 0.6;
   e.hp -= dmg;
   hitMarkerTimer = 0.16;
+  hitNoticeUntil = missionTimer + 1;
   sfx.playHit();
   if (e.hp <= 0) {
     e.alive = false;
@@ -2739,28 +3154,38 @@ function endMission(won) {
 // ============================================================================
 // 8. UPDATE LOOPS (FLIGHT, AI, PROJECTILES, CAMERA, HUD, RADAR)
 // ============================================================================
-function updatePlayer(dt, rawDt) {
-  const spec = JETS[selJetIdx];
-  // Throttle & Afterburner
-  let targetThrottle = 0.52;
-  if (isHeld('boost')) targetThrottle = 1.0;
-  else if (isHeld('brake')) targetThrottle = 0.08;
-  player.throttle += (targetThrottle - player.throttle) * Math.min(1, dt * 4.0);
-  const targetSpd = spec.minSpeed + (spec.maxSpeed - spec.minSpeed) * player.throttle;
-  player.speed += (targetSpd - player.speed) * Math.min(1, dt * 2.4);
+function analogSteeringGain() {
+  if (!comfortSteering) return 1;
+  const radius = Math.hypot(aim.x, aim.y);
+  if (radius <= steeringDeadZone) return 0;
+  if (radius >= 1) return 1;
+  const travel = (radius - steeringDeadZone) / (1 - steeringDeadZone);
+  return travel * (0.5 + 0.5 * travel) / radius;
+}
 
-  // Arcade Mouse-Aim Flight Control (smooth banking + pitch/yaw)
-  stick.x = Number(isHeld('right')) - Number(isHeld('left')) || aim.x;
-  stick.y = Number(isHeld('down')) - Number(isHeld('up')) || aim.y;
+function updateFlightSteering(dt, spec, euler) {
+  const gain = analogSteeringGain();
+  stick.x = Number(isHeld('right')) - Number(isHeld('left')) || aim.x * gain;
+  stick.y = Number(isHeld('down')) - Number(isHeld('up')) || aim.y * gain;
   const mx = THREE.MathUtils.clamp(stick.x * mouseSens, -1, 1);
   const my = THREE.MathUtils.clamp((invertY ? -stick.y : stick.y) * mouseSens, -1, 1);
-
   const manualRoll = Number(isHeld('rollLeft')) - Number(isHeld('rollRight'));
+  if (mx || my || manualRoll) leveling = false;
+  if (leveling) {
+    // In YXZ order yaw is the horizontal heading. Only relax pitch and bank.
+    const tilt = Math.max(Math.abs(euler.x), Math.abs(euler.z));
+    leveling = tilt > 0.002;
+    const remaining = leveling ? Math.max(Math.exp(-3.2 * dt), 1 - 2.4 * dt / tilt) : 0;
+    euler.x *= remaining;
+    euler.z *= remaining;
+    player.quat.setFromEuler(euler);
+    player.pitchRate = player.yawRate = player.rollRate = 0;
+    return;
+  }
   const desiredPitch = -my * spec.turnRate * 1.15;
   const desiredYaw = -mx * spec.turnRate * 0.92;
 
   // Natural auto-bank into turns + manual roll override
-  const euler = new THREE.Euler().setFromQuaternion(player.quat, 'YXZ');
   let desiredRollRate = manualRoll * spec.rollRate;
   if (manualRoll === 0) {
     const targetBank = THREE.MathUtils.clamp(-mx * 1.15, -1.18, 1.18);
@@ -2778,15 +3203,21 @@ function updatePlayer(dt, rawDt) {
     turnStep.y = 0;
   }
   player.quat.multiply(_q1.setFromEuler(turnStep)).normalize();
+}
 
-  // Move forward
-  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quat);
-  player.pos.addScaledVector(fwd, player.speed * dt);
+function updatePlayer(dt, rawDt) {
+  const spec = JETS[selJetIdx];
+  // Throttle & Afterburner
+  let targetThrottle = 0.52;
+  if (isHeld('boost')) targetThrottle = 1.0;
+  else if (isHeld('brake')) targetThrottle = 0.08;
+  player.throttle += (targetThrottle - player.throttle) * Math.min(1, dt * 4.0);
+  const targetSpd = spec.minSpeed + (spec.maxSpeed - spec.minSpeed) * player.throttle;
+  player.speed += (targetSpd - player.speed) * Math.min(1, dt * 2.4);
+  const euler = flightAngles.setFromQuaternion(player.quat);
+  updateFlightSteering(dt, spec, euler);
 
-  // World soft boundary (turn back gently beyond 4600m)
-  if (player.pos.length() > 4600) {
-    player.pos.setLength(4600);
-  }
+  advanceThroughAirspace(_v1.set(0, 0, -1).applyQuaternion(player.quat), dt);
   if (player.pos.y > 1650) player.pos.y = 1650;
 
   // Ocean & Terrain Collision Protection
@@ -2824,6 +3255,9 @@ function updatePlayer(dt, rawDt) {
   ud.finL.quaternion.setFromAxisAngle(ud.finL.userData.axis, yaw);
   ud.finR.quaternion.setFromAxisAngle(ud.finR.userData.axis, yaw);
   ud.cockpit.userData.powerBar.scale.x = player.throttle;
+  euler.setFromQuaternion(player.quat, 'YXZ');
+  ud.cockpit.userData.horizon.rotation.z = -euler.z;
+  ud.cockpit.userData.horizon.position.y = -0.008 - THREE.MathUtils.clamp(euler.x, -0.65, 0.65) * 0.034;
 
   // Wingtip Condensation Vapor in high-G turns & low-altitude ocean spray
   const gLoad = Math.abs(player.pitchRate) + Math.abs(player.yawRate);
@@ -2855,13 +3289,17 @@ function updatePlayer(dt, rawDt) {
 
   // Target Acquisition & Multi-Lock System
   updateLockOn(dt);
+  if (launchPending && launchState() === 'ready') {
+    launchPending = false;
+    fireMissile();
+  }
   sfx.updateEngine(true, player.throttle);
 }
 
 function updateLockOn(dt) {
   const spec = JETS[selJetIdx];
   const isSpw = player.activeWeapon === 'spw';
-  const maxRange = isSpw ? spec.spw.range : 1250;
+  const maxRange = launchRange();
   const maxAngle = isSpw && spec.spw.code === 'QAAM' ? 0.52 : 0.34;
   const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quat);
 
@@ -2904,6 +3342,7 @@ function updateEnemies(dt) {
   let wakeIdx = 0;
   for (const e of enemies) {
     if (!e.alive) continue;
+    e.previousPos.copy(e.pos);
 
     if (e.isAir) {
       const toPlayer = _v1.subVectors(player.pos, e.pos);
@@ -2998,21 +3437,49 @@ function updateEnemies(dt) {
   for (; wakeIdx < wakeUniformData.length; wakeIdx++) wakeUniformData[wakeIdx].set(99999, 99999, 0, 0);
 }
 
+const shotStart = new THREE.Vector3(), shotStep = new THREE.Vector3();
+const relativeStart = new THREE.Vector3(), relativeStep = new THREE.Vector3();
+
+function firstPlayerContact(start, end, padding, life, dt, waterLevel) {
+  if (life <= 0 || start.y < waterLevel) return null;
+  shotStep.subVectors(end, start);
+  let limit = dt > 0 ? Math.min(1, life / dt) : 1;
+  if (end.y < waterLevel) limit = Math.min(limit, (waterLevel - start.y) / shotStep.y);
+  let first = null, earliest = Infinity;
+  for (const contact of enemies) {
+    if (!contact.alive) continue;
+    const frameStart = dt > 0 ? contact.previousPos : contact.pos;
+    relativeStart.subVectors(start, frameStart);
+    const outside = relativeStart.lengthSq() - (contact.radius + padding) ** 2;
+    let entry = 0;
+    if (outside > 0) {
+      // Subtract the contact's movement so both game objects span the same simulation tick.
+      relativeStep.subVectors(frameStart, contact.pos).add(shotStep);
+      const toward = -relativeStart.dot(relativeStep);
+      if (toward <= 0) continue;
+      const discriminant = toward * toward - relativeStep.lengthSq() * outside;
+      if (discriminant < 0) continue;
+      entry = outside / (toward + Math.sqrt(discriminant));
+    }
+    if (entry <= limit && entry < earliest) { first = contact; earliest = entry; }
+  }
+  if (first) end.copy(start).addScaledVector(shotStep, earliest);
+  return first;
+}
+
 function updateProjectilesAndFX(dt) {
   // Bullets
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
-    b.life -= dt;
+    shotStart.copy(b.pos);
     b.pos.addScaledVector(b.vel, dt);
+    const contact = b.fromPlayer && firstPlayerContact(shotStart, b.pos, 7, b.life, dt, 0);
+    b.life -= dt;
     b.mesh.position.copy(b.pos);
     let hit = false;
-    if (b.fromPlayer) {
-      for (const e of enemies) {
-        if (e.alive && b.pos.distanceTo(e.pos) < e.radius + 7) {
-          damageEnemy(e, b.dmg); hit = true; break;
-        }
-      }
-    } else if (player.alive && b.pos.distanceTo(player.pos) < 10) {
+    if (contact) {
+      damageEnemy(contact, b.dmg, b.pos); hit = true;
+    } else if (!b.fromPlayer && player.alive && b.pos.distanceTo(player.pos) < 10) {
       damagePlayer(b.dmg); hit = true;
     }
     if (hit || b.life <= 0 || b.pos.y < 0) {
@@ -3025,7 +3492,6 @@ function updateProjectilesAndFX(dt) {
   let incomingThreat = false;
   for (let i = missiles.length - 1; i >= 0; i--) {
     const m = missiles[i];
-    m.life -= dt;
     if (!m.fromPlayer && !m.spoofed && m.pos.distanceTo(player.pos) < 1200) incomingThreat = true;
 
     if (m.target && ((m.fromPlayer && m.target.alive) || (!m.fromPlayer && player.alive && !m.spoofed))) {
@@ -3035,11 +3501,14 @@ function updateProjectilesAndFX(dt) {
     } else if (m.spoofed) {
       m.dir.y -= dt * 0.6; m.dir.normalize();
     }
+    shotStart.copy(m.pos);
     m.pos.addScaledVector(m.dir, m.speed * dt);
+    const contact = m.fromPlayer && firstPlayerContact(shotStart, m.pos, 14, m.life, dt, 1);
+    m.life -= dt;
     m.mesh.position.copy(m.pos);
     m.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), m.dir);
 
-    m.trailCarry += m.speed * dt;
+    m.trailCarry += contact ? shotStart.distanceTo(m.pos) : m.speed * dt;
     while (m.trailCarry >= 9) {
       m.trailCarry -= 9;
       trailPoint.copy(m.pos).addScaledVector(m.dir, -m.trailCarry - 2.6);
@@ -3047,16 +3516,12 @@ function updateProjectilesAndFX(dt) {
     }
 
     let hit = false;
-    if (m.fromPlayer) {
-      for (const e of enemies) {
-        if (e.alive && m.pos.distanceTo(e.pos) < e.radius + 14) {
-          const mult = (!e.isAir && m.antiShip) ? m.antiShip : 1.0;
-          damageEnemy(e, m.dmg * mult);
-          spawnExplosion(m.pos, 0.85, false);
-          hit = true; break;
-        }
-      }
-    } else if (player.alive && !m.spoofed && m.pos.distanceTo(player.pos) < 15) {
+    if (contact) {
+      const mult = (!contact.isAir && m.antiShip) ? m.antiShip : 1.0;
+      damageEnemy(contact, m.dmg * mult, m.pos);
+      spawnExplosion(m.pos, 0.85, false);
+      hit = true;
+    } else if (!m.fromPlayer && player.alive && !m.spoofed && m.pos.distanceTo(player.pos) < 15) {
       damagePlayer(m.dmg); hit = true;
     }
     if (hit || m.life <= 0 || m.pos.y < 1) {
@@ -3095,10 +3560,10 @@ function updateProjectilesAndFX(dt) {
     sw.life -= dt;
     const t = 1 - sw.life / sw.maxLife;
     sw.mesh.scale.setScalar(1 + t * sw.maxScale);
-    sw.mesh.material.opacity = (1 - t) * 0.9;
+    sw.mesh.material.opacity = shockwaveOpacity(1 - t);
     sw.mesh.lookAt(camera.position);
     if (sw.life <= 0) {
-      fxGroup.remove(sw.mesh); sw.mesh.geometry.dispose(); sw.mesh.material.dispose(); shockwaves.splice(i, 1);
+      fxGroup.remove(sw.mesh); sw.mesh.material.dispose(); shockwaves.splice(i, 1);
     }
   }
 
@@ -3194,39 +3659,58 @@ function strokeHUD(color, width) {
   hudCtx.strokeStyle = color; hudCtx.lineWidth = width; hudCtx.stroke();
 }
 
+const sightOrigin = new THREE.Vector3(), sightForward = new THREE.Vector3(), hudPoint = new THREE.Vector3();
+const offscreenHit = document.getElementById('offscreenHit');
+
+function drawCannonSight(width, height) {
+  readCannonAxis(sightOrigin, sightForward);
+  const target = player.primaryTarget;
+  const depth = target?.alive ? hudPoint.subVectors(target.pos, sightOrigin).dot(sightForward) : 0;
+  // The chase camera has parallax: project the actual line at the selected depth, never onto the target itself.
+  hudPoint.copy(sightOrigin).addScaledVector(sightForward, depth > 0 ? depth : 500).project(camera);
+  const sx = (1 + hudPoint.x) * width / 2, sy = (1 - hudPoint.y) * height / 2;
+  const mx = (0.5 + stick.x * 0.42) * width, my = (0.5 + stick.y * 0.42) * height;
+  if (stick.x ** 2 + stick.y ** 2 > 0.035 ** 2 && (mx - sx) ** 2 + (my - sy) ** 2 > 24 ** 2) {
+    hudCtx.beginPath(); hudCtx.arc(mx, my, 6, 0, Math.PI * 2); strokeHUD('#8ee4ff', 1.5);
+  }
+  hudCtx.beginPath();
+  hudCtx.moveTo(sx - 18, sy); hudCtx.lineTo(sx - 6, sy);
+  hudCtx.moveTo(sx + 6, sy); hudCtx.lineTo(sx + 18, sy);
+  hudCtx.moveTo(sx, sy - 12); hudCtx.lineTo(sx, sy - 4);
+  strokeHUD('#86f8b8', 1.8);
+}
+
+function drawConfirmedHit(width, height) {
+  if (missionTimer >= lastHit.labelUntil) {
+    if (!offscreenHit.hidden) offscreenHit.hidden = true;
+    return;
+  }
+  hudPoint.copy(lastHit.point).project(camera);
+  const visible = hudPoint.z >= -1 && hudPoint.z <= 1 && Math.abs(hudPoint.x) <= 1 && Math.abs(hudPoint.y) <= 1;
+  if (offscreenHit.hidden !== visible) offscreenHit.hidden = visible;
+  if (!visible) return;
+  const sx = (1 + hudPoint.x) * width / 2, sy = (1 - hudPoint.y) * height / 2;
+  if (hitMarkerTimer > 0) {
+    hudCtx.beginPath();
+    hudCtx.moveTo(sx - 12, sy - 12); hudCtx.lineTo(sx - 5, sy - 5);
+    hudCtx.moveTo(sx + 12, sy - 12); hudCtx.lineTo(sx + 5, sy - 5);
+    hudCtx.moveTo(sx - 12, sy + 12); hudCtx.lineTo(sx - 5, sy + 5);
+    hudCtx.moveTo(sx + 12, sy + 12); hudCtx.lineTo(sx + 5, sy + 5);
+    strokeHUD('#ffdf9a', 2.2);
+  }
+  const label = I18N[lang].impactHit;
+  hudCtx.font = 'bold 12px Consolas, monospace'; hudCtx.textAlign = 'center'; hudCtx.textBaseline = 'middle';
+  const left = THREE.MathUtils.clamp(sx, 18, width - 18), top = sy > height - 31 ? sy - 22 : sy + 22;
+  hudCtx.strokeStyle = '#111c24'; hudCtx.lineWidth = 3; hudCtx.strokeText(label, left, top);
+  hudCtx.fillStyle = '#ffdf9a'; hudCtx.fillText(label, left, top);
+}
+
 function drawHUD() {
   const w = hudCanvas.width, h = hudCanvas.height;
   hudCtx.clearRect(0, 0, w, h);
   if (mode !== 'playing') return;
-
   const cx = w / 2, cy = h / 2;
   hudCtx.save();
-
-  // Mouse-aim steering ring
-  const mx = cx + stick.x * (w * 0.42);
-  const my = cy + stick.y * (h * 0.42);
-  hudCtx.beginPath(); hudCtx.arc(mx, my, 15, 0, Math.PI * 2);
-  hudCtx.moveTo(mx - 22, my); hudCtx.lineTo(mx - 12, my); hudCtx.moveTo(mx + 12, my); hudCtx.lineTo(mx + 22, my);
-  strokeHUD('#8ee4ff', 1.5);
-
-  // Center aircraft boresight crosshair & Pitch Ladder
-  hudCtx.beginPath();
-  hudCtx.moveTo(cx - 18, cy); hudCtx.lineTo(cx - 6, cy);
-  hudCtx.moveTo(cx + 6, cy); hudCtx.lineTo(cx + 18, cy);
-  hudCtx.moveTo(cx, cy - 12); hudCtx.lineTo(cx, cy - 4);
-  strokeHUD('#86f8b8', 1.8);
-
-  // Hit marker flash
-  if (hitMarkerTimer > 0) {
-    hudCtx.strokeStyle = '#ff5247'; hudCtx.lineWidth = 2.4;
-    const s = 12;
-    hudCtx.beginPath();
-    hudCtx.moveTo(cx - s, cy - s); hudCtx.lineTo(cx - 4, cy - 4);
-    hudCtx.moveTo(cx + s, cy - s); hudCtx.lineTo(cx + 4, cy - 4);
-    hudCtx.moveTo(cx - s, cy + s); hudCtx.lineTo(cx - 4, cy + 4);
-    hudCtx.moveTo(cx + s, cy + s); hudCtx.lineTo(cx + 4, cy + 4);
-    hudCtx.stroke();
-  }
 
   // Artificial Horizon Pitch Ladder (stronger in 1P Cockpit, subtle in 3P)
   const euler = new THREE.Euler().setFromQuaternion(player.quat, 'YXZ');
@@ -3249,6 +3733,7 @@ function drawHUD() {
 
   // Enemy Target Boxes, Multi-Lock Diamonds & Dynamic Cannon Lead Reticle
   let selectedTag = null;
+  let cue = null;
   for (const e of enemies) {
     if (!e.alive) continue;
     const p3 = e.pos.clone().project(camera);
@@ -3259,7 +3744,8 @@ function drawHUD() {
     const isLocked = player.lockedTargets.includes(e);
     const isPrimary = e === player.primaryTarget;
 
-    if (inFront && sx > 20 && sx < w - 20 && sy > 20 && sy < h - 20) {
+    const withinX = sx > 20 && sx < w - 20, withinY = sy > 20 && sy < h - 20;
+    if (inFront && withinX && withinY) {
       const boxCol = isLocked && player.lockProgress >= 0.99 ? '#ff766c' : e.isBoss ? '#ffbe5a' : isPrimary ? '#76ffaf' : '#9ae4ff';
       const sz = isPrimary ? 15 : 8;
       hudCtx.beginPath(); hudCtx.rect(sx - sz, sy - sz, sz * 2, sz * 2);
@@ -3298,9 +3784,20 @@ function drawHUD() {
       }
     } else if (isPrimary || e.isBoss) {
       // Off-screen directional arrow on viewport rim
-      let dx = sx - cx, dy = sy - cy;
-      if (!inFront) { dx = -dx; dy = -dy; }
-      const ang = Math.atan2(dy, dx);
+      const offset = contactOffset.copy(e.pos).applyMatrix4(camera.matrixWorldInverse);
+      let ang = Math.atan2(-offset.y, offset.x);
+      if (isPrimary) {
+        if (inFront && withinX) ang = offset.y > 0 ? -Math.PI / 2 : Math.PI / 2;
+        else if (inFront && withinY) ang = offset.x < 0 ? Math.PI : 0;
+        if (offset.z > Math.max(Math.abs(offset.x), Math.abs(offset.y))) {
+          const left = chooseRearTurn(e, offset);
+          cue = left ? 'rearLeft' : 'rearRight'; ang = left ? Math.PI : 0;
+        } else {
+          cue = compassWords[(Math.round(ang / (Math.PI / 4)) + 8) % 8];
+          lastRearContact = null;
+        }
+        if (h <= 460 && document.documentElement.classList.contains('touch-flight')) continue;
+      }
       const rEdge = Math.min(cx, cy) - 42;
       const ax = cx + Math.cos(ang) * rEdge, ay = cy + Math.sin(ang) * rEdge;
       hudCtx.save();
@@ -3311,6 +3808,7 @@ function drawHUD() {
       hudCtx.restore();
     }
   }
+  showContactCue(cue);
   if (selectedTag) {
     const { sx, sy, sz, color, text } = selectedTag;
     hudCtx.font = 'bold 12px Consolas, monospace';
@@ -3322,10 +3820,35 @@ function drawHUD() {
     hudCtx.fillStyle = '#f1f8ff'; hudCtx.textAlign = 'left'; hudCtx.textBaseline = 'middle';
     hudCtx.fillText(text, left + 6, top + 9);
   }
+  drawCannonSight(w, h);
+  drawConfirmedHit(w, h);
   hudCtx.restore();
 
   // Tactical Radar Minimap
   drawRadar();
+}
+
+const contactOffset = new THREE.Vector3();
+const contactCue = document.getElementById('contactCue');
+const compassWords = ['right','lowerRight','below','lowerLeft','left','upperLeft','above','upperRight'];
+let lastRearContact = null, turnLeft = false;
+
+function chooseRearTurn(contact, offset) {
+  // Near dead aft either turn works; don't reverse the instruction on every camera shake.
+  if (contact !== lastRearContact || Math.abs(offset.x) > offset.z * 0.16) turnLeft = offset.x < 0;
+  lastRearContact = contact;
+  return turnLeft;
+}
+
+function showContactCue(direction) {
+  if (!direction) {
+    lastRearContact = null;
+    if (!contactCue.hidden) contactCue.hidden = true;
+    return;
+  }
+  const message = I18N[lang].offscreen[direction];
+  if (contactCue.textContent !== message) contactCue.textContent = message;
+  if (contactCue.hidden) contactCue.hidden = false;
 }
 
 function drawRadar() {
@@ -3396,6 +3919,21 @@ function updateWeaponUI() {
   document.getElementById('wpSpw').classList.toggle('on', player.activeWeapon === 'spw');
 }
 
+const launchGuide = document.getElementById('launchGuide');
+function updateLaunchGuide() {
+  if (!assistedLaunch) return;
+  const state = missionTimer < hitNoticeUntil ? 'hit' : missionTimer < launchNoticeUntil ? 'sent' : launchState();
+  const words = I18N[lang].guide;
+  const touch = document.documentElement.classList.contains('touch-flight');
+  let action = '';
+  if (['approach','align','tracking','ready'].includes(state)) {
+    action = launchPending ? words.held : state === 'ready' ? words[touch ? 'touchFire' : 'keyFire'] : words[touch ? 'touchHold' : 'keyHold'];
+  }
+  const message = action ? `${words[state]} · ${action}` : words[state];
+  if (launchGuide.dataset.state !== state) launchGuide.dataset.state = state;
+  if (launchGuide.textContent !== message) launchGuide.textContent = message;
+}
+
 function updateHUDDom() {
   const text = I18N[lang];
   document.getElementById('hudSpeed').textContent = `${text.speed} ${Math.round(player.speed)}`;
@@ -3410,12 +3948,18 @@ function updateHUDDom() {
   document.getElementById('flareFill').style.width = `${flPct}%`;
   document.getElementById('flareTxt').textContent = player.flareCd <= 0 ? I18N[lang].ready : `${player.flareCd.toFixed(1)}s`;
 
-  document.getElementById('objMission').textContent = MISSIONS[selMissionIdx].name[lang];
+  const missionLabel = document.getElementById('objMission');
+  const label = edgeHint ? text[edgeHint] : MISSIONS[selMissionIdx].name[lang];
+  if (missionLabel.textContent !== label) {
+    missionLabel.textContent = label;
+    missionLabel.classList.toggle('airspace', !!edgeHint);
+  }
   const finalStage = (selMissionIdx === 0 && m1Wave2Spawned) || (selMissionIdx === 2 && m3AceSpawned);
   document.getElementById('objText').textContent = text[`objM${selMissionIdx + 1}${finalStage ? 'Final' : ''}`];
   document.getElementById('hudTargets').textContent = `${text.targets} ${missionKills}/${totalMissionTargets}`;
   document.getElementById('hudScore').textContent = `${text.score} ${missionScore}`;
   document.getElementById('hudTime').textContent = formatTime(missionTimer);
+  updateLaunchGuide();
   document.getElementById('camBadge').textContent = cameraMode === '1p' ? I18N[lang].cam1p : I18N[lang].cam3p;
   updateWeaponUI();
 }
@@ -3478,6 +4022,7 @@ function renderHangarUI() {
 function setScreen(next) {
   clearFlightInputs();
   mode = next;
+  redrawPausedScene = next === 'paused';
   const playing = next === 'playing', paused = next === 'paused', hangar = next === 'hangar';
   const top = document.getElementById('topBar'), utilities = document.getElementById('utilities');
   (paused ? document.getElementById('pauseUtilities') : top).append(utilities);
@@ -3487,6 +4032,7 @@ function setScreen(next) {
   document.getElementById('backHome').classList.toggle('hidden', !hangar);
   document.getElementById('pauseBtn').classList.toggle('hidden', !playing);
   document.getElementById('hud').classList.toggle('hidden', !playing);
+  if (!playing) showContactCue(null);
   document.getElementById('hangar').classList.toggle('hidden', !hangar);
   document.getElementById('pauseModal').classList.toggle('hidden', !paused);
   document.getElementById('debriefModal').classList.toggle('hidden', next !== 'debrief');
@@ -3557,6 +4103,14 @@ document.getElementById('muteBtn').onclick = () => {
   document.getElementById('muteBtn').innerHTML = `${sfx.muted ? '🔇' : '🔊'} <span data-i18n="${sfx.muted ? 'soundOff' : 'soundOn'}">${sfx.muted ? I18N[lang].soundOff : I18N[lang].soundOn}</span>`;
 };
 document.getElementById('sensSlider').oninput = e => { mouseSens = parseFloat(e.target.value); };
+const assistToggles = document.querySelectorAll('.assist-option input');
+for (const toggle of assistToggles) toggle.onchange = () => {
+  assistedLaunch = toggle.checked;
+  launchPending = false;
+  launchGuide.hidden = !assistedLaunch;
+  for (const other of assistToggles) other.checked = assistedLaunch;
+  updateLaunchGuide();
+};
 document.getElementById('invertBtn').onclick = e => {
   invertY = !invertY; e.target.textContent = I18N[lang][invertY ? 'on' : 'off'];
 };
@@ -3566,7 +4120,7 @@ const flightKeys = {
   ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right',
   KeyW:'boost', KeyS:'brake', KeyA:'rollLeft', KeyD:'rollRight', KeyJ:'cannon',
   Space:'launch', KeyQ:'swap', Tab:'swap', KeyE:'target', KeyV:'view', KeyC:'view',
-  KeyF:'flare', ShiftLeft:'flare', ShiftRight:'flare'
+  KeyF:'flare', ShiftLeft:'flare', ShiftRight:'flare', KeyR:'level'
 };
 const touchControls = document.getElementById('touchControls');
 const stickBase = document.getElementById('stickBase'), stickKnob = document.getElementById('stickKnob');
@@ -3583,12 +4137,14 @@ function isHeld(action) {
 
 function pressFlight(source, action) {
   if (mode !== 'playing' || heldInputs.has(source)) return;
+  const alreadyHeld = isHeld(action);
   heldInputs.set(source, action);
   touchControls.querySelector(`[data-flight="${action}"]`)?.classList.add('held');
   if (action === 'cannon') fireCannon();
-  if (action === 'launch') fireMissile();
+  if (action === 'launch' && (!assistedLaunch || !alreadyHeld)) requestLaunch();
   if (action === 'flare') deployFlares();
   if (action === 'swap') {
+    launchPending = false;
     player.activeWeapon = player.activeWeapon === 'msl' ? 'spw' : 'msl';
     player.lockProgress = 0;
     player.lockedTargets = [];
@@ -3598,7 +4154,14 @@ function pressFlight(source, action) {
     cameraMode = cameraMode === '3p' ? '1p' : '3p';
     updateHUDDom();
   }
+  if (action === 'level') {
+    // An absolute mouse position can be parked off-center; a held touch still owns its stick.
+    if (!steerDrag) aim.x = aim.y = 0;
+    leveling = true;
+  }
+  if (leveling && pilotSteering.has(action)) leveling = false;
   if (action === 'target') {
+    launchPending = false;
     const alive = enemies.filter(enemy => enemy.alive);
     if (alive.length) {
       player.primaryTarget = alive[(alive.indexOf(player.primaryTarget) + 1) % alive.length];
@@ -3613,13 +4176,16 @@ function releaseFlight(source) {
   const action = heldInputs.get(source);
   if (!action) return;
   heldInputs.delete(source);
+  if (action === 'launch' && !isHeld('launch')) launchPending = false;
   if (!isHeld(action)) touchControls.querySelector(`[data-flight="${action}"]`)?.classList.remove('held');
 }
 
 function clearFlightInputs() {
+  launchPending = false;
   heldInputs.clear();
   touchControls.querySelectorAll('.held').forEach(button => button.classList.remove('held'));
   steerDrag = null;
+  leveling = false;
   aim.x = aim.y = stick.x = stick.y = 0;
   stickBase.classList.remove('active');
   for (const [pointerId, owner] of capturedPointers) {
@@ -3663,6 +4229,7 @@ glCanvas.addEventListener('pointermove', event => {
     aim.x = dx / radius; aim.y = dy / radius;
     stickKnob.style.transform = `translate(${aim.x * 32}px,${aim.y * 32}px)`;
   }
+  if (leveling && (aim.x || aim.y) && analogSteeringGain() > 0) leveling = false;
 });
 glCanvas.addEventListener('pointerleave', event => {
   if (event.pointerType === 'mouse' && !steerDrag && !capturedPointers.has(event.pointerId)) aim.x = aim.y = 0;
@@ -3717,6 +4284,7 @@ document.addEventListener('visibilitychange', () => {
 
 function onResize() {
   if (renderingUnavailable) return;
+  if (mode === 'paused') redrawPausedScene = true;
   const width = Math.max(1, innerWidth), height = Math.max(1, innerHeight);
   const tier = renderTiers[quality];
   const dpr = Math.min(window.devicePixelRatio || 1, tier.dpr, Math.sqrt(tier.pixels / (width * height)), renderer.capabilities.maxTextureSize / Math.max(width, height));
@@ -3794,13 +4362,14 @@ function animate(now) {
   lastTime = now;
   frameCount++;
 
-  if (slowMoTimer > 0) {
+  if (renderingUnavailable || (mode === 'paused' && !redrawPausedScene)) return;
+  redrawPausedScene = false;
+  if (mode !== 'paused' && slowMoTimer > 0) {
     slowMoTimer -= rawDt;
     if (slowMoTimer <= 0) timeScale = 1.0;
   }
   const dt = rawDt * timeScale;
 
-  if (renderingUnavailable) return;
   if (mode === 'playing') for (const wake of wakeUniformData) wake.w = 0;
 
   if (mode === 'playing') {
@@ -3815,9 +4384,10 @@ function animate(now) {
     updateProjectilesAndFX(dt);
     updateHUDDom();
   }
-  updateCamera(rawDt);
-
-  updateEnvironment(mode === 'paused' ? 0 : rawDt);
+  if (mode !== 'paused') {
+    updateCamera(rawDt);
+    updateEnvironment(rawDt);
+  }
   if (composer) {
     try {
       composer.render();

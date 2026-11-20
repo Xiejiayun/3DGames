@@ -2,11 +2,87 @@ import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+
+function inspectCoastAndAirfield(airfield, coast, shoot) {
+  const { x, y, z } = airfield.position;
+  const ray = new THREE.Raycaster();
+  function hit(origin, direction) {
+    ray.set(airfield.localToWorld(new THREE.Vector3(...origin)), new THREE.Vector3(...direction));
+    const contact = ray.intersectObject(airfield, true)[0];
+    return contact ? airfield.worldToLocal(contact.point) : null;
+  }
+  const bays = [-51, 0, 51].map(bay => ({
+    back: [3, -4].map(offset => hit([24, 5.3, bay + offset], [1, 0, 0])?.x),
+    jambs: [-13.6, 13.6].map(offset => hit([24, 5.3, bay + offset], [1, 0, 0])?.x),
+    walls: [-1, 1].map(side => hit([46, 5.3, bay], [0, 0, side])?.z - bay),
+    lintel: hit([24, 10.4, bay], [1, 0, 0])?.x,
+    ceiling: hit([45, 5, bay + 3], [0, 1, 0])?.y, floor: hit([45, 5, bay + 3], [0, -1, 0])?.y
+  }));
+  const taxiway = [-75, 75].flatMap(crossing => [20, 24, 28, 32].map(across => hit([across, 5, crossing], [0, -1, 0])?.y));
+  function profile(degrees) {
+    const angle = THREE.MathUtils.degToRad(degrees), east = Math.cos(angle), south = Math.sin(angle);
+    const height = distance => coast.sampleHeight(distance * east, distance * south);
+    let shore = coast.radius * 1.2;
+    while (shore > 0 && height(shore) < 0.5) shore -= 2;
+    return { east, south, shore, height: inland => height(shore - inland) };
+  }
+  const headlands = [36, 38, 40].map(degrees => {
+    const { height } = profile(degrees);
+    return { lower: height(36) - height(18), bench: height(72) - height(36), upper: height(96) - height(72) };
+  });
+  const beach = profile(10), coveRise = beach.height(36) - beach.height(0);
+  const fixture = new THREE.Scene(), target = new THREE.WebGLRenderTarget(12, 12);
+  fixture.add(new THREE.Mesh(coast.mesh.geometry, coast.mesh.material), new THREE.AmbientLight(0xffffff, 2));
+  const top = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 101);
+  function beachLight(level) {
+    let inland = 0;
+    while (inland < coast.radius && beach.height(inland) < level) inland++;
+    const distance = beach.shore - inland, px = distance * beach.east, pz = distance * beach.south;
+    top.position.set(px, 100, pz); top.up.set(0, 0, -1); top.lookAt(px, 0, pz);
+    renderer.setRenderTarget(target); renderer.render(fixture, top);
+    const pixels = new Uint8Array(12 * 12 * 4); renderer.readRenderTargetPixels(target, 0, 0, 12, 12, pixels);
+    let light = 0;
+    for (let offset = 0; offset < pixels.length; offset += 4) light += (pixels[offset] + 2 * pixels[offset + 1] + pixels[offset + 2]) / 4;
+    return light / (12 * 12);
+  }
+  const wetLight = beachLight(1.2), dryLight = beachLight(9.5);
+  renderer.setRenderTarget(null); target.dispose();
+
+  function views(suffix) {
+    shoot(`runway-side-door${suffix}`, [x + 5, y + 7.5, z + 15], [x + 48, y + 5.2, z], 52);
+    shoot(`airfield-approach${suffix}`, [x - 60, y + 37, z + 188], [x + 18, y + 4, z - 16], 54);
+    shoot(`sea-level-coast${suffix}`, [-395, 19, 212], [-940, 72, -350], 53);
+  }
+  function distantPan(name, eye, aim) {
+    const gl = renderer.getContext(), width = 140, height = 60;
+    const sample = offset => {
+      shoot(offset ? null : name, [eye[0] + offset, eye[1], eye[2]], [aim[0] + offset, aim[1], aim[2]], 42);
+      const pixels = new Uint8Array(width * height * 4);
+      gl.readPixels((gl.drawingBufferWidth - width) >> 1, (gl.drawingBufferHeight - height) >> 1, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      return pixels;
+    };
+    const before = sample(0), after = sample(0.35);
+    let min = 255, max = 0, changed = 0;
+    for (let pixel = 0; pixel < before.length; pixel += 4) {
+      min = Math.min(min, before[pixel + 1]); max = Math.max(max, before[pixel + 1]);
+      if ([0, 1, 2].some(channel => Math.abs(before[pixel + channel] - after[pixel + channel]) > 24)) changed++;
+    }
+    return { contrast: max - min, changed: changed / (width * height) };
+  }
+  const visible = player.mesh.visible; player.mesh.visible = false;
+  views(''); cycleQuality(); cycleQuality(); views('-low');
+  const far = [distantPan('airfield-distant-low', [x - 440, y + 190, z + 750], [x + 15, y + 4, z]),
+    distantPan('coast-distant-low', [-115, 115, 622], [-830, 34, -260])];
+  cycleQuality(); player.mesh.visible = visible;
+  return { bays, taxiway, headlands, coveRise, wetLight, dryLight, far };
+}
 
 function inspectMission(index) {
   loadMissionScene(index, false);
+  updateShoreMap();
   scene.updateMatrixWorld(true);
   const land = islands.map(island => island.mesh);
   const landmark = index === 2 ? null : worldGroup.getObjectByName(index === 0 ? 'Island airfield' : 'Sea arch');
@@ -15,6 +91,16 @@ function inspectMission(index) {
   function surfaceAt(x, z) {
     down.ray.origin.set(x, 1000, z);
     return down.intersectObjects(land, false)[0]?.point.y ?? -20;
+  }
+  const sections = inspectMission.sections = {};
+  function localContact(root, eye, direction, axis) {
+    root.updateMatrixWorld(true);
+    const ray = new THREE.Raycaster(root.localToWorld(new THREE.Vector3(...eye)), new THREE.Vector3(...direction).transformDirection(root.matrixWorld));
+    const hit = ray.intersectObject(root, true)[0];
+    return hit ? root.worldToLocal(hit.point)[axis] : null;
+  }
+  function localView(name, root, eye, aim, fov) {
+    shoot(name, root.localToWorld(new THREE.Vector3(...eye)).toArray(), root.localToWorld(new THREE.Vector3(...aim)).toArray(), fov);
   }
   for (const island of islands) {
     for (let point = 0; point < 36; point++) {
@@ -63,13 +149,14 @@ function inspectMission(index) {
     sunLight.target.position.set(...target);
     sunLight.position.copy(sunLight.target.position).addScaledVector(skyUniforms.uSunDir.value, 1400);
     if (composer) composer.render(); else renderer.render(scene, camera);
-    photos[name] = renderer.domElement.toDataURL('image/png').split(',')[1];
+    if (name) photos[name] = renderer.domElement.toDataURL('image/png').split(',')[1];
   }
-  let shadowPixels = null, passage = null, archWaterbed = null, groundedFeet = null, shipLengths = null;
+  let airfield = null, shadowPixels = null, passage = null, archWaterbed = null, groundedFeet = null, shipLengths = null;
   if (index === 0) {
     const { x, y, z } = landmark.position;
     shoot('airfield', [x + 226, y + 145, z + 254], [x + 12, y + 5, z]);
     shoot('coast', [-390, 162, 222], [-940, 95, -350]);
+    airfield = inspectCoastAndAirfield(landmark, islands[1], shoot);
     const island = islands[0];
     const fixture = new THREE.Scene();
     const ground = new THREE.Mesh(island.mesh.geometry, island.mesh.material);
@@ -121,6 +208,8 @@ function inspectMission(index) {
       }
       return Math.min(...offsets) < -2 && Math.max(...offsets) > 8;
     });
+    sections.arch = [-132, 126].map(across => [8, 28, 54].map(height => localContact(landmark, [across, height, 150], [0, 0, -1], 'z')));
+    localView('arch-wavecut', landmark, [-78, 42, 141], [-125, 48, 30], 54);
     for (const type of ['radar', 'sam']) {
       const { x, y, z } = stations.find(station => station.type === type).pos;
       shoot(type, [x + 57, y + 36, z + 62], [x, y + 8, z], 42);
@@ -135,14 +224,46 @@ function inspectMission(index) {
     shoot('fleet', [225, 209, 146], [0, 12, -550], 55);
     shoot('carrier', [147, 132, -433], [0, 20, -680], 48);
     shoot('escort', [-249, 49, -346], [-340, 13, -460], 44);
+    const carrier = carrierRef.mesh, escort = destroyerRefs[0].mesh;
+    sections.gallery = [[10.9,-39],[13.7,-39],[13.7,-26],[19,-39]].map(([height, along]) => localContact(carrier, [-65, height, along], [1, 0, 0], 'x'));
+    sections.escortDeck = [62, -60].map(along => localContact(escort, [0, 60, along], [0, -1, 0], 'y'));
+    sections.boats = [-1,1].map(side => localContact(escort, [side * 50, 15, -13], [-side, 0, 0], 'x'));
+    localView('carrier-gallery', carrier, [-94, 29, -70], [0, 15, -21], 55);
+    localView('escort-workdeck', escort, [56, 31, -76], [0, 14, -10], 53);
+
+    const width = 480, height = 270, target = new THREE.WebGLRenderTarget(width, height);
+    const fixture = new THREE.Scene(); fixture.background = new THREE.Color(0);
+    fixture.overrideMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+    const view = new THREE.PerspectiveCamera(36, width / height, 1, 1600);
+    function bowOutline(root, range) {
+      const model = root.clone(); model.position.set(0, 0, 0); model.rotation.set(0, 0, 0); fixture.add(model);
+      view.position.set(0, 22, range); view.lookAt(0, 20, 0);
+      renderer.setRenderTarget(target); renderer.render(fixture, view);
+      const pixels = new Uint8Array(width * height * 4); renderer.readRenderTargetPixels(target, 0, 0, width, height, pixels);
+      fixture.remove(model);
+      model.traverse(part => { if (part.isInstancedMesh) part.dispose(); });
+      let left = width, right = -1, bottom = height, top = -1;
+      const ink = (column, row) => pixels[4 * (row * width + column)] > 12;
+      for (let row = 0; row < height; row++) for (let column = 0; column < width; column++) if (ink(column, row)) {
+        left = Math.min(left, column); right = Math.max(right, column); bottom = Math.min(bottom, row); top = Math.max(top, row);
+      }
+      let sum = 0, count = 0;
+      for (let row = Math.ceil(bottom + 0.63 * (top - bottom)); row <= top; row++) for (let column = left; column <= right; column++) if (ink(column, row)) { sum += column; count++; }
+      return { beam: right - left + 1, rise: top - bottom + 1, towerOffset: count ? (sum / count - (width - 1) / 2) / (right - left + 1) : null };
+    }
+    sections.bows = [425, 800].map(range => ({ range, carrier: bowOutline(carrier, range), escort: bowOutline(escort, range) }));
+    renderer.setRenderTarget(null); target.dispose(); fixture.overrideMaterial.dispose();
   }
   const maxTriangles = Math.max(...land.map(mesh => mesh.geometry.index.count / 3));
-  return { photos, meshError, padError, shadowPixels, passage, archWaterbed, groundedFeet, maxTriangles, shipLengths, draws, sharedAssets,
+  return { photos, airfield, meshError, padError, shadowPixels, passage, archWaterbed, groundedFeet, maxTriangles, shipLengths, draws, sharedAssets,
     stations: stations.length, lowestStation: stations.length ? Math.min(...stations.map(station => station.pos.y)) : null, dish: !!carrierRef?.mesh.userData.radarDish };
 }
 
 const source = await readFile(new URL('../games/ace.html', import.meta.url), 'utf8');
-const pageSource = source.replace(/<\/script>(\s*<\/body>)/, `window.inspectLandmarks = ${inspectMission.toString()};</script>$1`);
+const pageSource = source.replace(/<\/script>(\s*<\/body>)/, `const inspectCoastAndAirfield = ${inspectCoastAndAirfield}; window.inspectLandmarks = ${inspectMission};</script>$1`);
+const threeRoot = resolve(fileURLToPath(import.meta.resolve('three')), '../..');
+const { version } = JSON.parse(await readFile(join(threeRoot, 'package.json'), 'utf8'));
+const threePrefix = `https://unpkg.com/three@${version}/`;
 const server = createServer((req, res) => {
   if (req.url !== '/games/ace.html') { res.writeHead(404).end(); return; }
   res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end(pageSource);
@@ -156,6 +277,13 @@ try {
   browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
   const errors = [];
+  await page.route('https://**', route => {
+    const url = route.request().url(), file = resolve(threeRoot, url.slice(threePrefix.length));
+    if (url.startsWith(threePrefix) && file.startsWith(threeRoot + sep) && file.endsWith('.js')) {
+      return route.fulfill({ path: file, contentType: 'application/javascript', headers: { 'Access-Control-Allow-Origin': '*' } });
+    }
+    errors.push(`Unexpected request: ${url}`); return route.abort();
+  });
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.addInitScript(() => {
@@ -168,7 +296,10 @@ try {
   assert.deepEqual(errors, []);
   const results = [];
   for (let index = 0; index < 3; index++) {
-    const { photos, ...metrics } = await page.evaluate(id => window.inspectLandmarks(id), index);
+    const { photos, ...metrics } = await page.evaluate(id => {
+      const report = window.inspectLandmarks(id);
+      return { ...report, sections: window.inspectLandmarks.sections };
+    }, index);
     for (const [name, png] of Object.entries(photos)) await writeFile(join(output, `${name}.png`), Buffer.from(png, 'base64'));
     results.push(metrics);
   }
@@ -182,11 +313,34 @@ try {
     assert.ok(mission.maxTriangles <= 6272, 'terrain stays within the original island mesh budget');
   }
   assert.ok(results[0].shadowPixels > 100, 'an actual r160 shadow map must darken the terrain');
+  const { bays, taxiway, headlands, coveRise, wetLight, dryLight, far } = results[0].airfield;
+  for (const { back, jambs, walls, lintel, floor, ceiling } of bays) {
+    assert.ok(back.every(depth => depth > 54 && depth < 62) && jambs.every(depth => depth > 34 && depth < 36), 'a deep, open bay between solid jambs');
+    assert.ok(lintel > 33 && lintel < 37 && walls[0] < -10 && walls[0] > -14 && walls[1] > 10 && walls[1] < 14, 'lintel and two interior walls');
+    assert.ok(floor > 0.5 && floor < 1 && ceiling > 9 && ceiling < 15, 'grounded floor and actual roof underside');
+  }
+  assert.ok(taxiway.every(height => height > 0.5 && height < 0.8), 'both runway-to-apron connectors stay continuous');
+  assert.ok(headlands.filter(({ lower, bench, upper }) => lower > 12 && bench > -2 && bench < 9 && upper > 10).length >= 2 && coveRise < 8,
+    'exposed transects rise in two steps separated by a broad bench; the sheltered cove remains gradual');
+  assert.ok(wetLight > 2 && dryLight > wetLight + 30, 'wet and dry beach retain broad luminance separation under the same light');
+  assert.ok(far.every(({ contrast, changed }) => contrast > 30 && changed < 0.05), 'textured distant views stay stable during a subpixel pan on low quality');
   assert.equal(results[1].stations, 6); assert.ok(results[1].lowestStation > 10, 'stations must be above the surf');
   assert.equal(results[1].passage, true); assert.ok(results[1].archWaterbed < -2, 'tidal channel must run through the arch');
   assert.equal(results[1].groundedFeet, true); assert.equal(results[2].dish, true);
   const [carrier, ...escorts] = results[2].shipLengths;
   assert.ok(carrier >= 295 && carrier <= 305 && escorts.length === 2 && escorts.every(length => length >= 140 && length <= 160), 'fleet scale');
+  for (const [toe, recess, overhang] of results[1].sections.arch) {
+    assert.ok([toe, recess, overhang].every(Number.isFinite) && Math.min(toe, overhang) - recess > 9, 'wave-cut recess below each solid shoulder');
+  }
+  const { gallery, escortDeck, boats, bows } = results[2].sections;
+  assert.ok(results[1].draws[0] === 1 && results[2].draws[0] <= 6 && results[2].draws.slice(1).every(draws => draws <= 4), 'extra rock and ship detail stays in the measured static batches');
+  const [shelf, bulkhead, pier, roof] = gallery;
+  assert.ok(gallery.every(Number.isFinite) && bulkhead - shelf > 4 && bulkhead - pier > 4 && shelf - roof > 3, 'a real open gallery under the deck overhang');
+  assert.ok(escortDeck.every(Number.isFinite) && escortDeck[0] - escortDeck[1] > 1.8 && boats[0] < -9 && boats[1] > 9, 'raised foredeck and launches above the work deck');
+  for (const { carrier, escort } of bows) {
+    assert.ok(escort.beam > 7 && carrier.beam > 2 * escort.beam && carrier.rise > escort.rise, 'unlabelled carrier and escort silhouettes differ at approach range');
+    assert.ok(carrier.towerOffset > 0.15 && Number.isFinite(escort.towerOffset) && Math.abs(escort.towerOffset) < 0.1, 'offset carrier island versus centered escort bridge, independent of paint');
+  }
 } finally {
   await browser?.close();
   server.closeAllConnections(); await new Promise(done => server.close(done));

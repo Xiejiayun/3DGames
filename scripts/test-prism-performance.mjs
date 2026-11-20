@@ -4,6 +4,7 @@ import { checkReflections } from './test-prism-reflections.mjs';
 import { checkFloorResources } from './test-prism-floors.mjs';
 import { checkDustResources } from './test-prism-dust.mjs';
 import { checkBloomReadability } from './test-prism-bloom.mjs';
+import { checkPondSurface } from './test-prism-pond.mjs';
 
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
@@ -103,6 +104,7 @@ try {
   await checkFloorResources(browser);
   await checkDustResources(browser);
   await checkBloomReadability(browser);
+  await checkPondSurface(browser);
 } finally {
   await browser.close();
 }

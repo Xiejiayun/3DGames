@@ -135,6 +135,7 @@ canvas{display:block}
 #radioBox:not(.show){display:none}
 #radioBox.show{opacity:1}
 #radioBox.warn{border-left-color:var(--danger);color:#ffd2d2}
+#objMission.airspace{color:#ffdc91;font:700 12px/1.3 var(--font);letter-spacing:.02em;text-transform:none}
 
 #alertBanner{
   padding:5px 16px;border-radius:6px;background:rgba(180,18,18,.78);border:1px solid #ff7a7a;
@@ -316,7 +317,7 @@ canvas{display:block}
 <section id="hud" class="hidden">
   <div id="missionHud">
     <div id="objBox">
-      <div id="objMission">MISSION 01</div>
+      <div id="objMission" role="status" aria-atomic="true">MISSION 01</div>
       <div id="objText">—</div>
       <div id="contactCue" role="status" aria-atomic="true" hidden></div>
       <div id="objStats">
@@ -444,6 +445,7 @@ const I18N = {
     sens:'转向灵敏度', invertY:'反转俯仰 Y 轴', quality:'渲染画质',
     toHangar:'返回机库', restart:'重新出击', resume:'继续战斗',
     dKills:'击毁目标', dTime:'任务耗时', dHull:'剩余装甲', dScore:'战役积分',
+    edgeWarning:'空域边缘 · 请掉头', edgeReturn:'正在辅助掉头 · 仍可转向',
     retry:'再战一次', nextMission:'下一关',
     statSpd:'极速', statMob:'机动', statArm:'装甲',
     cam3p:'第三人称 [V]', cam1p:'3D 座舱 [V]',
@@ -483,6 +485,7 @@ const I18N = {
     steeringResponse:'Steering response', comfortResponse:'Comfort (fine control)', classicResponse:'Classic (linear)', levelFlight:'Level',
     toHangar:'Hangar', restart:'Restart', resume:'Resume',
     dKills:'Targets Destroyed', dTime:'Mission Time', dHull:'Hull Integrity', dScore:'Mission Score',
+    edgeWarning:'Airspace edge · turn back', edgeReturn:'Turning back · you can steer',
     retry:'Retry Mission', nextMission:'Next Mission',
     statSpd:'SPEED', statMob:'AGILITY', statArm:'ARMOR',
     cam3p:'3RD PERSON [V]', cam1p:'3D COCKPIT [V]',
@@ -2483,6 +2486,45 @@ const _v3 = new THREE.Vector3();
 const _q1 = new THREE.Quaternion();
 const _m1 = new THREE.Matrix4();
 
+const AREA_WARNING = 3450, AREA_ASSIST = 4050, AREA_LIMIT = 4600;
+let edgeTurn = 0, edgeHint = '';
+
+function advanceThroughAirspace(forward, dt) {
+  const {x, z} = player.pos, radiusSq = x * x + z * z;
+  edgeHint = '';
+  if (radiusSq >= AREA_WARNING * AREA_WARNING) {
+    const radius = Math.sqrt(radiusSq), flat = Math.hypot(forward.x, forward.z);
+    const outward = flat > 1e-4 ? (forward.x * x + forward.z * z) / (radius * flat) : -1;
+    if (outward > (edgeTurn ? -0.82 : 0)) {
+      edgeHint = 'edgeWarning';
+      if (edgeTurn || radius >= AREA_ASSIST) {
+        const cross = (forward.x * z - forward.z * x) / (radius * flat);
+        // Straight out, either arc works. Prefer the stick, then the current contact; latch the side.
+        if (Math.abs(cross) > 0.20) edgeTurn = Math.sign(cross);
+        else if (Math.abs(stick.x) > 0.15) edgeTurn = -Math.sign(stick.x);
+        else if (!edgeTurn) {
+          const contact = player.primaryTarget;
+          const contactSide = Math.abs(cross) < 0.03 && contact?.alive
+            ? forward.z * (contact.pos.x - x) - forward.x * (contact.pos.z - z) : 0;
+          edgeTurn = Math.sign(contactSide) || Math.sign(cross) || -1;
+        }
+        const rate = 0.28 + 1.9 * THREE.MathUtils.smoothstep(radius, AREA_ASSIST, AREA_LIMIT);
+        _q1.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, edgeTurn * rate * dt);
+        player.quat.premultiply(_q1);
+        forward.applyQuaternion(_q1);
+        edgeHint = 'edgeReturn';
+      }
+    }
+  }
+  if (!edgeHint) edgeTurn = 0;
+  player.pos.addScaledVector(forward, player.speed * dt);
+  const nextSq = player.pos.x ** 2 + player.pos.z ** 2;
+  if (nextSq > AREA_LIMIT * AREA_LIMIT) {
+    const scale = AREA_LIMIT / Math.sqrt(nextSq);
+    player.pos.x *= scale; player.pos.z *= scale;
+  }
+}
+
 function showRadio(text, warn = false, dur = 4.2) {
   const el = document.getElementById('radioBox');
   el.textContent = text;
@@ -2870,6 +2912,7 @@ function loadMissionScene(mIdx, previewOnly = false) {
   player.quat.identity();
   player.speed = JETS[selJetIdx].cruiseSpeed;
   player.throttle = 0.55;
+  edgeTurn = 0; edgeHint = '';
   player.alive = true;
   player.pitchRate = 0; player.yawRate = 0; player.rollRate = 0;
   player.gunCd = 0; player.terrainGrace = 0;
@@ -3170,14 +3213,7 @@ function updatePlayer(dt, rawDt) {
   const euler = flightAngles.setFromQuaternion(player.quat);
   updateFlightSteering(dt, spec, euler);
 
-  // Move forward
-  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quat);
-  player.pos.addScaledVector(fwd, player.speed * dt);
-
-  // World soft boundary (turn back gently beyond 4600m)
-  if (player.pos.length() > 4600) {
-    player.pos.setLength(4600);
-  }
+  advanceThroughAirspace(_v1.set(0, 0, -1).applyQuaternion(player.quat), dt);
   if (player.pos.y > 1650) player.pos.y = 1650;
 
   // Ocean & Terrain Collision Protection
@@ -3908,7 +3944,12 @@ function updateHUDDom() {
   document.getElementById('flareFill').style.width = `${flPct}%`;
   document.getElementById('flareTxt').textContent = player.flareCd <= 0 ? I18N[lang].ready : `${player.flareCd.toFixed(1)}s`;
 
-  document.getElementById('objMission').textContent = MISSIONS[selMissionIdx].name[lang];
+  const missionLabel = document.getElementById('objMission');
+  const label = edgeHint ? text[edgeHint] : MISSIONS[selMissionIdx].name[lang];
+  if (missionLabel.textContent !== label) {
+    missionLabel.textContent = label;
+    missionLabel.classList.toggle('airspace', !!edgeHint);
+  }
   const finalStage = (selMissionIdx === 0 && m1Wave2Spawned) || (selMissionIdx === 2 && m3AceSpawned);
   document.getElementById('objText').textContent = text[`objM${selMissionIdx + 1}${finalStage ? 'Final' : ''}`];
   document.getElementById('hudTargets').textContent = `${text.targets} ${missionKills}/${totalMissionTargets}`;

@@ -214,10 +214,11 @@ canvas{display:block}
 .touch-flight #camBadge{display:none}
 .touch-flight #touchControls{position:fixed;display:flex;align-items:center;justify-content:space-between;gap:4px;left:max(6px,env(safe-area-inset-left));right:max(6px,env(safe-area-inset-right));bottom:max(4px,env(safe-area-inset-bottom))}
 .touch-bank{display:grid;grid-auto-columns:minmax(44px,auto);grid-template-rows:repeat(2,44px);grid-auto-flow:column;gap:3px}
+.touch-center{min-width:44px;max-width:92px;margin-right:auto;grid-template-columns:minmax(0,1fr)}
 .touch-bank button{pointer-events:auto;touch-action:none;padding:0 3px;border:1px solid var(--line-hi);border-radius:8px;background:var(--panel-hi);color:var(--cyan);font:700 11px var(--font);-webkit-touch-callout:none}
 .touch-bank button.held{background:var(--cyan);color:var(--bg)}
 .touch-bank [data-flight="cannon"],.touch-bank [data-flight="launch"]{color:var(--amber);border-color:var(--amber)}
-#touchHint{max-width:92px;text-align:center;font:700 11px var(--font);color:var(--fg);text-shadow:0 1px 3px #000;background:var(--panel);padding:3px;border-radius:4px}
+#touchHint{place-self:center;text-align:center;font:700 11px var(--font);color:var(--fg);text-shadow:0 1px 3px #000;background:var(--panel);padding:3px;border-radius:4px}
 #stickBase.active{position:fixed;display:grid;place-items:center;width:84px;height:84px;margin:-42px;border-radius:50%;border:1px solid var(--cyan);background:rgba(4,16,24,.24)}
 #stickKnob{width:18px;height:18px;border-radius:50%;background:var(--cyan)}
 
@@ -348,7 +349,10 @@ canvas{display:block}
       <button data-flight="boost" data-i18n="boost">加速</button><button data-flight="brake" data-i18n="brake">减速</button>
       <button data-flight="rollLeft" data-i18n="rollLeft">左滚</button><button data-flight="rollRight" data-i18n="rollRight">右滚</button>
     </div>
-    <span id="touchHint" data-i18n="touchHint">拖动天空转向</span>
+    <div class="touch-bank touch-center">
+      <span id="touchHint" data-i18n="touchHint">拖动转向</span>
+      <button data-flight="level" data-i18n="levelFlight" aria-keyshortcuts="R">改平</button>
+    </div>
     <div class="touch-bank">
       <button data-flight="target" data-i18n="target">目标</button><button data-flight="view" data-i18n="view">视角</button>
       <button data-flight="swap" data-i18n="swap">切换</button><button data-flight="flare" data-i18n="flare">热诱弹</button>
@@ -366,6 +370,13 @@ canvas{display:block}
     <div class="opt-row">
       <label data-i18n="sens" for="sensSlider">转向灵敏度</label>
       <input type="range" id="sensSlider" min="0.5" max="1.8" step="0.1" value="1.0">
+    </div>
+    <div class="opt-row">
+      <label data-i18n="steeringResponse" for="steeringResponse">转向手感</label>
+      <select class="btn-ghost" id="steeringResponse">
+        <option value="comfort" data-i18n="comfortResponse">舒适（中心微调）</option>
+        <option value="classic" data-i18n="classicResponse">经典（线性）</option>
+      </select>
     </div>
     <div class="opt-row">
       <span data-i18n="invertY">反转俯仰 Y 轴</span>
@@ -422,6 +433,7 @@ const I18N = {
     subtitle:'驾驶隐身战机穿梭晴空群岛、黄昏峡湾与雷暴航母编队——体验鼠标引导空战、多目标导弹齐射与 3D 座舱双视角。',
     selectJet:'战机机库', selectMission:'战役任务', sortie:'立即出击 · SORTIE',
     flare:'热诱弹', hull:'装甲', paused:'战术暂停',
+    steeringResponse:'转向手感', comfortResponse:'舒适（中心微调）', classicResponse:'经典（线性）', levelFlight:'改平',
     sens:'转向灵敏度', invertY:'反转俯仰 Y 轴', quality:'渲染画质',
     toHangar:'返回机库', restart:'重新出击', resume:'继续战斗',
     dKills:'击毁目标', dTime:'任务耗时', dHull:'剩余装甲', dScore:'战役积分',
@@ -432,10 +444,10 @@ const I18N = {
     assistName:'辅助发射', assistHelp:'按住发射，锁定后发出一次；松手取消。',
     guide:{search:'寻找下一个方框', approach:'目标还远，继续接近', align:'转向选中的目标方框', tracking:'保持朝向，正在锁定', ready:'已锁定', sent:'已发射', reload:'正在装填', empty:'特武已用完，切回 MSL', hit:'✓ 已命中', held:'已按住', keyHold:'按住空格', touchHold:'按住「发射」', keyFire:'按空格发射', touchFire:'点「发射」'},
     alertMissile:'导弹来袭 · 释放热诱弹', alertPullUp:'高度过低 · 拉起',
-    flightHelp:'操作指南', touchHint:'拖动天空转向', boost:'加速', brake:'减速', rollLeft:'左滚', rollRight:'右滚', target:'目标', view:'视角', swap:'换装', cannon:'机炮', launch:'发射',
-    flightKeys:'↑↓←→ 转向 · J 机炮 · 空格 发射 · E 目标',
+    flightHelp:'操作指南', touchHint:'拖动转向', boost:'加速', brake:'减速', rollLeft:'左滚', rollRight:'右滚', target:'目标', view:'视角', swap:'换装', cannon:'机炮', launch:'发射',
+    flightKeys:'↑↓←→ 转向 · R 改平 · J 机炮 · 空格 发射 · E 目标',
     targets:'目标', score:'积分', speed:'速度', altitude:'高度', on:'开', off:'关',
-    controls:'<span><kbd>鼠标 / 方向键</kbd>转向</span><span><kbd>W/S</kbd>加速/减速</span><span><kbd>A/D</kbd>滚转</span><span><kbd>左键 / J</kbd>按住机炮</span><span><kbd>右键 / 空格</kbd>发射</span><span><kbd>Q / Tab</kbd>换装</span><span><kbd>E</kbd>切换目标</span><span><kbd>F / Shift</kbd>热诱弹</span><span><kbd>V / C</kbd>视角</span><span><kbd>Esc / P</kbd>暂停</span><span>触屏：在天空中拖动转向，松开回中；另一只手可同时按住机炮或点按动作键。</span>',
+    controls:'<span><kbd>鼠标 / 方向键</kbd>转向</span><span><kbd>R / 改平</kbd>保持朝向，恢复水平；转向或滚转即可接管</span><span><kbd>W/S</kbd>加速/减速</span><span><kbd>A/D</kbd>滚转</span><span><kbd>左键 / J</kbd>按住机炮</span><span><kbd>右键 / 空格</kbd>发射</span><span><kbd>Q / Tab</kbd>换装</span><span><kbd>E</kbd>切换目标</span><span><kbd>F / Shift</kbd>热诱弹</span><span><kbd>V / C</kbd>视角</span><span><kbd>Esc / P</kbd>暂停</span><span>触屏：在天空中拖动转向，松开回中；另一只手可同时按住机炮或点按动作键。</span>',
     winTitle:'任务完成 · MISSION CLEAR', failTitle:'战机坠毁 · MISSION FAILED',
     winSub:'空域已肃清，干得漂亮，王牌！', failSub:'机身结构解体，调整战术再次出击。',
     radioLaunch:'AWACS 预警机：弹射起飞完成，全频段雷达已上线，祝武运昌隆！',
@@ -457,6 +469,7 @@ const I18N = {
     selectJet:'AIRCRAFT HANGAR', selectMission:'CAMPAIGN MISSIONS', sortie:'LAUNCH SORTIE',
     flare:'Flares', hull:'Hull', paused:'TACTICAL PAUSE',
     sens:'Steering sensitivity', invertY:'Invert Pitch Y', quality:'Graphics Quality',
+    steeringResponse:'Steering response', comfortResponse:'Comfort (fine control)', classicResponse:'Classic (linear)', levelFlight:'Level',
     toHangar:'Hangar', restart:'Restart', resume:'Resume',
     dKills:'Targets Destroyed', dTime:'Mission Time', dHull:'Hull Integrity', dScore:'Mission Score',
     retry:'Retry Mission', nextMission:'Next Mission',
@@ -466,10 +479,10 @@ const I18N = {
     assistName:'Assisted launch', assistHelp:'Hold to fire once on lock. Release to cancel.',
     guide:{search:'Find the next marker', approach:'Fly closer', align:'Turn toward the marked target', tracking:'Keep it ahead to lock', ready:'Locked', sent:'Launched', reload:'Reloading', empty:'Special empty; switch to MSL', hit:'✓ Hit confirmed', held:'Holding', keyHold:'Hold Space', touchHold:'Hold Launch', keyFire:'Press Space to fire', touchFire:'Tap Launch'},
     alertMissile:'INCOMING · USE FLARES', alertPullUp:'LOW ALTITUDE · PULL UP',
-    flightHelp:'Flight controls', touchHint:'Drag sky to steer', boost:'Boost', brake:'Brake', rollLeft:'Roll L', rollRight:'Roll R', target:'Target', view:'View', swap:'Swap', cannon:'Cannon', launch:'Launch',
-    flightKeys:'↑↓←→ Steer · J Cannon · Space Launch · E Target',
+    flightHelp:'Flight controls', touchHint:'Drag to steer', boost:'Boost', brake:'Brake', rollLeft:'Roll L', rollRight:'Roll R', target:'Target', view:'View', swap:'Swap', cannon:'Cannon', launch:'Launch',
+    flightKeys:'↑↓←→ Steer · R Level · J Cannon · Space Launch · E Target',
     targets:'TGT', score:'Score', speed:'SPD', altitude:'ALT', on:'On', off:'Off',
-    controls:'<span><kbd>Mouse / Arrows</kbd>Steer</span><span><kbd>W/S</kbd>Boost/Brake</span><span><kbd>A/D</kbd>Roll</span><span><kbd>LMB / J</kbd>Hold cannon</span><span><kbd>RMB / Space</kbd>Launch</span><span><kbd>Q / Tab</kbd>Swap</span><span><kbd>E</kbd>Cycle target</span><span><kbd>F / Shift</kbd>Flares</span><span><kbd>V / C</kbd>View</span><span><kbd>Esc / P</kbd>Pause</span><span>Touch: drag the sky to steer; release to center. Hold Cannon or tap actions with your other thumb.</span>',
+    controls:'<span><kbd>Mouse / Arrows</kbd>Steer</span><span><kbd>R / Level</kbd>Return to level flight on this heading. Steer or roll to take over.</span><span><kbd>W/S</kbd>Boost/Brake</span><span><kbd>A/D</kbd>Roll</span><span><kbd>LMB / J</kbd>Hold cannon</span><span><kbd>RMB / Space</kbd>Launch</span><span><kbd>Q / Tab</kbd>Swap</span><span><kbd>E</kbd>Cycle target</span><span><kbd>F / Shift</kbd>Flares</span><span><kbd>V / C</kbd>View</span><span><kbd>Esc / P</kbd>Pause</span><span>Touch: drag the sky to steer; release to center. Hold Cannon or tap actions with your other thumb.</span>',
     winTitle:'MISSION ACCOMPLISHED', failTitle:'AIRCRAFT DESTROYED',
     winSub:'Airspace secured. Outstanding flying, Ace!', failSub:'Airframe lost. Regroup and sortie again.',
     radioLaunch:'AWACS: Launch confirmed. All tactical sensors online. Good hunting!',
@@ -2316,7 +2329,13 @@ const heldInputs = new Map();
 const capturedPointers = new Map();
 const aim = { x:0, y:0 };
 const stick = { x:0, y:0 };
+const pilotSteering = new Set(['up', 'down', 'left', 'right', 'rollLeft', 'rollRight']);
 let steerDrag = null;
+let comfortSteering = true;
+let leveling = false;
+const steeringDeadZone = 0.08;
+const flightAngles = new THREE.Euler(0, 0, 0, 'YXZ');
+const turnStep = new THREE.Euler(0, 0, 0, 'YXZ');
 
 // Reusable math temporaries
 const _v1 = new THREE.Vector3();
@@ -2915,28 +2934,38 @@ function endMission(won) {
 // ============================================================================
 // 8. UPDATE LOOPS (FLIGHT, AI, PROJECTILES, CAMERA, HUD, RADAR)
 // ============================================================================
-function updatePlayer(dt, rawDt) {
-  const spec = JETS[selJetIdx];
-  // Throttle & Afterburner
-  let targetThrottle = 0.52;
-  if (isHeld('boost')) targetThrottle = 1.0;
-  else if (isHeld('brake')) targetThrottle = 0.08;
-  player.throttle += (targetThrottle - player.throttle) * Math.min(1, dt * 4.0);
-  const targetSpd = spec.minSpeed + (spec.maxSpeed - spec.minSpeed) * player.throttle;
-  player.speed += (targetSpd - player.speed) * Math.min(1, dt * 2.4);
+function analogSteeringGain() {
+  if (!comfortSteering) return 1;
+  const radius = Math.hypot(aim.x, aim.y);
+  if (radius <= steeringDeadZone) return 0;
+  if (radius >= 1) return 1;
+  const travel = (radius - steeringDeadZone) / (1 - steeringDeadZone);
+  return travel * (0.5 + 0.5 * travel) / radius;
+}
 
-  // Arcade Mouse-Aim Flight Control (smooth banking + pitch/yaw)
-  stick.x = Number(isHeld('right')) - Number(isHeld('left')) || aim.x;
-  stick.y = Number(isHeld('down')) - Number(isHeld('up')) || aim.y;
+function updateFlightSteering(dt, spec, euler) {
+  const gain = analogSteeringGain();
+  stick.x = Number(isHeld('right')) - Number(isHeld('left')) || aim.x * gain;
+  stick.y = Number(isHeld('down')) - Number(isHeld('up')) || aim.y * gain;
   const mx = THREE.MathUtils.clamp(stick.x * mouseSens, -1, 1);
   const my = THREE.MathUtils.clamp((invertY ? -stick.y : stick.y) * mouseSens, -1, 1);
-
   const manualRoll = Number(isHeld('rollLeft')) - Number(isHeld('rollRight'));
+  if (mx || my || manualRoll) leveling = false;
+  if (leveling) {
+    // In YXZ order yaw is the horizontal heading. Only relax pitch and bank.
+    const tilt = Math.max(Math.abs(euler.x), Math.abs(euler.z));
+    leveling = tilt > 0.002;
+    const remaining = leveling ? Math.max(Math.exp(-3.2 * dt), 1 - 2.4 * dt / tilt) : 0;
+    euler.x *= remaining;
+    euler.z *= remaining;
+    player.quat.setFromEuler(euler);
+    player.pitchRate = player.yawRate = player.rollRate = 0;
+    return;
+  }
   const desiredPitch = -my * spec.turnRate * 1.15;
   const desiredYaw = -mx * spec.turnRate * 0.92;
 
   // Natural auto-bank into turns + manual roll override
-  const euler = new THREE.Euler().setFromQuaternion(player.quat, 'YXZ');
   let desiredRollRate = manualRoll * spec.rollRate;
   if (manualRoll === 0) {
     const targetBank = THREE.MathUtils.clamp(-mx * 1.15, -1.18, 1.18);
@@ -2948,10 +2977,21 @@ function updatePlayer(dt, rawDt) {
   player.rollRate += (desiredRollRate - player.rollRate) * Math.min(1, dt * 8.0);
 
   // Apply local rotation
-  const dq = new THREE.Quaternion().setFromEuler(
-    new THREE.Euler(player.pitchRate * dt, player.yawRate * dt, player.rollRate * dt, 'YXZ')
-  );
-  player.quat.multiply(dq).normalize();
+  turnStep.set(player.pitchRate * dt, player.yawRate * dt, player.rollRate * dt);
+  player.quat.multiply(_q1.setFromEuler(turnStep)).normalize();
+}
+
+function updatePlayer(dt, rawDt) {
+  const spec = JETS[selJetIdx];
+  // Throttle & Afterburner
+  let targetThrottle = 0.52;
+  if (isHeld('boost')) targetThrottle = 1.0;
+  else if (isHeld('brake')) targetThrottle = 0.08;
+  player.throttle += (targetThrottle - player.throttle) * Math.min(1, dt * 4.0);
+  const targetSpd = spec.minSpeed + (spec.maxSpeed - spec.minSpeed) * player.throttle;
+  player.speed += (targetSpd - player.speed) * Math.min(1, dt * 2.4);
+  const euler = flightAngles.setFromQuaternion(player.quat);
+  updateFlightSteering(dt, spec, euler);
 
   // Move forward
   const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quat);
@@ -3765,12 +3805,13 @@ for (const toggle of assistToggles) toggle.onchange = () => {
 document.getElementById('invertBtn').onclick = e => {
   invertY = !invertY; e.target.textContent = I18N[lang][invertY ? 'on' : 'off'];
 };
+document.getElementById('steeringResponse').onchange = e => { comfortSteering = e.target.value === 'comfort'; };
 
 const flightKeys = {
   ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right',
   KeyW:'boost', KeyS:'brake', KeyA:'rollLeft', KeyD:'rollRight', KeyJ:'cannon',
   Space:'launch', KeyQ:'swap', Tab:'swap', KeyE:'target', KeyV:'view', KeyC:'view',
-  KeyF:'flare', ShiftLeft:'flare', ShiftRight:'flare'
+  KeyF:'flare', ShiftLeft:'flare', ShiftRight:'flare', KeyR:'level'
 };
 const touchControls = document.getElementById('touchControls');
 const stickBase = document.getElementById('stickBase'), stickKnob = document.getElementById('stickKnob');
@@ -3804,6 +3845,12 @@ function pressFlight(source, action) {
     cameraMode = cameraMode === '3p' ? '1p' : '3p';
     updateHUDDom();
   }
+  if (action === 'level') {
+    // An absolute mouse position can be parked off-center; a held touch still owns its stick.
+    if (!steerDrag) aim.x = aim.y = 0;
+    leveling = true;
+  }
+  if (leveling && pilotSteering.has(action)) leveling = false;
   if (action === 'target') {
     launchPending = false;
     const alive = enemies.filter(enemy => enemy.alive);
@@ -3829,6 +3876,7 @@ function clearFlightInputs() {
   heldInputs.clear();
   touchControls.querySelectorAll('.held').forEach(button => button.classList.remove('held'));
   steerDrag = null;
+  leveling = false;
   aim.x = aim.y = stick.x = stick.y = 0;
   stickBase.classList.remove('active');
   for (const [pointerId, owner] of capturedPointers) {
@@ -3872,6 +3920,7 @@ glCanvas.addEventListener('pointermove', event => {
     aim.x = dx / radius; aim.y = dy / radius;
     stickKnob.style.transform = `translate(${aim.x * 32}px,${aim.y * 32}px)`;
   }
+  if (leveling && (aim.x || aim.y) && analogSteeringGain() > 0) leveling = false;
 });
 glCanvas.addEventListener('pointerleave', event => {
   if (event.pointerType === 'mouse' && !steerDrag && !capturedPointers.has(event.pointerId)) aim.x = aim.y = 0;

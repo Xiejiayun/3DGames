@@ -92,6 +92,16 @@ function inspectMission(index) {
     down.ray.origin.set(x, 1000, z);
     return down.intersectObjects(land, false)[0]?.point.y ?? -20;
   }
+  const sections = inspectMission.sections = {};
+  function localContact(root, eye, direction, axis) {
+    root.updateMatrixWorld(true);
+    const ray = new THREE.Raycaster(root.localToWorld(new THREE.Vector3(...eye)), new THREE.Vector3(...direction).transformDirection(root.matrixWorld));
+    const hit = ray.intersectObject(root, true)[0];
+    return hit ? root.worldToLocal(hit.point)[axis] : null;
+  }
+  function localView(name, root, eye, aim, fov) {
+    shoot(name, root.localToWorld(new THREE.Vector3(...eye)).toArray(), root.localToWorld(new THREE.Vector3(...aim)).toArray(), fov);
+  }
   for (const island of islands) {
     for (let point = 0; point < 36; point++) {
       const angle = point * 2.4, radius = island.radius * Math.sqrt((point + 0.3) / 34);
@@ -198,6 +208,8 @@ function inspectMission(index) {
       }
       return Math.min(...offsets) < -2 && Math.max(...offsets) > 8;
     });
+    sections.arch = [-132, 126].map(across => [8, 28, 54].map(height => localContact(landmark, [across, height, 150], [0, 0, -1], 'z')));
+    localView('arch-wavecut', landmark, [-78, 42, 141], [-125, 48, 30], 54);
     for (const type of ['radar', 'sam']) {
       const { x, y, z } = stations.find(station => station.type === type).pos;
       shoot(type, [x + 57, y + 36, z + 62], [x, y + 8, z], 42);
@@ -212,6 +224,35 @@ function inspectMission(index) {
     shoot('fleet', [225, 209, 146], [0, 12, -550], 55);
     shoot('carrier', [147, 132, -433], [0, 20, -680], 48);
     shoot('escort', [-249, 49, -346], [-340, 13, -460], 44);
+    const carrier = carrierRef.mesh, escort = destroyerRefs[0].mesh;
+    sections.gallery = [[10.9,-39],[13.7,-39],[13.7,-26],[19,-39]].map(([height, along]) => localContact(carrier, [-65, height, along], [1, 0, 0], 'x'));
+    sections.escortDeck = [62, -60].map(along => localContact(escort, [0, 60, along], [0, -1, 0], 'y'));
+    sections.boats = [-1,1].map(side => localContact(escort, [side * 50, 15, -13], [-side, 0, 0], 'x'));
+    localView('carrier-gallery', carrier, [-94, 29, -70], [0, 15, -21], 55);
+    localView('escort-workdeck', escort, [56, 31, -76], [0, 14, -10], 53);
+
+    const width = 480, height = 270, target = new THREE.WebGLRenderTarget(width, height);
+    const fixture = new THREE.Scene(); fixture.background = new THREE.Color(0);
+    fixture.overrideMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+    const view = new THREE.PerspectiveCamera(36, width / height, 1, 1600);
+    function bowOutline(root, range) {
+      const model = root.clone(); model.position.set(0, 0, 0); model.rotation.set(0, 0, 0); fixture.add(model);
+      view.position.set(0, 22, range); view.lookAt(0, 20, 0);
+      renderer.setRenderTarget(target); renderer.render(fixture, view);
+      const pixels = new Uint8Array(width * height * 4); renderer.readRenderTargetPixels(target, 0, 0, width, height, pixels);
+      fixture.remove(model);
+      model.traverse(part => { if (part.isInstancedMesh) part.dispose(); });
+      let left = width, right = -1, bottom = height, top = -1;
+      const ink = (column, row) => pixels[4 * (row * width + column)] > 12;
+      for (let row = 0; row < height; row++) for (let column = 0; column < width; column++) if (ink(column, row)) {
+        left = Math.min(left, column); right = Math.max(right, column); bottom = Math.min(bottom, row); top = Math.max(top, row);
+      }
+      let sum = 0, count = 0;
+      for (let row = Math.ceil(bottom + 0.63 * (top - bottom)); row <= top; row++) for (let column = left; column <= right; column++) if (ink(column, row)) { sum += column; count++; }
+      return { beam: right - left + 1, rise: top - bottom + 1, towerOffset: count ? (sum / count - (width - 1) / 2) / (right - left + 1) : null };
+    }
+    sections.bows = [425, 800].map(range => ({ range, carrier: bowOutline(carrier, range), escort: bowOutline(escort, range) }));
+    renderer.setRenderTarget(null); target.dispose(); fixture.overrideMaterial.dispose();
   }
   const maxTriangles = Math.max(...land.map(mesh => mesh.geometry.index.count / 3));
   return { photos, airfield, meshError, padError, shadowPixels, passage, archWaterbed, groundedFeet, maxTriangles, shipLengths, draws, sharedAssets,
@@ -255,7 +296,10 @@ try {
   assert.deepEqual(errors, []);
   const results = [];
   for (let index = 0; index < 3; index++) {
-    const { photos, ...metrics } = await page.evaluate(id => window.inspectLandmarks(id), index);
+    const { photos, ...metrics } = await page.evaluate(id => {
+      const report = window.inspectLandmarks(id);
+      return { ...report, sections: window.inspectLandmarks.sections };
+    }, index);
     for (const [name, png] of Object.entries(photos)) await writeFile(join(output, `${name}.png`), Buffer.from(png, 'base64'));
     results.push(metrics);
   }
@@ -285,6 +329,18 @@ try {
   assert.equal(results[1].groundedFeet, true); assert.equal(results[2].dish, true);
   const [carrier, ...escorts] = results[2].shipLengths;
   assert.ok(carrier >= 295 && carrier <= 305 && escorts.length === 2 && escorts.every(length => length >= 140 && length <= 160), 'fleet scale');
+  for (const [toe, recess, overhang] of results[1].sections.arch) {
+    assert.ok([toe, recess, overhang].every(Number.isFinite) && Math.min(toe, overhang) - recess > 9, 'wave-cut recess below each solid shoulder');
+  }
+  const { gallery, escortDeck, boats, bows } = results[2].sections;
+  assert.ok(results[1].draws[0] === 1 && results[2].draws[0] <= 6 && results[2].draws.slice(1).every(draws => draws <= 4), 'extra rock and ship detail stays in the measured static batches');
+  const [shelf, bulkhead, pier, roof] = gallery;
+  assert.ok(gallery.every(Number.isFinite) && bulkhead - shelf > 4 && bulkhead - pier > 4 && shelf - roof > 3, 'a real open gallery under the deck overhang');
+  assert.ok(escortDeck.every(Number.isFinite) && escortDeck[0] - escortDeck[1] > 1.8 && boats[0] < -9 && boats[1] > 9, 'raised foredeck and launches above the work deck');
+  for (const { carrier, escort } of bows) {
+    assert.ok(escort.beam > 7 && carrier.beam > 2 * escort.beam && carrier.rise > escort.rise, 'unlabelled carrier and escort silhouettes differ at approach range');
+    assert.ok(carrier.towerOffset > 0.15 && Number.isFinite(escort.towerOffset) && Math.abs(escort.towerOffset) < 0.1, 'offset carrier island versus centered escort bridge, independent of paint');
+  }
 } finally {
   await browser?.close();
   server.closeAllConnections(); await new Promise(done => server.close(done));

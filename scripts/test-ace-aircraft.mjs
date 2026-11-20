@@ -41,6 +41,14 @@ function inspectView() {
   const solid = parts.filter(part => !part.material.transparent);
   const firstSolid = ndc => { ray.setFromCamera(ndc, camera); return ray.intersectObjects(solid, false)[0]?.object; };
   const screen = rig.cockpit.getObjectByName('Instruments');
+  const apertureClear = [-0.24, 0, 0.24].every(horizontal => [-0.14, 0, 0.14].every(vertical => !firstSolid({ x:horizontal, y:vertical })));
+  const depthRay = offset => {
+    ray.set(screen.localToWorld(point.set(offset, 0, 0.2)), new THREE.Vector3(0, 0, -1).transformDirection(screen.matrixWorld));
+    return ray.intersectObjects(solid, false)[0];
+  };
+  const centerPane = depthRay(0), rim = depthRay(0.24), wingPane = depthRay(0.5);
+  const recessed = centerPane?.object === screen && wingPane?.object === screen && rim?.object.name === 'Coaming' &&
+    centerPane.distance > rim.distance + 0.012 && centerPane.distance > wingPane.distance + 0.02;
   const readable = [-0.5, 0, 0.5].every(offset => {
     const ndc = screen.localToWorld(point.set(offset, 0, 0)).project(camera);
     return Math.abs(ndc.x) < 0.98 && ndc.y > -0.98 && ndc.y < -0.4 && firstSolid(ndc) === screen;
@@ -50,7 +58,7 @@ function inspectView() {
     .getImageData(hud.width / 2 - 22, hud.height / 2 - 22, 44, 44).data.some(value => value !== 0);
   return { id: root.name, mode: rig.cameraView, cockpit: rig.cockpit.visible, exterior: rig.exterior.visible, clearHud,
     bounds: [...bounds.min.toArray(), ...bounds.max.toArray()], underCard, meshes: parts.length,
-    eyeError: rig.cockpit.getWorldPosition(point).distanceTo(camera.position), readable,
+    eyeError: rig.cockpit.getWorldPosition(point).distanceTo(camera.position), readable, recessed, apertureClear,
     clearCenter: !firstSolid({ x: 0, y: 0 }), centerY: player.pos.clone().project(camera).y,
     range: camera.position.distanceTo(player.pos), fov: camera.fov, engines: rig.flames.length };
 }
@@ -188,6 +196,7 @@ try {
     const seat = await page.evaluate(inspectView);
     assert.ok(seat.mode === '1p' && seat.cockpit && !seat.exterior && seat.eyeError < 1e-5 && seat.fov >= 69);
     assert.ok(seat.clearCenter && seat.readable, `${id}: all three instruments visible from the actual eye; boresight clear`);
+    assert.ok(seat.recessed && seat.apertureClear, `${id}: raised rim, wraparound panels and clear forward view`);
     await shot(`${id}-cockpit`);
     await page.keyboard.press('v'); await frame();
     checkChase(await page.evaluate(inspectView));
@@ -218,10 +227,11 @@ try {
     render(); drawHUD();
     return { maxStep, horizon: camera.up.y, plumeGrowth: rig.flames[0].scale.z / idle,
       roll: rig.aileronL.rotation.x * rig.aileronR.rotation.x, pitch: rig.tailL.rotation.x + rig.tailR.rotation.x,
-      rudder: rig.finR.rotation.y, power: rig.cockpit.userData.powerBar.scale.x };
+      rudder: rig.finR.rotation.y, power: rig.cockpit.userData.powerBar.scale.x, instrumentBank:rig.cockpit.userData.horizon.rotation.z };
   });
   assert.ok(motion.maxStep < 0.35 && motion.horizon > 0.97, 'continuous through vertical; bank-stabilized horizon');
   assert.ok(motion.plumeGrowth > 4 && motion.roll < 0 && motion.pitch < 0 && motion.rudder !== 0 && motion.power === 1);
+  assert.ok(Math.abs(motion.instrumentBank - 0.51) < 0.001, 'Cockpit horizon responds to actual bank');
   await shot('f35-banked-boost');
   await page.keyboard.press('Escape'); await click('#btnRestart'); await frame();
   checkChase(await page.evaluate(inspectView));
@@ -249,6 +259,18 @@ try {
     camera.up.set(0, 1, 0); camera.lookAt(player.pos); camera.fov = 40; camera.updateProjectionMatrix(); render();
   });
   await shot('bomber-and-escort');
+  await page.reload();
+  await page.waitForFunction(() => window.aircraftQA && window.__ACE_DEBUG__);
+  await click('#qualBtn'); await click('#qualBtn');
+  for (const [mission, name] of [[1, 'sunset'], [2, 'storm']]) {
+    if (mission === 2) { await page.keyboard.press('Escape'); await click('#btnHangar'); }
+    await click(`[data-mission="${mission}"]`); await click('#sortieBtn'); await frame();
+    await page.keyboard.press('v'); const draws = await frame();
+    const seat = await page.evaluate(inspectView);
+    assert.equal(await page.evaluate(() => window.__ACE_DEBUG__.getState().quality), 'low');
+    assert.ok(seat.readable && seat.apertureClear && seat.recessed && draws > 0 && draws <= 5, `${name}: low-tier cockpit sightlines and draw budget`);
+    await shot(`${name}-cockpit-low`);
+  }
   console.log(`Screenshots: ${output}`);
   assert.deepEqual(errors, []);
   console.log('PASS aircraft skins, first-frame camera cuts, cockpit sightlines, control surfaces and boost');

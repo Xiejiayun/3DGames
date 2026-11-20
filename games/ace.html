@@ -381,7 +381,7 @@ canvas{display:block}
     <div class="opt-row">
       <label data-i18n="steeringResponse" for="steeringResponse">转向手感</label>
       <select class="btn-ghost" id="steeringResponse">
-        <option value="comfort" data-i18n="comfortResponse">舒适（中心微调）</option>
+        <option value="comfort" data-i18n="comfortResponse">舒适（平转微调）</option>
         <option value="classic" data-i18n="classicResponse">经典（线性）</option>
       </select>
     </div>
@@ -441,7 +441,7 @@ const I18N = {
     subtitle:'驾驶隐身战机穿梭晴空群岛、黄昏峡湾与雷暴航母编队——体验鼠标引导空战、多目标导弹齐射与 3D 座舱双视角。',
     selectJet:'战机机库', selectMission:'战役任务', sortie:'立即出击 · SORTIE',
     flare:'热诱弹', hull:'装甲', paused:'战术暂停',
-    steeringResponse:'转向手感', comfortResponse:'舒适（中心微调）', classicResponse:'经典（线性）', levelFlight:'改平',
+    steeringResponse:'转向手感', comfortResponse:'舒适（平转微调）', classicResponse:'经典（线性）', levelFlight:'改平',
     sens:'转向灵敏度', invertY:'反转俯仰 Y 轴', quality:'渲染画质',
     toHangar:'返回机库', restart:'重新出击', resume:'继续战斗',
     dKills:'击毁目标', dTime:'任务耗时', dHull:'剩余装甲', dScore:'战役积分',
@@ -482,7 +482,7 @@ const I18N = {
     selectJet:'AIRCRAFT HANGAR', selectMission:'CAMPAIGN MISSIONS', sortie:'LAUNCH SORTIE',
     flare:'Flares', hull:'Hull', paused:'TACTICAL PAUSE',
     sens:'Steering sensitivity', invertY:'Invert Pitch Y', quality:'Graphics Quality',
-    steeringResponse:'Steering response', comfortResponse:'Comfort (fine control)', classicResponse:'Classic (linear)', levelFlight:'Level',
+    steeringResponse:'Steering response', comfortResponse:'Comfort (level turns)', classicResponse:'Classic (linear)', levelFlight:'Level',
     toHangar:'Hangar', restart:'Restart', resume:'Resume',
     dKills:'Targets Destroyed', dTime:'Mission Time', dHull:'Hull Integrity', dScore:'Mission Score',
     edgeWarning:'Airspace edge · turn back', edgeReturn:'Turning back · you can steer',
@@ -3196,8 +3196,12 @@ function updateFlightSteering(dt, spec, euler) {
   player.yawRate += (desiredYaw - player.yawRate) * Math.min(1, dt * 7.5);
   player.rollRate += (desiredRollRate - player.rollRate) * Math.min(1, dt * 8.0);
 
-  // Apply local rotation
   turnStep.set(player.pitchRate * dt, player.yawRate * dt, player.rollRate * dt);
+  if (comfortSteering && manualRoll === 0) {
+    // Turn the heading about the horizon; bank alone must not point the nose down.
+    player.quat.premultiply(_q1.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, turnStep.y));
+    turnStep.y = 0;
+  }
   player.quat.multiply(_q1.setFromEuler(turnStep)).normalize();
 }
 

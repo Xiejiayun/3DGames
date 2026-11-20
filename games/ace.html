@@ -2529,6 +2529,29 @@ function setAtmosphere(mCfg) {
 }
 
 // --- Particle & Explosion FX ---
+function makeShockwaveGeometry() {
+  const inner = 4.2, outer = 5.5;
+  const geometry = new THREE.RingGeometry(inner, outer, 48, 2);
+  const positions = geometry.getAttribute('position');
+  const colors = new THREE.Float32BufferAttribute(new Float32Array(positions.count * 4), 4);
+  for (let index = 0; index < positions.count; index++) {
+    const horizontal = positions.getX(index), vertical = positions.getY(index);
+    const angle = Math.atan2(vertical, horizontal);
+    const band = (Math.hypot(horizontal, vertical) - inner) / (outer - inner);
+    const crest = Math.max(0, 1 - Math.abs(2 * band - 1));
+    const ripple = 1 + 0.015 * Math.sin(5 * angle) + 0.008 * Math.cos(9 * angle);
+    positions.setXY(index, horizontal * ripple, vertical * ripple);
+    const density = 0.54 + 0.27 * Math.sin(3 * angle + 0.7) + 0.15 * Math.cos(5 * angle - 0.8);
+    colors.setXYZW(index, 1, 1, 1, crest * density);
+  }
+  geometry.setAttribute('color', colors);
+  return geometry;
+}
+
+function shockwaveOpacity(remaining) {
+  return (reduceFlashes.matches ? 0.14 : 0.48) * Math.max(0, remaining) ** 1.25;
+}
+
 const sharedSphereGeo = new THREE.SphereGeometry(1, 8, 6);
 const sharedTracerGeo = new THREE.BoxGeometry(0.28, 0.28, 12);
 const sharedMissileGeo = new THREE.CylinderGeometry(0.18, 0.24, 3.6, 6);
@@ -2552,6 +2575,9 @@ function releaseSceneResources(root) {
   });
   for (const resource of owned) resource.dispose();
 }
+
+const sharedShockwaveGeo = makeShockwaveGeometry();
+sharedEffectGeometry.add(sharedShockwaveGeo);
 
 const particleCapacity = { low: 180, med: 280, high: 420 };
 const flareBurstSize = 8;
@@ -2676,8 +2702,8 @@ function spawnExplosion(pos, scale = 1.0, big = false) {
   }
   // Expanding Shockwave Ring
   const ring = new THREE.Mesh(
-    new THREE.RingGeometry(2, 5.5, 28),
-    new THREE.MeshBasicMaterial({ color: 0xffd28a, transparent: true, opacity: 0.9, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false })
+    sharedShockwaveGeo,
+    new THREE.MeshBasicMaterial({ color: 0xf3ddc6, vertexColors: true, transparent: true, opacity: shockwaveOpacity(1), depthWrite: false })
   );
   ring.position.copy(pos);
   ring.lookAt(camera.position);
@@ -3485,10 +3511,10 @@ function updateProjectilesAndFX(dt) {
     sw.life -= dt;
     const t = 1 - sw.life / sw.maxLife;
     sw.mesh.scale.setScalar(1 + t * sw.maxScale);
-    sw.mesh.material.opacity = (1 - t) * 0.9;
+    sw.mesh.material.opacity = shockwaveOpacity(1 - t);
     sw.mesh.lookAt(camera.position);
     if (sw.life <= 0) {
-      fxGroup.remove(sw.mesh); sw.mesh.geometry.dispose(); sw.mesh.material.dispose(); shockwaves.splice(i, 1);
+      fxGroup.remove(sw.mesh); sw.mesh.material.dispose(); shockwaves.splice(i, 1);
     }
   }
 

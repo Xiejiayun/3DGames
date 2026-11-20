@@ -6815,8 +6815,8 @@ void main() {
         const r = rng(7);
         const cells = [];
         for (let z = 0; z < L.D; z++) for (let x = 0; x < L.W; x++) if (ch(x, 0, z) === "w") cells.push([x, z]);
-        const padMat = new THREE.MeshStandardMaterial({ color: 6261326, roughness: 0.6 });
-        const flowerMat = new THREE.MeshStandardMaterial({ color: 16180198, roughness: 0.5, emissive: 3809832, emissiveIntensity: 0.3 });
+        const padMat = perLevel(new THREE.MeshStandardMaterial({ color: 6261326, roughness: 0.6 }));
+        const flowerMat = perLevel(new THREE.MeshStandardMaterial({ color: 16180198, roughness: 0.5, emissive: 3809832, emissiveIntensity: 0.3 }));
         for (let i = 0; i < Math.min(5, cells.length); i++) {
           const [x, z] = cells[Math.floor(r() * cells.length)];
           const pad = new THREE.Mesh(new THREE.CircleGeometry(0.22 + r() * 0.16, 18, 0.3, Math.PI * 2 - 0.5), padMat);

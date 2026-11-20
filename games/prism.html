@@ -6682,7 +6682,8 @@ void main() {
         const s = owner([c.x, c.z]);
         if (s) {
           const p = new THREE.Path();
-          p.absarc(c.x, c.z, c.r, 0, Math.PI * 2, true);
+          // A hole must wind opposite the clockwise outer contour so its wall faces the opening.
+          p.absarc(c.x, c.z, c.r, 0, Math.PI * 2, false);
           s.shape.holes.push(p);
         }
       }

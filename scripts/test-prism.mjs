@@ -3,6 +3,8 @@ import { chromium } from 'playwright';
 import { checkTouchGestures } from './test-prism-touch.mjs';
 import { checkTrayChoices } from './test-prism-tray.mjs';
 import { checkArchSightlines } from './test-prism-arch.mjs';
+import { checkRelayTravel } from './test-prism-relays.mjs';
+import { checkCampaignEnding } from './test-prism-ending.mjs';
 
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
@@ -244,8 +246,10 @@ try {
     }
   }
   await checkArchSightlines(touch);
+  await checkRelayTravel(browser);
+  await checkCampaignEnding(browser);
   assert.deepEqual(errors, []);
-  console.log(`PASS Prism Vault: ${checks.length} puzzle checks, offline WebGL, dialog input isolation, board controls, preview lifetimes, compact touch controls, pinch and interruption recovery, first-mirror lesson, safe tray selection, Quantum Arch sightlines and language continuity`);
+  console.log(`PASS Prism Vault: ${checks.length} puzzle checks, offline WebGL, dialog input isolation, board controls, preview lifetimes, compact touch controls, pinch and interruption recovery, first-mirror lesson, safe tray selection, Quantum Arch sightlines, relay travel and language continuity`);
 } finally {
   await browser.close();
 }

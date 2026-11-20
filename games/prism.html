@@ -6495,6 +6495,17 @@ void main() {
   var SLAB_T = 0.8;
   var ROOM_H = 3.2;
   var OPEN_H = 1.6;
+  var GATE_LINTEL = 0.34;
+  function coveredAbove(level, cellX, layerY, cellZ) {
+    const tile = level.ch(cellX, layerY + 1, cellZ);
+    return tile === "#" || tile === "O";
+  }
+  function seatGateBadge(geometry, side, frameHeight) {
+    geometry.rotateX(-Math.PI / 3);
+    geometry.rotateY(side * Math.PI / 2);
+    geometry.translate(side * 0.631, frameHeight + 0.022, side * 0.49);
+    return geometry;
+  }
   function makeFrame(L) {
     const ox = -(L.W - 1), oz = -(L.D - 1);
     const F = {
@@ -6762,10 +6773,6 @@ void main() {
       const b = ch(x, y - 1, z);
       return b === "#" || b === "O";
     };
-    const coveredAbove = (x, y, z) => {
-      const c = ch(x, y + 1, z);
-      return c === "#" || c === "O";
-    };
     const slotHoleR = 0.75, oculusR = 0.7;
     const wallRasters = /* @__PURE__ */ new Map();
     {
@@ -6862,7 +6869,7 @@ void main() {
         const c = ch(x, y, z);
         if (c !== "#") continue;
         any = true;
-        const R = classes[coveredAbove(x, y, z) ? "full" : "open"];
+        const R = classes[coveredAbove(L, x, y, z) ? "full" : "open"];
         const X = F.cx(x), Z = F.cz(z), t2 = 0.6;
         for (const ras of [R, all]) {
           ras.rect(X - t2, Z - t2, X + t2, Z + t2);
@@ -6899,7 +6906,7 @@ void main() {
       for (let z = 0; z < L.D; z++) for (let x = 0; x < L.W; x++) {
         if (ch(x, y, z) !== "P") continue;
         const X = F.cx(x), Z = F.cz(z);
-        const full = coveredAbove(x, y, z);
+        const full = coveredAbove(L, x, y, z);
         const h = full ? ROOM_H : 2.5;
         push(y, "trim", rbox(1.44, 0.16, 1.44, 0.04, X, fy + 0.08, Z));
         push(y, "trim", rbox(1.28, 0.2, 1.28, 0.05, X, fy + 0.26, Z));
@@ -6922,7 +6929,7 @@ void main() {
       for (let z = 0; z < L.D; z++) for (let x = 0; x < L.W; x++) {
         const c = ch(x, y, z);
         if (c !== "X" && c !== "Z") continue;
-        const h = coveredAbove(x, y, z) ? ROOM_H : OPEN_H;
+        const h = coveredAbove(L, x, y, z) ? ROOM_H : OPEN_H;
         for (const [k, geo] of archGeoms(h, c === "X")) {
           geo.translate(F.cx(x), fy, F.cz(z));
           push(y, k, geo);
@@ -6930,12 +6937,33 @@ void main() {
       }
       for (const gt of L.gates.filter((g) => g.y === y)) {
         const X = F.cx(gt.x), Z = F.cz(gt.z), alongX = gt.ax === 0;
-        const h = coveredAbove(gt.x, y, gt.z) ? ROOM_H : OPEN_H;
+        const h = coveredAbove(L, gt.x, y, gt.z) ? ROOM_H : OPEN_H;
         const post = (s) => alongX ? rbox(1.2, h, 0.22, 0.04, X, fy + h / 2, Z + s * 0.89) : rbox(0.22, h, 1.2, 0.04, X + s * 0.89, fy + h / 2, Z);
         push(y, "trim", post(1));
         push(y, "trim", post(-1));
-        push(y, "trim", alongX ? rbox(1.3, 0.34, 2, 0.05, X, fy + h - 0.17, Z) : rbox(2, 0.34, 1.3, 0.05, X, fy + h - 0.17, Z));
+        push(y, "trim", alongX ? rbox(1.3, GATE_LINTEL, 2, 0.05, X, fy + h - GATE_LINTEL / 2, Z) : rbox(2, GATE_LINTEL, 1.3, 0.05, X, fy + h - GATE_LINTEL / 2, Z));
         push(y, "trim", alongX ? rbox(0.6, 0.28, 1.6, 0.05, X, -0 + fy + 0.02, Z) : rbox(1.6, 0.28, 0.6, 0.05, X, fy + 0.02, Z));
+        const fitting = (material, depth, height, width, axial, up, across) => {
+          const part = new THREE.BoxGeometry(depth, height, width);
+          part.translate(axial, up, across);
+          if (!alongX) part.rotateY(Math.PI / 2);
+          part.translate(X, fy, Z);
+          push(y, material, part);
+        };
+        const opening = h - GATE_LINTEL;
+        for (const side of [-1, 1]) {
+          fitting("ink", 0.56, opening, 0.075, 0, opening / 2, side * 0.77);
+          for (const face of [-1, 1]) {
+            fitting("brass", 0.045, opening - 0.06, 0.055, face * 0.27, opening / 2 + 0.03, side * 0.753);
+            fitting("brass", 0.026, opening, 0.09, face * 0.603, opening / 2, side * 0.882);
+          }
+          fitting("brass", 0.039, 0.03, 1.56, side * 0.224, 0.175, 0);
+          const shoe = seatGateBadge(rb(0.61, 0.252, 0.064, 0.021, 1), side, h);
+          if (!alongX) shoe.rotateY(Math.PI / 2);
+          shoe.translate(X, fy, Z);
+          push(y, "brass", shoe);
+        }
+        fitting("ink", 0.43, 0.026, 1.52, 0, 0.164, 0);
       }
       const par = Raster.of(F);
       let anyPar = false;
@@ -7690,6 +7718,10 @@ void main() {
       }
     });
   }
+  function signalPlate(mask, intensity) {
+    const texture = perLevel(glyphPlateTexture(mask));
+    return perLevel(new THREE.MeshStandardMaterial({ map: texture, emissiveMap: texture, emissive: 16777215, emissiveIntensity: intensity, roughness: 0.45 }));
+  }
   var EmitterView = class {
     constructor(e, quality) {
       this.e = e;
@@ -7704,42 +7736,32 @@ void main() {
       this.aim = new THREE.Group();
       g.add(this.aim);
       const a = this.aim;
-      const barrel = new THREE.CylinderGeometry(0.17, 0.19, 0.86, 24);
-      barrel.rotateZ(Math.PI / 2);
-      a.add(mesh(barrel, MAT.brass, 0, 1, 0));
-      for (const [x, r] of [[-0.4, 0.22], [-0.1, 0.205], [0.22, 0.205], [0.42, 0.235]]) {
-        const ring = new THREE.TorusGeometry(r, 0.03, 10, 32);
-        ring.rotateY(Math.PI / 2);
-        a.add(mesh(ring, MAT.brassPolished, x, 1, 0));
-      }
-      const hood = new THREE.CylinderGeometry(0.23, 0.2, 0.16, 24, 1, true);
-      hood.rotateZ(Math.PI / 2);
-      a.add(mesh(hood, MAT.brassDark, 0.52, 1, 0));
+      const shell = (profile, sides, material, flat = false) => {
+        const geometry = lathe(profile, sides, flat);
+        geometry.rotateZ(-Math.PI / 2);
+        a.add(mesh(geometry, material, 0, 1, 0));
+      };
+      shell([[0, -0.5], [0.18, -0.5], [0.257, -0.43], [0.257, -0.19], [0.2, -0.11], [0.194, 0.24], [0, 0.24]], 8, MAT.brassDark, true);
+      shell([[0.18, -0.17], [0.224, -0.13], [0.215, 0.13], [0.258, 0.26], [0.34, 0.49], [0.33, 0.55], [0.28, 0.55], [0.18, 0.24]], 24, MAT.brass);
+      shell([[0.281, 0.5], [0.34, 0.49], [0.35, 0.526], [0.35, 0.576], [0.309, 0.603], [0.265, 0.603], [0.255, 0.568], [0.281, 0.5]], 24, MAT.brassPolished);
+      shell([[0.226, 0.545], [0.264, 0.577], [0.265, 0.593], [0.235, 0.576], [0.226, 0.558]], 16, MAT.brassDark);
       const lensPair = PieceView.lensPair || (PieceView.lensPair = glassPair(16777215, 14544639, { thickness: 0.1, transmission: 0.95 }));
-      const lens = new THREE.CylinderGeometry(0.16, 0.16, 0.03, 32);
+      const lens = new THREE.CylinderGeometry(0.236, 0.236, 0.034, 24);
       lens.rotateZ(Math.PI / 2);
-      const lm = mesh(lens, lensPair.high, 0.5, 1, 0, false);
+      const lm = mesh(lens, lensPair.high, 0.551, 1, 0, false);
       registerGlass(lm, lensPair, quality);
       a.add(lm);
-      const capR = new THREE.CylinderGeometry(0.2, 0.2, 0.06, 24);
-      capR.rotateZ(Math.PI / 2);
-      a.add(mesh(capR, MAT.brassDark, -0.45, 1, 0));
-      a.add(mesh(new THREE.CylinderGeometry(0.11, 0.13, 0.05, 6), MAT.brassPolished, 0.02, 1.2, 0));
-      const domePair = PieceView.domePair || (PieceView.domePair = glassPair(16777215, 16777215, { thickness: 0.05, transmission: 0.96, lowOpacity: 0.25 }));
-      const dome = mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.24, 6, 1), domePair.high, 0.02, 1.34, 0, false);
-      registerGlass(dome, domePair, quality);
-      a.add(dome);
-      a.add(mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.04, 6), MAT.brassPolished, 0.02, 1.47, 0));
-      this.crystalMat = perLevel(new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(3) }));
-      this.crystal = mesh(new THREE.OctahedronGeometry(0.07), this.crystalMat, 0.02, 1.34, 0, false);
+      a.add(mesh(new THREE.CylinderGeometry(0.135, 0.16, 0.06, 8), MAT.brassPolished, -0.31, 1.245, 0));
+      this.crystalMat = perLevel(new THREE.MeshStandardMaterial({ color: col, emissive: col, roughness: 0.28, metalness: 0.15, flatShading: true }));
+      this.crystal = mesh(new THREE.OctahedronGeometry(0.106), this.crystalMat, -0.31, 1.321, 0, false);
+      this.crystal.scale.y = 1.25;
       a.add(this.crystal);
-      for (const s of [-1, 1]) a.add(mesh(rb(0.08, 0.26, 0.08, 0.02), MAT.brassDark, s * 0.24, 0.86, 0));
+      for (const side of [-1, 1]) a.add(mesh(rb(0.62, 0.2, 0.095, 0.023, 1), MAT.brassDark, -0.075, 0.823, side * 0.176));
       this.halo = new THREE.Sprite(perLevel(new THREE.SpriteMaterial({ map: dotTex(), color: col, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending })));
       this.halo.scale.setScalar(0.85);
       this.halo.position.set(0.62, 1, 0);
       a.add(this.halo);
-      const etex = perLevel(glyphPlateTexture(e.mask));
-      const plate = perLevel(new THREE.MeshStandardMaterial({ map: etex, emissiveMap: etex, emissive: 16777215, emissiveIntensity: 0.45, roughness: 0.45 }));
+      const plate = signalPlate(e.mask, 0.45);
       for (const s of [-1, 1]) {
         const p = mesh(new THREE.PlaneGeometry(0.46, 0.23), plate, 0, 0.4, s * 0.565, false);
         p.rotation.y = s > 0 ? 0 : Math.PI;
@@ -7748,13 +7770,12 @@ void main() {
       const d = e.d;
       const yaw = { 0: 0, 1: Math.PI, 4: -Math.PI / 2, 5: Math.PI / 2 }[d];
       a.rotation.y = yaw ?? 0;
-      this.color = col;
       this.crystal.userData.keep = true;
       mergeStatic(this.group);
     }
     update(t2) {
       const p = 0.75 + 0.25 * Math.sin(t2 * 3.1 + this.e.x);
-      this.crystalMat.color.copy(this.color).multiplyScalar(2.2 + p * 2.2);
+      this.crystalMat.emissiveIntensity = 0.48 + 0.38 * p;
       this.halo.material.opacity = 0.42 + 0.22 * p;
       this.crystal.rotation.y = t2 * 0.8;
     }
@@ -7938,28 +7959,39 @@ void main(){
       this.color = col;
       g.add(mesh(lathe([[0.44, 0], [0.66, 0], [0.68, 0.04], [0.66, 0.3], [0.58, 0.34], [0.44, 0.34]], 8, true), MAT.gate));
       if (!open) g.add(mesh(lathe([[1e-3, 0.2], [0.45, 0.2], [0.45, 0.3], [1e-3, 0.3]], 32), MAT.brassDark));
-      for (let i = 0; i < 3; i++) {
-        const a = i * Math.PI * 2 / 3 + Math.PI / 6;
-        const curve = new THREE.CubicBezierCurve3(new THREE.Vector3(0.55, 0.34, 0), new THREE.Vector3(0.58, 0.8, 0), new THREE.Vector3(0.36, 1, 0), new THREE.Vector3(0.3, 1.32, 0));
-        const tube = new THREE.TubeGeometry(curve, 20, 0.03, 8, false);
-        tube.rotateY(a);
-        g.add(mesh(tube, MAT.brassPolished));
+      g.add(mesh(lathe([[0.36, 0.25], [0.52, 0.25], [0.54, 0.37], [0.4, 0.5], [0.36, 0.51], [0.36, 0.25]], 8, true), MAT.brassDark));
+      this.collector = new THREE.Group();
+      const vane = new THREE.Shape([[-0.09, 0], [-0.145, 0.16], [-0.205, 0.37], [-0.15, 0.5], [0.15, 0.5], [0.205, 0.37], [0.145, 0.16], [0.09, 0]].map(([across, radius]) => new THREE.Vector2(across, radius)));
+      const inset = new THREE.Shape([[-0.066, 0.07], [-0.153, 0.36], [-0.114, 0.446], [0.114, 0.446], [0.153, 0.36], [0.066, 0.07]].map(([across, radius]) => new THREE.Vector2(across, radius)));
+      for (let quadrant = 0; quadrant < 4; quadrant++) {
+        const petal = new THREE.Group();
+        petal.rotation.y = Math.PI / 4 + quadrant * Math.PI / 2;
+        const arm = rb(0.14, 0.43, 0.13, 0.025, 1);
+        arm.translate(0, 0.52, -0.37);
+        arm.rotateY(petal.rotation.y);
+        g.add(mesh(arm, MAT.brassDark));
+        const face = new THREE.Group();
+        face.position.set(0, 0.55, -0.224);
+        face.rotation.x = -1.05;
+        face.add(mesh(new THREE.ExtrudeGeometry(vane, { depth: 0.048, bevelEnabled: true, bevelSize: 0.014, bevelThickness: 0.012, bevelOffset: -0.014, bevelSegments: 1 }), MAT.brassPolished));
+        face.add(mesh(new THREE.ShapeGeometry(inset), MAT.gate, 0, 0, 0.063, false));
+        petal.add(face);
+        this.collector.add(petal);
       }
-      const halo = new THREE.TorusGeometry(0.42, 0.025, 8, 48);
-      halo.rotateX(Math.PI / 2);
-      g.add(mesh(halo, MAT.brass, 0, 1.32, 0));
+      this.collector.userData.anim = true;
+      mergeStatic(this.collector);
+      g.add(this.collector);
       this.pair = glassPair(10467254, 8363676, { ior: 1.6, transmission: 0.7, thickness: 0.5, lowOpacity: 0.65 });
       this.pair.high.emissive = new THREE.Color(0, 0, 0);
       this.pair.low.emissive = new THREE.Color(0, 0, 0);
       this.pair.high.flatShading = this.pair.low.flatShading = true;
       this.pair.high.userData.perLevel = this.pair.low.userData.perLevel = true;
-      const cg = new THREE.OctahedronGeometry(0.26, 0);
-      cg.scale(0.8, 1.3, 0.8);
+      const cg = lathe([[0, -0.237], [0.13, -0.226], [0.28, -0.108], [0.29, 0.08], [0.17, 0.193], [0, 0.193]], 8, true);
+      g.add(mesh(lathe([[0.105, 1.177], [0.186, 1.177], [0.195, 1.191], [0.18, 1.211], [0.105, 1.211], [0.105, 1.177]], 12, true), MAT.brassDark));
       this.crystal = mesh(cg, this.pair.high, 0, 1, 0, false);
       registerGlass(this.crystal, this.pair, quality);
       g.add(this.crystal);
-      const rtex = perLevel(glyphPlateTexture(r.need));
-      const plate = perLevel(new THREE.MeshStandardMaterial({ map: rtex, emissiveMap: rtex, emissive: 16777215, emissiveIntensity: 0.4, roughness: 0.45 }));
+      const plate = signalPlate(r.need, 0.4);
       for (let i = 0; i < 4; i++) {
         const p = mesh(new THREE.PlaneGeometry(0.36, 0.18), plate, 0, 0.17, 0, false);
         p.position.set(Math.sin(i * Math.PI / 2) * 0.69, 0.17, Math.cos(i * Math.PI / 2) * 0.69);
@@ -7973,46 +8005,61 @@ void main(){
     }
     update(dt, t2) {
       this.power += ((this.powered ? 1 : 0) - this.power) * Math.min(1, dt * 4);
+      this.collector.position.y = this.power * 0.16;
       this.crystal.rotation.y = t2 * (0.4 + this.power * 2);
       const partial = this.got && !this.powered ? 0.2 : 0;
-      for (const m of [this.pair.high, this.pair.low]) m.emissive.copy(this.color).multiplyScalar(this.power * 2 + partial);
+      for (const m of [this.pair.high, this.pair.low]) m.emissive.copy(this.color).multiplyScalar(this.power + partial);
     }
   };
   var GateView = class {
-    constructor(gt, F, color) {
+    constructor(gt, F, frameHeight, need) {
       this.gt = gt;
       this.group = new THREE.Group();
       this.group.name = "gate";
       const fy = F.floorY(gt.y);
+      const color = maskColor(need);
+      const opening = frameHeight - GATE_LINTEL;
+      this.closedTop = opening + 0.036;
       this.clip = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(fy + 5e-3));
       this.mat = perLevel(MAT.gate.clone());
       this.mat.emissiveMap = MAT.gateGroove;
       this.mat.emissive = color.clone();
       this.mat.emissiveIntensity = 0;
       this.mat.clippingPlanes = [this.clip];
+      this.mat.clipShadows = true;
       this.color = color;
       const door = new THREE.Group();
-      const slab = mesh(rb(0.42, 2.84, 1.6, 0.05), this.mat, 0, 1.44, 0);
+      const bottom = 0.035;
+      const slab = mesh(rb(0.42, this.closedTop - bottom, 1.51, 0.045, 1), this.mat, 0, (this.closedTop + bottom) / 2, 0);
       door.add(slab);
-      for (const yy of [0.3, 2.6]) door.add(mesh(rb(0.48, 0.12, 1.66, 0.03), this.mat, 0, yy, 0));
-      const boss = new THREE.CylinderGeometry(0.16, 0.16, 0.5, 6);
+      const boss = new THREE.CylinderGeometry(0.136, 0.136, 0.47, 8);
       boss.rotateZ(Math.PI / 2);
       this.bossMat = perLevel(MAT.brassDark.clone());
       this.bossMat.clippingPlanes = [this.clip];
-      door.add(mesh(boss, this.bossMat, 0, 1.44, 0));
+      this.bossMat.clipShadows = true;
+      door.add(mesh(boss, this.bossMat, 0, opening * 0.52, 0));
+      for (const height of [0.19, 0.84]) door.add(mesh(rb(0.46, 0.07, 1.54, 0.017, 1), this.bossMat, 0, opening * height, 0));
       this.door = door;
       this.group.add(door);
       door.userData.anim = true;
       mergeStatic(door);
-      if (gt.ax === 2) door.rotation.y = Math.PI / 2;
+      const plate = signalPlate(need, 0.4);
+      for (const side of [-1, 1]) {
+        const badge = new THREE.PlaneGeometry(0.521, 0.184);
+        badge.translate(0, 0, 0.035);
+        this.group.add(mesh(seatGateBadge(badge, side, frameHeight), plate, 0, 0, 0, false));
+      }
+      mergeStatic(this.group);
+      if (gt.ax === 2) this.group.rotation.y = Math.PI / 2;
       this.open = false;
       this.lift = spring(0);
       this.powerGlow = 0;
     }
     update(dt) {
-      this.lift.t = this.open ? -2.98 : 0;
+      this.lift.t = this.open ? -(this.closedTop + 0.09) : 0;
       springStep(this.lift, dt, 18);
       this.door.position.y = this.lift.x;
+      this.door.visible = this.lift.x + this.closedTop > 5e-3;
       this.powerGlow += ((this.open ? 1 : 0) - this.powerGlow) * Math.min(1, dt * 3);
       this.mat.emissiveIntensity = 0.15 + this.powerGlow * 2.4;
       return Math.abs(this.lift.x - this.lift.t) < 0.02;
@@ -8795,6 +8842,8 @@ void main() {
       placed: "摆放",
       ref: "参考用量",
       next: "下一关",
+      visitVault: (roomNumber) => `前往第 ${roomNumber} 关`,
+      vaultProgress: (cleared, total) => `已解开 ${cleared} / ${total} 关。`,
       stay: "留在本关",
       best: "最佳",
       again: "可撤销继续摆，尝试更省的解",
@@ -8928,6 +8977,8 @@ void main() {
       placed: "Placed",
       ref: "Reference usage",
       next: "Next vault",
+      visitVault: (roomNumber) => `Go to vault ${roomNumber}`,
+      vaultProgress: (cleared, total) => `${cleared} / ${total} vaults open.`,
       stay: "Stay here",
       best: "Best",
       again: "Undo and keep trying for a leaner solution",
@@ -9215,12 +9266,14 @@ void main() {
       this.solvedStats = s;
       const el = this.el("#solved");
       const stars = [1, 2, 3].map((i) => `<i class="${i <= s.stars ? "on" : ""}">★</i>`).join("");
+      const note = s.finale ? t("allDone") : s.progress ? t("vaultProgress", s.progress.cleared, s.progress.total) : s.stars < 3 ? t("again") : "";
+      const nextLabel = s.progress ? t("visitVault", s.nextLevel) : t("next");
       el.innerHTML = `
       <div class="sv-t">${t("solved")}${s.newBest ? `<span class="nb">${t("newBest")}</span>` : ""}</div>
       <div class="stars">${stars}</div>
       <div class="sv-m">${t("placed")} <b>${s.count}</b> · ${t("ref")} <b>${s.ref}</b></div>
-      <div class="sv-n">${s.last ? t("allDone") : s.stars < 3 ? t("again") : ""}</div>
-      <div class="sv-b">${s.hasNext ? `<button data-s="next" class="pri">${t("next")} →</button>` : ""}<button data-s="stay">${t("stay")}</button></div>`;
+      <div class="sv-n">${note}</div>
+      <div class="sv-b">${s.nextLevel ? `<button data-s="next" class="pri">${nextLabel} →</button>` : ""}<button data-s="stay">${t("stay")}</button></div>`;
       el.classList.remove("hidden");
       el.classList.remove("in");
       void el.offsetWidth;
@@ -9229,7 +9282,7 @@ void main() {
         b.addEventListener("mousedown", (e) => e.preventDefault());
         b.addEventListener("click", (e) => {
           e.stopPropagation();
-          if (b.dataset.s === "next") this.h.onNext();
+          if (b.dataset.s === "next") this.h.onLevel(s.nextLevel);
           else this.hideSolved();
         });
       });
@@ -9639,10 +9692,7 @@ void main() {
     },
     onTray: (key) => trayClick(key),
     onFloor: (f) => setFloor(f),
-    onLevel: (n) => changeLevel(n),
-    onNext: () => {
-      if (G.def.n < LEVELS.length) changeLevel(G.def.n + 1);
-    }
+    onLevel: (n) => changeLevel(n)
   });
   function levelBox() {
     const F = G.F;
@@ -9730,7 +9780,8 @@ void main() {
     G.recvs = L.recvs.map((r) => place(new ReceiverView(r, openBelow(r.x, r.y, r.z), G.quality), r.x, r.y, r.z));
     G.gates = L.gates.map((g) => {
       const r = L.recvs.find((rr) => rr.gate === g.id);
-      const v = place(new GateView(g, F, maskColor(r ? r.need : 7)), g.x, g.y, g.z);
+      const height = coveredAbove(L, g.x, g.y, g.z) ? ROOM_H : OPEN_H;
+      const v = place(new GateView(g, F, height, r ? r.need : 7), g.x, g.y, g.z);
       return v;
     });
     G.portals = [];
@@ -10858,20 +10909,27 @@ void main() {
       ui.setGuide(text);
     }
   }
-  function showSolvedCard(stars, isNew) {
-    ui.showSolved({ stars, count: G.puzzle.count, ref: G.L.refCount, newBest: isNew, hasNext: G.def.n < LEVELS.length, last: G.def.n === LEVELS.length });
+  function showSolvedCard(stars, previousBest) {
+    const remaining = LEVELS.filter((room) => !(store.best[room.id] >= 1));
+    const lastRoom = G.def.n === LEVELS.length;
+    const finale = !remaining.length && (lastRoom || previousBest < 1);
+    const resume = lastRoom && remaining.length > 0;
+    ui.showSolved({
+      stars, count: G.puzzle.count, ref: G.L.refCount, newBest: previousBest > 0 && stars > previousBest,
+      finale, nextLevel: finale ? null : resume ? remaining[0].n : G.def.n + 1,
+      progress: resume ? { cleared: LEVELS.length - remaining.length, total: LEVELS.length } : null
+    });
   }
   function complete() {
     G.complete = true;
     G.completeCount = G.puzzle.count;
     const stars = starsFor(G.puzzle.count, G.L.refCount);
     const prev = store.best[G.def.id] || 0;
-    const isNew = stars > prev;
-    if (isNew) {
+    if (stars > prev) {
       store.best[G.def.id] = stars;
       saveStore();
     }
-    showSolvedCard(stars, isNew && prev > 0);
+    showSolvedCard(stars, prev);
     sound.play("solved");
     clearHint();
     updateGuide();

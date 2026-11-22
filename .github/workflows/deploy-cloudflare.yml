@@ -134,6 +134,9 @@ jobs:
       - name: Check Skyhold Bastion towers and waves
         run: npm run test:skyhold
 
+      - name: Check Rift of Champions offline match
+        run: npm run test:rift5v5
+
       - name: Validate deployment package (dry run, no upload)
         run: npx cf deploy --prebuilt --mode production --dry-run
 

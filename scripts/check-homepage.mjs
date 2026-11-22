@@ -12,8 +12,8 @@ const directory = fileURLToPath(root).replace(/[\\/]$/, '');
 const server = createServer(async (req, res) => {
   try {
     const { pathname: path, search } = new URL(req.url, 'http://localhost');
-    if (/^\/games\/[a-z]+\.html$/.test(path)) { res.writeHead(307, { location: path.slice(0, -5) + search }).end(); return; }
-    const asset = /^\/games\/[a-z]+$/.test(path) ? `${path}.html` : path;
+    if (/^\/games\/[a-z0-9]+\.html$/.test(path)) { res.writeHead(307, { location: path.slice(0, -5) + search }).end(); return; }
+    const asset = /^\/games\/[a-z0-9]+$/.test(path) ? `${path}.html` : path;
     const file = resolve(directory, '.' + (asset === '/' ? '/index.html' : decodeURIComponent(asset)));
     if (!file.startsWith(directory + sep)) { res.writeHead(403).end(); return; }
     const data = await readFile(file);
@@ -33,7 +33,7 @@ const games = [
   ['cs', 'midnight-port', '午夜港口', 'Midnight Port'], ['flappy', 'flappy-bird', '像素飞鸟', 'Flappy Bird 3D'],
   ['kart', 'turbo-kart', '极速卡丁车', 'Turbo Kart 3D'], ['ace', 'ace-archipelago', '王牌群岛', 'Ace Archipelago'],
   ['prism', 'prism-vault', '棱镜密室', 'Prism Vault'], ['ironcore', 'iron-core-arena', '铁核竞技场', 'Iron Core Arena'],
-  ['skyhold', 'skyhold-bastion', '浮空要塞', 'Skyhold Bastion'],
+  ['skyhold', 'skyhold-bastion', '浮空要塞', 'Skyhold Bastion'], ['rift5v5', 'rift-of-champions', '峡谷争锋', 'Rift of Champions'],
 ].map(([slug, preview, zh, en]) => ({ href: `games/${slug}.html`, image: `assets/previews/${preview}.webp`, zh, en }));
 const entryHref = (game, lang) => game.href === 'games/prism.html' ? `${game.href}?lang=${lang}` : game.href;
 const sizes = [[1920, 1080], [1920, 651], [1440, 900], [1440, 675], [1366, 768], [1280, 720], [1024, 768],
@@ -120,7 +120,9 @@ try {
     assert.deepEqual(await page.evaluate(() => [scrollX, scrollY]), [0, 0]);
   }
   await page.keyboard.press('Enter');
-  await page.waitForURL(url => url.origin === new URL(origin).origin && /^\/games\/skyhold(?:\.html)?$/.test(url.pathname), { waitUntil: 'commit' });
+  const lastEntry = new URL(entryHref(games.at(-1), 'zh'), origin);
+  await page.waitForURL(url => url.origin === lastEntry.origin && url.search === lastEntry.search &&
+    [url.pathname, `${url.pathname}.html`].includes(lastEntry.pathname), { waitUntil: 'commit' });
   for (const [lang, target] of [['en', '.preview img'], ['zh', '.launch']]) {
     await page.goto(origin);
     await page.locator(`[data-lang="${lang}"]`).click();

@@ -236,6 +236,38 @@ canvas{display:block}
   .hangar-main{grid-template-columns:1fr 1fr;align-items:end}
   .hangar-spacer{display:none}
 }
+@media (orientation:landscape){
+  .touch-flight #touchControls > #touchHint{align-self:start;margin-right:auto}
+}
+@media (orientation:landscape) and (max-height:299px){
+  .touch-flight #touchControls > :nth-child(2){max-width:44px}
+}
+@media (orientation:landscape) and (max-width:740px) and (max-height:440px){
+  /* The mission strip already reserves the pause button's space on the right. */
+  .touch-flight #alertBanner{margin-inline:calc(clamp(64px,18vmin,92px) + 10px) 86px;text-align:center}
+}
+@media (orientation:landscape) and (max-width:740px) and (min-height:300px) and (max-height:440px) and (max-aspect-ratio:2/1){
+  .touch-flight #hud{--dock:144px}
+  @media (max-height:315px){.touch-flight #radarWrap{width:50px;height:50px}}
+  .touch-flight #touchControls{display:grid;align-items:stretch;grid-template-columns:repeat(2,minmax(44px,max-content)) minmax(0,1fr) repeat(2,minmax(44px,max-content));grid-template-rows:repeat(3,44px);gap:3px;
+    grid-template-areas:"hint hint . swap flare" "boost roll-l . target cannon" "brake roll-r . view launch"}
+  .touch-flight #touchControls > .touch-bank:first-child,.touch-flight #touchControls > .touch-bank:last-child{display:contents}
+  .touch-flight #touchControls > :nth-child(2){grid-area:hint;align-self:center;justify-self:stretch;margin:0;grid-template-columns:repeat(2,minmax(44px,1fr));grid-template-rows:44px}
+  .touch-flight [data-flight="boost"]{grid-area:boost}
+  .touch-flight [data-flight="brake"]{grid-area:brake}
+  .touch-flight [data-flight="rollLeft"]{grid-area:roll-l}
+  .touch-flight [data-flight="rollRight"]{grid-area:roll-r}
+  .touch-flight [data-flight="target"]{grid-area:target}
+  .touch-flight [data-flight="view"]{grid-area:view}
+  .touch-flight [data-flight="swap"]{grid-area:swap}
+  .touch-flight [data-flight="flare"]{grid-area:flare}
+  .touch-flight [data-flight="cannon"]{grid-area:cannon}
+  .touch-flight [data-flight="launch"]{grid-area:launch}
+  @media (max-aspect-ratio:5/3){
+    .touch-flight #touchControls{grid-template-columns:repeat(4,minmax(44px,max-content)) minmax(0,1fr) repeat(4,minmax(44px,max-content));
+      grid-template-areas:"hint hint roll-l roll-r . view target swap flare" "boost . . . . . . . cannon" "brake . . . . . . . launch"}
+  }
+}
 @media (max-width:740px){
   .hangar-main{grid-template-columns:1fr}
   .hangar-foot{background:var(--bg);box-shadow:0 -4px 12px var(--bg)}

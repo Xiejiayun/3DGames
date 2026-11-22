@@ -31,9 +31,8 @@
     .period { color: var(--lime); }
     .count { gap: 8px; color: var(--muted); font-size: .76rem; white-space: nowrap; }
     .count b { color: var(--lime); font-size: 1.04rem; font-variant-numeric: tabular-nums; }
-    .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: clamp(8px, 1vw, 16px); }
-    .card { grid-column: span 3; min-width: 0; }
-    .card:nth-child(n+5) { grid-column: span 4; }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(8px, 1vw, 16px); }
+    .card { min-width: 0; }
     .play {
       position: relative; display: grid; height: 100%; grid-template-columns: minmax(0, 1fr) auto;
       grid-template-areas: "art art" "title cta" "desc desc"; grid-template-rows: auto auto 1fr;
@@ -66,7 +65,7 @@
       .shell { max-width: 100%; }
       .grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
       .card { grid-column: span 2; }
-      .card:nth-child(n+4) { grid-column: span 3; }
+      .card:nth-child(n+7) { grid-column: span 3; }
     }
     @media (max-width: 699px), (max-height: 650px), (min-width: 700px) and (max-width: 999px) and (min-aspect-ratio: 4/5) {
       .shell { max-width: 1280px; padding: 10px clamp(8px, 2vw, 24px); }
@@ -86,7 +85,7 @@
       footer { margin-top: 6px; }
     }
     @media (max-width: 639px) {
-      .grid { grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(clamp(46px, calc((100svh - 182px) / 7), 96px), auto); }
+      .grid { grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(clamp(46px, calc((100svh - 182px) / 8), 96px), auto); }
       .play { grid-template-columns: clamp(62px, min(23vw, 26svh - 66px), 116px) minmax(0, 1fr) auto; column-gap: clamp(5px, 2vw, 10px); }
       .imprint { display: none; }
       .count { font-size: .69rem; }
@@ -95,8 +94,8 @@
       .shell { padding-block: 5px; }
       .mast { padding-bottom: 4px; }
       .shelf-head { margin: 5px 0; }
-      .grid { gap: 4px; }
-      .play { padding-block: 3px; }
+      .grid { gap: 3px; }
+      .play { padding-block: 2px; }
       footer { margin-top: 4px; }
     }
     @media (min-width: 500px) and (max-width: 639px) and (orientation: landscape) {
@@ -133,7 +132,7 @@
       </div>
     </header>
     <main>
-      <div class="shelf-head"><h1><span data-en="Pick a game">选一款，开玩</span><span class="period" aria-hidden="true">.</span></h1><span class="count"><b>07</b><span data-en="games to play">款游戏</span></span></div>
+      <div class="shelf-head"><h1><span data-en="Pick a game">选一款，开玩</span><span class="period" aria-hidden="true">.</span></h1><span class="count"><b>08</b><span data-en="games to play">款游戏</span></span></div>
       <div class="grid">
         <article class="card cs-card"><a class="play" href="games/cs.html" aria-labelledby="cs-cta cs-title" aria-describedby="cs-desc">
           <div class="preview">
@@ -197,6 +196,15 @@
           <h2 id="skyhold-title" data-en="Skyhold Bastion">浮空要塞</h2>
           <p class="desc" id="skyhold-desc" data-en="Build towers to guard the sky crystal.">在浮岛上布塔，守住山顶水晶。</p>
           <span class="launch" id="skyhold-cta" data-en="Play">开始游戏</span>
+        </a></article>
+        <article class="card rift5v5-card"><a class="play" href="games/rift5v5.html" aria-labelledby="rift-cta rift-title" aria-describedby="rift-desc">
+          <div class="preview">
+            <img src="assets/previews/rift-of-champions.webp" width="960" height="540" alt="峡谷争锋实机画面：蓝方英雄带领小兵在河道与红方兵线交锋" data-alt-en="Rift of Champions gameplay: a blue hero and allied minions meet the red wave in the river">
+            <span class="tag"><b>08</b><span data-en="5v5 MOBA">5v5 人机推塔</span></span>
+          </div>
+          <h2 id="rift-title" data-en="Rift of Champions">峡谷争锋</h2>
+          <p class="desc" id="rift-desc" data-en="Take the core with bots (mouse + keys).">和 AI 推塔破水晶（需键鼠）。</p>
+          <span class="launch" id="rift-cta" data-en="Play">开始游戏</span>
         </a></article>
       </div>
     </main>

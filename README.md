@@ -13,6 +13,7 @@
 | **Prism Vault · 棱镜密室** | 3D 光学解谜：在十间密室中用镜子、棱镜与滤色晶体引导光束 | [`games/prism.html`](games/prism.html) |
 | **Iron Core Arena · 铁核竞技场** | 俯视角机甲生存：三款机甲、八波攻势与波间模块改装 | [`games/ironcore.html`](games/ironcore.html) |
 | **Skyhold Bastion · 浮空要塞** | 3D 塔防：在三座浮岛上搭配五种防御塔，抵御地面与空中攻势 | [`games/skyhold.html`](games/skyhold.html) |
+| **Rift of Champions · 峡谷争锋** | 单机 5v5 MOBA：用键鼠操控英雄，与四名 AI 队友分三路推塔，攻破敌方主水晶 | [`games/rift5v5.html`](games/rift5v5.html) |
 
 ## 目录结构
 
@@ -31,7 +32,8 @@
 │   ├── ace.html
 │   ├── prism.html
 │   ├── ironcore.html
-│   └── skyhold.html
+│   ├── skyhold.html
+│   └── rift5v5.html
 ├── scripts/             # 静态站点构建脚本
 ├── index.html           # 游戏合集首页
 ├── cloudflare.config.ts # Cloudflare Workers 配置
@@ -39,7 +41,7 @@
 └── package.json
 ```
 
-首页在常见桌面、平板及手机尺寸下首屏展示全部七款游戏：桌面用两排海报，小屏幕改用横向缩略卡。每张卡都有完整的实机截图、名称、简短玩法和开始按钮；点击截图或按钮都能进入游戏，也可以用 Tab 和 Enter 选择。页面文案、按钮和图片说明均支持中英文。`assets/previews/` 中的图片来自实际游戏画面，统一为 960 × 540 的 WebP；更新截图时需将图片加入 Git，构建才会收集它们。
+首页在常见桌面、平板及手机尺寸下首屏展示全部八款游戏：桌面用两排海报，小屏幕改用横向缩略卡。每张卡都有完整的实机截图、名称、简短玩法和开始按钮；点击截图或按钮都能进入游戏，也可以用 Tab 和 Enter 选择。页面文案、按钮和图片说明均支持中英文。`assets/previews/` 中的图片来自实际游戏画面，统一为 960 × 540 的 WebP；更新截图时需将图片加入 Git，构建才会收集它们。
 
 ## 自动部署到 Cloudflare
 
@@ -79,9 +81,10 @@ npm run test:home
 npm run test:prism
 npm run test:ironcore
 npm run test:skyhold
+npm run test:rift5v5
 npx cf deploy --prebuilt --mode production --dry-run
 ```
 
-以上命令无需 Cloudflare 凭据，也不会上传文件。首页检查需要先运行 `npx playwright install chromium`；默认测试本地构建产物，也可设置 `HOME_URL` 对已部署的站点做相同的只读验证。检查覆盖七张卡片及按钮的首屏可见性、中英文切换、真实入口、键盘操作和手机横竖屏。设置 `HOME_SCREENSHOTS` 可保存各尺寸的截图。依赖版本由 `package-lock.json` 固定。
+以上命令无需 Cloudflare 凭据，也不会上传文件。首页检查需要先运行 `npx playwright install chromium`；默认测试本地构建产物，也可设置 `HOME_URL` 对已部署的站点做相同的只读验证。检查覆盖八张卡片及按钮的首屏可见性、中英文切换、真实入口、键盘操作和手机横竖屏。设置 `HOME_SCREENSHOTS` 可保存各尺寸的截图。依赖版本由 `package-lock.json` 固定。
 
 如需回滚，在 Cloudflare 控制台打开该 Worker 的 **Deployments**，选择上一版本回滚；同时回退 GitHub 上对应变更，避免下一次推送再次发布问题版本。

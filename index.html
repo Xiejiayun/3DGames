@@ -95,7 +95,8 @@
       .mast { padding-bottom: 4px; }
       .shelf-head { margin: 5px 0; }
       .grid { gap: 3px; }
-      .play { padding-block: 2px; }
+      .play { grid-template-columns: clamp(62px, 20vw, 96px) minmax(0, 1fr) auto; grid-template-areas: "art title cta" "art desc desc"; padding-block: 2px; }
+      .launch { padding-block: 2px; }
       footer { margin-top: 4px; }
     }
     @media (min-width: 500px) and (max-width: 639px) and (orientation: landscape) {

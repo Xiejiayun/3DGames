@@ -8,116 +8,374 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='8' fill='%23151c1e'/%3E%3Cpath d='m20 5 14 8-14 8-14-8z' fill='%23c9fa76'/%3E%3Cpath d='m6 16 12.5 7v13L6 29z' fill='%2388b352'/%3E%3Cpath d='m34 16-12.5 7v13L34 29z' fill='%23aed969'/%3E%3C/svg%3E">
   <style>
     :root {
-      --ink: #f2f5ee; --muted: #b6c2bf; --line: #364244; --panel: #1b2325; --lime: #c9fa76;
+      --bg: #0d1214;
+      --ink: #f3f7f0;
+      --muted: #a9b8b4;
+      --subtle: #7f908c;
+      --line: rgba(186, 212, 206, 0.13);
+      --line-strong: rgba(201, 250, 118, 0.45);
+      --panel: #172023;
+      --panel-top: #1d272b;
+      --panel-hover: #212e32;
+      --lime: #c9fa76;
+      --lime-soft: rgba(201, 250, 118, 0.11);
       --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
-      font: 100%/1.4 system-ui, "Segoe UI", "Microsoft YaHei", sans-serif; color: var(--ink); background: #101517;
+      font: 100%/1.45 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
     }
     *, *::before, *::after { box-sizing: border-box; }
-    body { margin: 0; min-height: 100svh; background: radial-gradient(ellipse at 82% 0, #23322980, transparent 40rem); }
+    body {
+      margin: 0;
+      min-height: 100svh;
+      background:
+        radial-gradient(ellipse 68% 48% at 86% -4%, rgba(201, 250, 118, 0.11), transparent 62%),
+        radial-gradient(ellipse 56% 44% at 8% 106%, rgba(56, 152, 136, 0.10), transparent 62%),
+        var(--bg);
+    }
     h1, h2, p { margin: 0; }
-    .shell { max-width: min(1480px, calc(270svh - 670px)); margin-inline: auto; padding: clamp(12px, 2svh, 24px) clamp(14px, 2.8vw, 46px) 10px; }
+    .shell {
+      width: 100%;
+      min-height: 100svh;
+      display: flex;
+      flex-direction: column;
+      padding: clamp(14px, 2svh, 24px) clamp(16px, 2.6vw, 44px) clamp(10px, 1.5svh, 18px);
+    }
     .mast, .identity, .langs, .shelf-head, .count, footer { display: flex; align-items: center; }
-    .mast { justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
-    .identity { gap: 10px; }
-    .mark { width: 31px; height: 31px; }
-    .wordmark { font: 850 1.06rem/1 system-ui, sans-serif; letter-spacing: .035em; }
+    .mast {
+      justify-content: space-between;
+      gap: 14px;
+      padding-bottom: clamp(10px, 1.4svh, 16px);
+      border-bottom: 1px solid var(--line);
+    }
+    .identity { gap: 11px; min-width: 0; }
+    .mark { width: 32px; height: 32px; flex: none; filter: drop-shadow(0 2px 10px rgba(201, 250, 118, 0.18)); }
+    .wordmark { font: 850 1.08rem/1 system-ui, sans-serif; letter-spacing: .04em; white-space: nowrap; }
     .imprint, .count, .tag, footer { font-family: var(--mono); }
-    .imprint { padding-left: 12px; border-left: 1px solid var(--line); font-size: .65rem; letter-spacing: .12em; color: var(--muted); }
-    .langs { gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 6px; }
-    .langs button { border: 0; border-radius: 3px; min-width: 39px; padding: 4px 8px; color: var(--muted); background: transparent; font: 650 .77rem/1.4 system-ui, sans-serif; cursor: pointer; }
-    .langs button[aria-pressed="true"] { background: var(--ink); color: #15201a; }
-    .shelf-head { justify-content: space-between; gap: 12px; margin: clamp(12px, 2.5svh, 26px) 0 clamp(10px, 1.7svh, 18px); }
-    h1 { font-size: clamp(1.7rem, 3.2vw, 3rem); line-height: 1.06; letter-spacing: -.035em; }
+    .imprint {
+      padding-left: 12px;
+      border-left: 1px solid var(--line);
+      font-size: .68rem;
+      letter-spacing: .12em;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .langs {
+      gap: 3px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.025);
+      flex: none;
+    }
+    .langs button {
+      border: 0;
+      border-radius: 5px;
+      min-width: 42px;
+      padding: 5px 10px;
+      color: var(--muted);
+      background: transparent;
+      font: 650 .78rem/1.35 system-ui, sans-serif;
+      cursor: pointer;
+      transition: background-color .15s, color .15s;
+    }
+    .langs button:hover { color: var(--ink); }
+    .langs button[aria-pressed="true"] { background: var(--ink); color: #121c16; }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      width: 100%;
+      max-width: min(100%, calc(338svh - 960px));
+      margin-inline: auto;
+      padding-block: clamp(10px, 1.8svh, 22px);
+    }
+    .shelf-head {
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 16px;
+      margin-bottom: clamp(12px, 2svh, 22px);
+    }
+    .hero-copy { display: flex; flex-direction: column; gap: clamp(3px, .5svh, 7px); min-width: 0; }
+    h1 {
+      font-size: clamp(1.75rem, 2.7vw, 2.85rem);
+      font-weight: 800;
+      line-height: 1.06;
+      letter-spacing: -.035em;
+    }
     .period { color: var(--lime); }
-    .count { gap: 8px; color: var(--muted); font-size: .76rem; white-space: nowrap; }
-    .count b { color: var(--lime); font-size: 1.04rem; font-variant-numeric: tabular-nums; }
-    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(8px, 1vw, 16px); }
+    .subtitle {
+      color: var(--muted);
+      font-size: clamp(.84rem, .96vw, .98rem);
+      line-height: 1.4;
+    }
+    .count {
+      gap: 8px;
+      padding: 6px 13px;
+      border: 1px solid rgba(201, 250, 118, 0.22);
+      border-radius: 999px;
+      background: var(--lime-soft);
+      color: var(--ink);
+      font-size: .76rem;
+      white-space: nowrap;
+      flex: none;
+    }
+    .count b { color: var(--lime); font-size: 1.02rem; font-variant-numeric: tabular-nums; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: clamp(12px, 1.3vw, 22px);
+    }
     .card { min-width: 0; }
     .play {
-      position: relative; display: grid; height: 100%; grid-template-columns: minmax(0, 1fr) auto;
-      grid-template-areas: "art art" "title cta" "desc desc"; grid-template-rows: auto auto 1fr;
-      align-content: start; column-gap: 5px; padding-bottom: 10px; border: 1px solid var(--line); border-radius: 9px;
-      color: inherit; background: var(--panel); text-decoration: none; transition: border-color .15s, background-color .15s;
+      position: relative;
+      display: grid;
+      height: 100%;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas: "art art" "title cta" "desc desc";
+      grid-template-rows: auto auto 1fr;
+      align-content: start;
+      column-gap: 8px;
+      padding-bottom: clamp(11px, 1.35svh, 16px);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: inherit;
+      background: linear-gradient(180deg, var(--panel-top) 0%, var(--panel) 100%);
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.26);
+      text-decoration: none;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
     }
-    .play:hover { border-color: #9ebb81; background-color: #222c2d; }
+    .play:hover {
+      transform: translateY(-3px);
+      border-color: var(--line-strong);
+      background: linear-gradient(180deg, #253338 0%, var(--panel-hover) 100%);
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.38), 0 0 0 1px rgba(201, 250, 118, 0.14);
+    }
     :is(.play, .langs button):focus-visible { outline: 3px solid var(--lime); outline-offset: 2px; }
-    .preview { position: relative; grid-area: art; align-self: start; }
-    .preview img { display: block; width: 100%; height: auto; aspect-ratio: 16/9; border-radius: 8px 8px 0 0; }
-    .tag { position: absolute; top: 8px; left: 8px; display: inline-flex; gap: 6px; align-items: center; padding: 3px 6px; border-radius: 3px; background: #101616e6; color: white; font-size: .63rem; font-weight: 650; letter-spacing: .02em; }
-    .tag b { color: var(--lime); font-size: .65rem; }
-    .card h2 { grid-area: title; align-self: center; margin: 9px 0 3px 12px; font-size: clamp(1rem, 1.4vw, 1.36rem); line-height: 1.3; letter-spacing: -.025em; }
-    .desc { grid-area: desc; align-self: start; margin: 1px 12px 0; color: var(--muted); font-size: .82rem; line-height: 1.38; }
-    .launch { grid-area: cta; align-self: center; justify-self: end; display: inline-flex; align-items: center; justify-content: center; gap: 5px; margin: 9px 12px 3px 0; padding: 4px 8px; color: var(--lime); background: #293524; border: 1px solid #536a40; border-radius: 5px; font-size: .71rem; line-height: 1.25; font-weight: 720; white-space: nowrap; }
-    .launch::before { content: ''; width: 0; height: 0; border-block: 4px solid transparent; border-left: 6px solid currentColor; }
-    .play:is(:hover, :focus-visible) .launch { color: #142012; background: var(--lime); border-color: var(--lime); }
-    footer { justify-content: space-between; gap: 10px; margin-top: 12px; color: #9daaa6; font-size: .65rem; letter-spacing: .04em; }
-    @media (min-width: 1000px) and (max-height: 720px) {
+    .preview {
+      position: relative;
+      grid-area: art;
+      align-self: start;
+      overflow: hidden;
+      border-radius: 11px 11px 0 0;
+      background: #0f1517;
+    }
+    .preview::after {
+      content: '';
+      position: absolute;
+      inset: auto 0 0;
+      height: 32%;
+      background: linear-gradient(to top, rgba(17, 24, 27, 0.65), transparent);
+      pointer-events: none;
+    }
+    .preview img {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 16/9;
+      transition: transform .28s ease;
+    }
+    .play:hover .preview img { transform: scale(1.03); }
+    .tag {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1;
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      padding: 4px 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      background: rgba(11, 16, 18, 0.78);
+      backdrop-filter: blur(8px);
+      color: #f4f7f2;
+      font-size: .66rem;
+      font-weight: 650;
+      letter-spacing: .02em;
+    }
+    .tag b { color: var(--lime); font-size: .68rem; }
+    .card h2 {
+      grid-area: title;
+      align-self: center;
+      margin: clamp(10px, 1.15svh, 15px) 0 4px clamp(12px, 1.1vw, 16px);
+      font-size: clamp(1.02rem, 1.32vw, 1.38rem);
+      font-weight: 740;
+      line-height: 1.25;
+      letter-spacing: -.025em;
+    }
+    .desc {
+      grid-area: desc;
+      align-self: start;
+      margin: 2px clamp(12px, 1.1vw, 16px) 0;
+      color: var(--muted);
+      font-size: clamp(.8rem, .86vw, .9rem);
+      line-height: 1.42;
+    }
+    .launch {
+      grid-area: cta;
+      align-self: center;
+      justify-self: end;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      margin: clamp(10px, 1.15svh, 15px) clamp(12px, 1.1vw, 16px) 4px 0;
+      padding: 5px 10px;
+      color: var(--lime);
+      background: rgba(201, 250, 118, 0.12);
+      border: 1px solid rgba(201, 250, 118, 0.36);
+      border-radius: 6px;
+      font-size: .74rem;
+      line-height: 1.25;
+      font-weight: 720;
+      white-space: nowrap;
+      transition: background-color .15s, color .15s, border-color .15s;
+    }
+    .launch::before {
+      content: '';
+      width: 0;
+      height: 0;
+      border-block: 4px solid transparent;
+      border-left: 6px solid currentColor;
+    }
+    .play:is(:hover, :focus-visible) .launch {
+      color: #132011;
+      background: var(--lime);
+      border-color: var(--lime);
+    }
+
+    footer {
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: auto;
+      padding-top: clamp(8px, 1.2svh, 14px);
+      border-top: 1px solid var(--line);
+      color: var(--subtle);
+      font-size: .68rem;
+      letter-spacing: .04em;
+    }
+
+    @media (min-width: 1000px) and (max-height: 760px) {
+      .shell { padding-block: 10px 8px; }
       .mast { padding-bottom: 8px; }
-      .shelf-head { margin: 8px 0; }
-      h1 { font-size: clamp(1.7rem, 2.4vw, 2.1rem); }
-      .grid { gap: 9px; }
-      .card h2 { font-size: 1.04rem; margin-block: 6px 2px; }
-      .launch { margin-block: 6px 2px; }
-      .play { padding-bottom: 7px; }
-      footer { margin-top: 7px; }
+      main { padding-block: 4px; max-width: min(100%, calc(345svh - 1050px)); }
+      .shelf-head { margin-bottom: 10px; align-items: center; }
+      .subtitle { display: none; }
+      h1 { font-size: clamp(1.6rem, 2.3vw, 2.15rem); }
+      .count { padding: 4px 11px; }
+      .grid { gap: 10px; }
+      .card h2 { font-size: 1.04rem; margin-block: 7px 2px; }
+      .desc { font-size: .78rem; line-height: 1.32; }
+      .launch { margin-block: 7px 2px; padding: 4px 8px; }
+      .play { padding-bottom: 8px; }
+      footer { padding-top: 7px; }
     }
     @media (min-width: 640px) and (max-width: 999px) {
-      .shell { max-width: 100%; }
+      main { max-width: 100%; }
       .grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
       .card { grid-column: span 2; }
       .card:nth-child(n+7) { grid-column: span 3; }
     }
     @media (max-width: 699px), (max-height: 650px), (min-width: 700px) and (max-width: 999px) and (min-aspect-ratio: 4/5) {
-      .shell { max-width: 1280px; padding: 10px clamp(8px, 2vw, 24px); }
+      .shell { padding: 10px clamp(10px, 2.2vw, 24px) 8px; }
       .mast { padding-bottom: 7px; }
       .mark { width: 24px; height: 24px; }
-      .shelf-head { margin: 10px 0 8px; }
-      h1 { font-size: 1.45rem; }
-      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(4px, .75svh, 8px); }
+      main { max-width: 100%; padding-block: 6px; }
+      .shelf-head { margin-bottom: 8px; align-items: center; }
+      .subtitle { display: none; }
+      h1 { font-size: 1.42rem; }
+      .count { padding: 3px 9px; font-size: .72rem; }
+      .count b { font-size: .92rem; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(5px, .8svh, 10px); }
       .grid > .card { grid-column: auto; }
-      .play { grid-template-columns: clamp(60px, 16vw, 138px) minmax(0, 1fr) auto; grid-template-areas: "art title cta" "art desc cta"; grid-template-rows: auto auto; align-content: center; column-gap: clamp(5px, 1.2vw, 12px); padding: 5px; }
-      .preview { align-self: center; }
-      .preview img { border-radius: 4px; }
-      .tag { display: none; }
-      .card h2 { align-self: end; margin: 0 0 2px; font-size: 1rem; }
-      .desc { margin: 0; font-size: .79rem; line-height: 1.22; }
-      .launch { margin: 0; padding: 6px 7px; }
-      footer { margin-top: 6px; }
+      .play {
+        grid-template-columns: clamp(64px, 16vw, 148px) minmax(0, 1fr) auto;
+        grid-template-areas: "art title cta" "art desc cta";
+        grid-template-rows: auto auto;
+        align-content: center;
+        column-gap: clamp(6px, 1.3vw, 12px);
+        padding: 6px;
+        border-radius: 9px;
+      }
+      .play:hover { transform: none; }
+      .preview { align-self: center; border-radius: 5px; }
+      .preview::after, .tag { display: none; }
+      .card h2 { align-self: end; margin: 0 0 2px; font-size: .98rem; }
+      .desc { margin: 0; font-size: .76rem; line-height: 1.24; }
+      .launch { margin: 0; padding: 5px 8px; font-size: .7rem; }
+      footer { padding-top: 6px; font-size: .64rem; }
     }
     @media (max-width: 639px) {
-      .grid { grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(clamp(46px, calc((100svh - 182px) / 8), 96px), auto); }
-      .play { grid-template-columns: clamp(62px, min(23vw, 26svh - 66px), 116px) minmax(0, 1fr) auto; column-gap: clamp(5px, 2vw, 10px); }
+      main { justify-content: flex-start; }
+      h1 { font-size: clamp(1.1rem, 4.6vw, 1.38rem); }
+      .grid {
+        grid-template-columns: minmax(0, 1fr);
+        grid-auto-rows: minmax(clamp(44px, calc((100svh - 212px) / 8), 88px), auto);
+      }
+      .play {
+        grid-template-columns: clamp(62px, min(23vw, 26svh - 66px), 112px) minmax(0, 1fr) auto;
+        grid-template-areas: "art title cta" "art desc desc";
+        column-gap: clamp(6px, 2vw, 10px);
+        padding: 4px 5px;
+      }
+      .card h2 { font-size: .92rem; }
+      .desc { font-size: .72rem; line-height: 1.2; }
       .imprint { display: none; }
-      .count { font-size: .69rem; }
+      .count { font-size: .68rem; }
+      footer { font-size: .6rem; }
     }
     @media (max-width: 639px) and (max-height: 700px) {
       .shell { padding-block: 5px; }
       .mast { padding-bottom: 4px; }
-      .shelf-head { margin: 5px 0; }
+      main { padding-block: 3px; }
+      .shelf-head { margin-bottom: 5px; }
       .grid { gap: 3px; }
-      .play { grid-template-columns: clamp(62px, 20vw, 96px) minmax(0, 1fr) auto; grid-template-areas: "art title cta" "art desc desc"; padding-block: 2px; }
-      .launch { padding-block: 2px; }
-      footer { margin-top: 4px; }
+      .play {
+        grid-template-columns: clamp(60px, 19vw, 94px) minmax(0, 1fr) auto;
+        grid-template-areas: "art title cta" "art desc desc";
+        padding-block: 2px;
+      }
+      .card h2 { font-size: .92rem; }
+      .desc { font-size: .72rem; line-height: 1.18; }
+      .launch { padding: 2px 6px; font-size: .68rem; }
+      footer { padding-top: 4px; }
     }
     @media (min-width: 500px) and (max-width: 639px) and (orientation: landscape) {
       .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: auto; }
       .play { grid-template-columns: 62px minmax(0, 1fr) auto; }
     }
     @media (max-width: 639px) and (max-height: 600px), (min-width: 500px) and (max-height: 500px) {
+      .shell { display: block; }
       .mast { float: right; padding: 0; border: 0; }
       .identity { display: none; }
-      .shelf-head { min-height: 30px; margin: 0 105px 4px 0; }
-      h1 { font-size: 1.15rem; }
+      main { display: block; padding-block: 0; }
+      .shelf-head { min-height: 28px; margin: 0 104px 4px 0; }
+      h1 { font-size: 1.04rem; }
+      .card h2 { font-size: .86rem; }
+      .desc { font-size: .69rem; line-height: 1.14; }
+      footer { margin-top: 3px; border-top: 0; padding-top: 0; }
     }
     @media (min-width: 500px) and (max-height: 500px) {
       .shell { padding: 5px 10px; }
       .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: auto; gap: 3px; }
-      .play { grid-template-columns: clamp(52px, min(9.5vw, 30svh - 22px), 100px) minmax(0, 1fr) auto; padding: 3px 4px; column-gap: 5px; }
-      .card h2 { font-size: .88rem; }
-      .desc { font-size: .74rem; }
-      .launch { padding: 5px; }
+      .play {
+        grid-template-columns: clamp(50px, min(9.5vw, 30svh - 22px), 96px) minmax(0, 1fr) auto;
+        padding: 3px 5px;
+        column-gap: 5px;
+      }
+      .card h2 { font-size: .86rem; }
+      .desc { font-size: .71rem; line-height: 1.16; }
+      .launch { padding: 4px 6px; font-size: .66rem; }
     }
-    @media (prefers-reduced-motion: reduce) { .play { transition: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      .play, .preview img, .launch, .langs button { transition: none; }
+      .play:hover { transform: none; }
+      .play:hover .preview img { transform: none; }
+    }
   </style>
 </head>
 <body>
@@ -125,7 +383,7 @@
     <header class="mast">
       <div class="identity" lang="en">
         <svg class="mark" viewBox="0 0 40 40" aria-hidden="true"><path fill="#c9fa76" d="m20 3 16 9-16 9-16-9z"/><path fill="#88b352" d="m4 15 14.5 8v15L4 30z"/><path fill="#aed969" d="m36 15-14.5 8v15L36 30z"/></svg>
-        <span class="wordmark">3D GAMES</span><span class="imprint">BROWSER ARCADE</span>
+        <span class="wordmark">3D GAMES</span><span class="imprint" data-en="BROWSER ARCADE">网页 3D 游戏厅</span>
       </div>
       <div class="langs" role="group" aria-label="语言 / Language">
         <button type="button" data-lang="zh" lang="zh-CN" aria-pressed="true">中文</button>
@@ -133,7 +391,13 @@
       </div>
     </header>
     <main>
-      <div class="shelf-head"><h1><span data-en="Pick a game">选一款，开玩</span><span class="period" aria-hidden="true">.</span></h1><span class="count"><b>08</b><span data-en="games to play">款游戏</span></span></div>
+      <div class="shelf-head">
+        <div class="hero-copy">
+          <h1><span data-en="Pick a game, play now">选一款，即刻开玩</span><span class="period" aria-hidden="true">.</span></h1>
+          <p class="subtitle" data-en="No downloads — instant 3D WebGL games right in your browser.">无需下载，打开浏览器即可畅玩 3D 实机游戏。</p>
+        </div>
+        <span class="count"><b>08</b><span data-en="playable games">款精选游戏</span></span>
+      </div>
       <div class="grid">
         <article class="card cs-card"><a class="play" href="games/cs.html" aria-labelledby="cs-cta cs-title" aria-describedby="cs-desc">
           <div class="preview">
@@ -141,75 +405,78 @@
             <span class="tag"><b>01</b><span data-en="Tactical FPS">战术射击</span></span>
           </div>
           <h2 id="cs-title" data-en="Midnight Port">午夜港口</h2>
-          <p class="desc" id="cs-desc" data-en="Fight through moonlit docks.">穿过集装箱，夺回夜色中的码头。</p>
+          <p class="desc" id="cs-desc" data-en="Clear moonlit container docks in tactical FPS combat.">潜入夜色集装箱码头，展开战术射击交火。</p>
           <span class="launch" id="cs-cta" data-en="Play">开始游戏</span>
         </a></article>
         <article class="card flappy-card"><a class="play" href="games/flappy.html" aria-labelledby="flappy-cta flappy-title" aria-describedby="flappy-desc">
           <div class="preview">
             <img src="assets/previews/flappy-bird.webp" width="960" height="540" alt="像素飞鸟实机画面：蓝色小鸟飞过绿色管道" data-alt-en="Flappy Bird 3D gameplay: a blue bird flies between green pipes">
-            <span class="tag"><b>02</b><span data-en="Arcade">街机飞行</span></span>
+            <span class="tag"><b>02</b><span data-en="3D Arcade">街机飞行</span></span>
           </div>
           <h2 id="flappy-title" data-en="Flappy Bird 3D">像素飞鸟</h2>
-          <p class="desc" id="flappy-desc" data-en="Flap through the gaps in the pipes.">轻点振翅，从水管缝隙中穿过。</p>
+          <p class="desc" id="flappy-desc" data-en="Thread 3D pipe gaps with well-timed flaps.">把握节奏轻点振翅，穿越立体管道冲击高分。</p>
           <span class="launch" id="flappy-cta" data-en="Play">开始游戏</span>
         </a></article>
         <article class="card kart-card"><a class="play" href="games/kart.html" aria-labelledby="kart-cta kart-title" aria-describedby="kart-desc">
           <div class="preview">
             <img src="assets/previews/turbo-kart.webp" width="960" height="540" alt="极速卡丁车实机画面：橙色卡丁车驶上海滨赛道" data-alt-en="Turbo Kart 3D gameplay: an orange kart races along the coast">
-            <span class="tag"><b>03</b><span data-en="Racing">卡丁竞速</span></span>
+            <span class="tag"><b>03</b><span data-en="3D Racing">卡丁竞速</span></span>
           </div>
           <h2 id="kart-title" data-en="Turbo Kart 3D">极速卡丁车</h2>
-          <p class="desc" id="kart-desc" data-en="Drift past rival karts.">漂移过弯，用道具反超对手。</p>
+          <p class="desc" id="kart-desc" data-en="Drift corners for boost and overtake rival karts.">漂移积攒氮气，巧用赛道道具反超对手。</p>
           <span class="launch" id="kart-cta" data-en="Play">开始游戏</span>
         </a></article>
         <article class="card ace-card"><a class="play" href="games/ace.html" aria-labelledby="ace-cta ace-title" aria-describedby="ace-desc">
           <div class="preview">
             <img src="assets/previews/ace-archipelago.webp" width="960" height="540" alt="王牌群岛实机画面：战机掠过黄昏的火山峡湾" data-alt-en="Ace Archipelago gameplay: a jet flies above a volcanic fjord at dusk">
-            <span class="tag"><b>04</b><span data-en="Air combat">海岛空战</span></span>
+            <span class="tag"><b>04</b><span data-en="Air Combat">海岛空战</span></span>
           </div>
           <h2 id="ace-title" data-en="Ace Archipelago">王牌群岛</h2>
-          <p class="desc" id="ace-desc" data-en="Chase jets over volcanic islands.">飞越火山群岛，追逐敌机。</p>
+          <p class="desc" id="ace-desc" data-en="Dogfight enemy jets over volcanic islands.">驾战机掠过火山群岛，追击敌方战机编队。</p>
           <span class="launch" id="ace-cta" data-en="Play">开始游戏</span>
         </a></article>
         <article class="card prism-card"><a class="play" href="games/prism.html" aria-labelledby="prism-cta prism-title" aria-describedby="prism-desc">
           <div class="preview">
             <img src="assets/previews/prism-vault.webp" width="960" height="540" alt="棱镜密室实机画面：红蓝光束穿行在两层悬空石廊" data-alt-en="Prism Vault gameplay: red and blue beams cross two levels of stone walkways">
-            <span class="tag"><b>05</b><span data-en="Light puzzles">光学解谜</span></span>
+            <span class="tag"><b>05</b><span data-en="Light Puzzle">光学解谜</span></span>
           </div>
           <h2 id="prism-title" data-en="Prism Vault">棱镜密室</h2>
-          <p class="desc" id="prism-desc" data-en="Turn mirrors to light up ten chambers.">转动镜面，让光束点亮十间密室。</p>
+          <p class="desc" id="prism-desc" data-en="Align mirrors and prisms across ten light chambers.">转动镜面与棱镜，折射光束点亮十间密室。</p>
           <span class="launch" id="prism-cta" data-en="Play">开始游戏</span>
         </a></article>
         <article class="card ironcore-card"><a class="play" href="games/ironcore.html" aria-labelledby="ironcore-cta ironcore-title" aria-describedby="ironcore-desc">
           <div class="preview">
             <img src="assets/previews/iron-core-arena.webp" width="960" height="540" alt="铁核竞技场实机画面：机甲迎战巨像，橙色预警铺开在地板上" data-alt-en="Iron Core Arena gameplay: a mech faces a colossus across an orange warning zone">
-            <span class="tag"><b>06</b><span data-en="Mech survival">机甲生存</span></span>
+            <span class="tag"><b>06</b><span data-en="Mech Survival">机甲生存</span></span>
           </div>
           <h2 id="ironcore-title" data-en="Iron Core Arena">铁核竞技场</h2>
-          <p class="desc" id="ironcore-desc" data-en="Pilot a mech through eight waves.">驾驶机甲守住八波攻势，波间改装。</p>
+          <p class="desc" id="ironcore-desc" data-en="Survive eight waves and upgrade your mech.">驾驶机甲守住八波攻势，波间自由改装武装。</p>
           <span class="launch" id="ironcore-cta" data-en="Play">开始游戏</span>
         </a></article>
         <article class="card skyhold-card"><a class="play" href="games/skyhold.html" aria-labelledby="skyhold-cta skyhold-title" aria-describedby="skyhold-desc">
           <div class="preview">
             <img src="assets/previews/skyhold-bastion.webp" width="960" height="540" alt="浮空要塞实机画面：木桥接上蜿蜒的山道，水晶坐落在浮岛高处" data-alt-en="Skyhold Bastion gameplay: a wooden bridge and winding paths lead up to the island crystal">
-            <span class="tag"><b>07</b><span data-en="Tower defense">浮岛塔防</span></span>
+            <span class="tag"><b>07</b><span data-en="Tower Defense">浮岛塔防</span></span>
           </div>
           <h2 id="skyhold-title" data-en="Skyhold Bastion">浮空要塞</h2>
-          <p class="desc" id="skyhold-desc" data-en="Build towers to guard the sky crystal.">在浮岛上布塔，守住山顶水晶。</p>
+          <p class="desc" id="skyhold-desc" data-en="Build five tower types to guard the sky crystal.">在浮岛排布防御塔，抵御陆空进攻守住水晶。</p>
           <span class="launch" id="skyhold-cta" data-en="Play">开始游戏</span>
         </a></article>
         <article class="card rift5v5-card"><a class="play" href="games/rift5v5.html" aria-labelledby="rift-cta rift-title" aria-describedby="rift-desc">
           <div class="preview">
             <img src="assets/previews/rift-of-champions.webp" width="960" height="540" alt="峡谷争锋实机画面：蓝方英雄带领小兵在河道与红方兵线交锋" data-alt-en="Rift of Champions gameplay: a blue hero and allied minions meet the red wave in the river">
-            <span class="tag"><b>08</b><span data-en="5v5 MOBA">5v5 人机推塔</span></span>
+            <span class="tag"><b>08</b><span data-en="5v5 MOBA">5v5 MOBA</span></span>
           </div>
           <h2 id="rift-title" data-en="Rift of Champions">峡谷争锋</h2>
-          <p class="desc" id="rift-desc" data-en="Take the core with bots (mouse + keys).">和 AI 推塔破水晶（需键鼠）。</p>
+          <p class="desc" id="rift-desc" data-en="Push lanes with AI bots to take the core (PC).">携手 AI 队友三路推塔，攻破主水晶（键鼠）。</p>
           <span class="launch" id="rift-cta" data-en="Play">开始游戏</span>
         </a></article>
       </div>
     </main>
-    <footer><span data-en="WebGL 2 browser required">需支持 WebGL 2 的浏览器</span><span lang="en">3DGames · MIT</span></footer>
+    <footer>
+      <span data-en="WebGL 2 browser required">需支持 WebGL 2 的浏览器</span>
+      <span lang="en">3DGames · Three.js · MIT</span>
+    </footer>
   </div>
   <script>
     const labels = [...document.querySelectorAll('[data-en]')].map(node => ({ node, zh: node.textContent, en: node.dataset.en }));

@@ -18,51 +18,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  ace:
-    name: Validate Ace WebGL
+  validate:
+    name: Validate site
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps --only-shell chromium
-      - run: npm run test:ace
-        env:
-          ACE_SCREENSHOTS: ${{ runner.temp }}/ace-screenshots
-      - name: Save Ace screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ace-3d-screenshots
-          path: ${{ runner.temp }}/ace-screenshots
-          retention-days: 7
-
-  prism:
-    name: Validate Prism WebGL
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      CF_SEND_TELEMETRY: "false"
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npm run build
-      - name: Check Prism Vault puzzles and controls
-        run: npm run test:prism
-
-  site:
-    name: Validate site content
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     env:
       CF_SEND_TELEMETRY: "false"
     steps:
@@ -81,6 +40,19 @@ jobs:
       - name: Install browser for 3D checks
         run: npx playwright install --with-deps chromium
 
+      - name: Check Ace WebGL scenes
+        run: npm run test:ace
+        env:
+          ACE_SCREENSHOTS: ${{ runner.temp }}/ace-screenshots
+
+      - name: Save Ace screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ace-3d-screenshots
+          path: ${{ runner.temp }}/ace-screenshots
+          retention-days: 7
+
       - name: Check kart 3D scenes
         run: npm run test:kart
         env:
@@ -93,6 +65,7 @@ jobs:
           name: kart-3d-screenshots
           path: ${{ runner.temp }}/kart-screenshots
           retention-days: 7
+
       - name: Check Flappy Bird 3D scenes
         run: npm run test:flappy
         env:
@@ -128,6 +101,9 @@ jobs:
       - name: Check homepage previews and navigation
         run: npm run test:home
 
+      - name: Check Prism Vault puzzles and controls
+        run: npm run test:prism
+
       - name: Check Iron Core Arena combat and camera
         run: npm run test:ironcore
 
@@ -140,24 +116,9 @@ jobs:
       - name: Validate deployment package (dry run, no upload)
         run: npx cf deploy --prebuilt --mode production --dry-run
 
-  validate:
-    name: Validate site
-    needs: [site, prism]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - name: Require both validation jobs to succeed
-        env:
-          SITE_RESULT: ${{ needs.site.result }}
-          PRISM_RESULT: ${{ needs.prism.result }}
-        run: |
-          printf 'Site: %s; Prism: %s\n' "$SITE_RESULT" "$PRISM_RESULT"
-          test "$SITE_RESULT" = success && test "$PRISM_RESULT" = success
-
   deploy:
     name: Deploy production (main only)
-    needs: [validate, ace]
+    needs: validate
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 10
